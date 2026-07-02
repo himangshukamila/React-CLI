@@ -220,6 +220,7 @@ anshh list -c
 | `react asset` | Create public asset folders |
 | `react watch` | Print frontend `fetch()` and browser Axios/XHR response logs |
 | `react push --git <url>` | Initialize Git, stage, commit, and push workspace to remote repo |
+| `react push --github <arg>` | Initialize/link to GitHub (if URL) or perform quick subsequent push (if message) |
 | `react set --font` | Scan public/fonts and configure @font-face and Tailwind fonts in src/index.css |
 | `react set --image` | Scan public/images and generate src/utils/images.js constants |
 | `pkg axios` | Install a package or alias inside an existing project |
@@ -491,6 +492,21 @@ This runs:
 
 If there are no changes to commit, it will output a warning skip tag (`⚠ skipped`) and safely proceed to push.
 
+#### Personal GitHub Push Shortcut (`--github`)
+
+For personal convenience, you can use the `--github` flag which handles both setup and updates automatically based on the input type:
+
+1. **Initial Push (GitHub URL input):**
+   ```bash
+   react push --github https://github.com/himangshukamila/demo.git
+   ```
+   This initializes git, stages all files, commits with message `"first commit"`, sets the branch to `main`, adds the remote `origin`, and pushes.
+
+2. **Subsequent Push (Commit message input):**
+   ```bash
+   react push --github "feat: update button layout"
+   ```
+   This stages all files, commits with the specified message, and runs `git push`.
 
 ## Package Installer
 

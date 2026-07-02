@@ -1920,69 +1920,125 @@ const createProject = async (name, options) => {
 }
 
 const gitPushWrapper = async (options) => {
-  const repoUrl = options.git
-  const commitMessage = options.message || (repoUrl ? 'first commit' : 'update')
-  
-  const gitDirExists = await pathExists(path.join(process.cwd(), '.git'))
-  
-  if (!gitDirExists && !repoUrl) {
-    fail('Error: This directory is not a Git repository. Please initialize it by providing the remote URL: react push --git <url>')
-  }
-
   const steps = []
+  let gitDirExists = await pathExists(path.join(process.cwd(), '.git'))
 
-  if (!gitDirExists) {
-    steps.push(
-      {
-        label: 'Initialize Git repository',
-        cmd: 'git',
-        args: ['init'],
-      },
-      {
-        label: 'Create and switch to main branch',
-        cmd: 'git',
-        args: ['checkout', '-b', 'main'],
-      },
-      {
-        label: 'Stage all files',
-        cmd: 'git',
-        args: ['add', '.'],
-      },
-      {
-        label: `Create first commit: "${commitMessage}"`,
-        cmd: 'git',
-        args: ['commit', '-m', commitMessage],
-      },
-      {
-        label: `Add remote origin (${repoUrl})`,
-        cmd: 'git',
-        args: ['remote', 'add', 'origin', repoUrl],
-      },
-      {
-        label: 'Push branch main to origin',
-        cmd: 'git',
-        args: ['push', '-u', 'origin', 'main'],
-      },
-    )
+  if (options.github) {
+    const isGitHubUrl = /^(https?:\/\/|git@|git:\/\/)/.test(options.github) || options.github.endsWith('.git')
+    
+    if (isGitHubUrl) {
+      steps.push(
+        {
+          label: 'Initialize Git repository',
+          cmd: 'git',
+          args: ['init'],
+        },
+        {
+          label: 'Stage all files',
+          cmd: 'git',
+          args: ['add', '.'],
+        },
+        {
+          label: 'Create first commit: "first commit"',
+          cmd: 'git',
+          args: ['commit', '-m', 'first commit'],
+        },
+        {
+          label: 'Rename branch to main',
+          cmd: 'git',
+          args: ['branch', '-M', 'main'],
+        },
+        {
+          label: `Add remote origin (${options.github})`,
+          cmd: 'git',
+          args: ['remote', 'add', 'origin', options.github],
+        },
+        {
+          label: 'Push branch main to origin',
+          cmd: 'git',
+          args: ['push', '-u', 'origin', 'main'],
+        },
+      )
+    } else {
+      steps.push(
+        {
+          label: 'Stage all files',
+          cmd: 'git',
+          args: ['add', '.'],
+        },
+        {
+          label: `Create commit: "${options.github}"`,
+          cmd: 'git',
+          args: ['commit', '-m', options.github],
+        },
+        {
+          label: 'Push changes',
+          cmd: 'git',
+          args: ['push'],
+        },
+      )
+    }
   } else {
-    // Subsequent update
-    steps.push(
-      {
-        label: 'Stage all files',
-        cmd: 'git',
-        args: ['add', '.'],
-      },
-      {
-        label: `Create commit: "${commitMessage}"`,
-        cmd: 'git',
-        args: ['commit', '-m', commitMessage],
-      },
-      {
-        label: 'Push branch main to origin',
-        cmd: 'git',
-        args: ['push', '-u', 'origin', 'main'],
-      },
-    )
+    const repoUrl = options.git
+    const commitMessage = options.message || (repoUrl ? 'first commit' : 'update')
+    
+    if (!gitDirExists && !repoUrl) {
+      fail('Error: This directory is not a Git repository. Please initialize it by providing the remote URL: react push --git <url>')
+    }
+
+    if (!gitDirExists) {
+      steps.push(
+        {
+          label: 'Initialize Git repository',
+          cmd: 'git',
+          args: ['init'],
+        },
+        {
+          label: 'Create and switch to main branch',
+          cmd: 'git',
+          args: ['checkout', '-b', 'main'],
+        },
+        {
+          label: 'Stage all files',
+          cmd: 'git',
+          args: ['add', '.'],
+        },
+        {
+          label: `Create first commit: "${commitMessage}"`,
+          cmd: 'git',
+          args: ['commit', '-m', commitMessage],
+        },
+        {
+          label: `Add remote origin (${repoUrl})`,
+          cmd: 'git',
+          args: ['remote', 'add', 'origin', repoUrl],
+        },
+        {
+          label: 'Push branch main to origin',
+          cmd: 'git',
+          args: ['push', '-u', 'origin', 'main'],
+        },
+      )
+    } else {
+      // Subsequent update
+      steps.push(
+        {
+          label: 'Stage all files',
+          cmd: 'git',
+          args: ['add', '.'],
+        },
+        {
+          label: `Create commit: "${commitMessage}"`,
+          cmd: 'git',
+          args: ['commit', '-m', commitMessage],
+        },
+        {
+          label: 'Push branch main to origin',
+          cmd: 'git',
+          args: ['push', '-u', 'origin', 'main'],
+        },
+      )
+    }
   }
 
   section('git setup & push', gitDirExists ? 'pushing updates' : 'linking workspace to remote')
@@ -2108,6 +2164,7 @@ program
   .command('push')
   .description('Initialize Git and push the current workspace to a remote repository')
   .option('--git <url>', 'Git remote repository URL (origin)')
+  .option('--github <arg>', 'Git remote repository URL or subsequent push commit message')
   .option('-m, --message <message>', 'Git commit message')
   .action(gitPushWrapper)
 
