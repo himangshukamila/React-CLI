@@ -1,0 +1,23 @@
+{
+  "name": "react-setup-cli",
+  "version": "1.0.0",
+  "description": "Scaffold a Vite + React project with optional packages",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "bin": {
+    "anshh": "./bin/index.js",
+    "react": "./bin/index.js",
+    "pkg": "./bin/get.js"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.7.0",
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "execa": "^8.0.1",
+    "fs-extra": "^11.2.0",
+    "ora": "^7.0.1"
+  }
+}
