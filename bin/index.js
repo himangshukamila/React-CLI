@@ -700,10 +700,12 @@ const configureIndexHtml = async (projectPath, projectName) => {
     let content = await readFile(indexHtmlPath)
     
     // Replace default icon link with custom brand favicon using robust regex
-    content = content.replace(
-      /<link\s+[^>]*href=["']\/vite\.svg["'][^>]*\/?>/i,
-      '<link rel="icon" type="image/svg+xml" href="/favicon.svg" />'
-    )
+    const iconRegex = /<link\s+[^>]*href=["']\/?vite\.svg["'][^>]*\/?>/i
+    if (iconRegex.test(content)) {
+      content = content.replace(iconRegex, '<link rel="icon" type="image/svg+xml" href="/favicon.svg" />')
+    } else {
+      content = content.replace(/(<link\s+[^>]*href=["'])\/?vite\.svg(["'][^>]*\/?>)/i, '$1/favicon.svg$2')
+    }
     
     // Customize page title using robust regex matching any title content
     const formattedTitle = projectName.charAt(0).toUpperCase() + projectName.slice(1)
@@ -1327,6 +1329,19 @@ const createAssetFolders = async () => {
   }
 }
 
+const escapeRegExp = (string) => {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+const getRelativeUrlPath = (filePath) => {
+  const normalizedPath = filePath.replace(/\\/g, '/')
+  const publicIndex = normalizedPath.toLowerCase().lastIndexOf('/public/')
+  if (publicIndex !== -1) {
+    return '/' + normalizedPath.slice(publicIndex + 8)
+  }
+  return '/' + path.basename(filePath)
+}
+
 const getFontFiles = async (dir, filesList = []) => {
   const entries = await readDir(dir).catch(() => [])
   for (const entry of entries) {
@@ -1404,9 +1419,11 @@ const configureFontAssets = async () => {
 
     for (const filePath of fontFiles) {
       const ext = path.extname(filePath).toLowerCase()
-      const relativeUrlPath = '/' + path.relative(path.join(process.cwd(), 'public'), filePath).replace(/\\/g, '/')
+      const relativeUrlPath = getRelativeUrlPath(filePath)
       
-      if (cssContent.includes(relativeUrlPath)) {
+      const escapedPath = escapeRegExp(relativeUrlPath)
+      const urlRegex = new RegExp(`url\\(['"]?${escapedPath}['"]?\\)`, 'i')
+      if (urlRegex.test(cssContent)) {
         continue
       }
 
@@ -1530,7 +1547,7 @@ const configureImageAssets = async () => {
     const imageMap = {}
     for (const filePath of imageFiles) {
       const key = getImageKey(filePath, imagesDir)
-      const relativeUrlPath = '/images/' + path.relative(imagesDir, filePath).replace(/\\/g, '/')
+      const relativeUrlPath = getRelativeUrlPath(filePath)
       imageMap[key] = relativeUrlPath
       pass(`mapped image: ${key} ➔ ${relativeUrlPath}`)
     }
