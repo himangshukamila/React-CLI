@@ -1353,15 +1353,6 @@ const escapeRegExp = (string) => {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-// Escape a value for safe insertion inside a quoted CSS string (font-family, url()).
-const escapeCssString = (value) =>
-  Array.from(String(value))
-    .map((ch) => (ch.charCodeAt(0) < 0x20 || ch.charCodeAt(0) === 0x7f ? ' ' : ch))
-    .join('')
-    .replace(/\\/g, '\\\\')
-    .replace(/'/g, "\\'")
-    .replace(/"/g, '\\"')
-
 const getRelativeUrlPath = (filePath) => {
   const normalizedPath = filePath.replace(/\\/g, '/')
   const publicIndex = normalizedPath.toLowerCase().lastIndexOf('/public/')
@@ -1409,12 +1400,7 @@ const getFontFamily = (filePath) => {
 }
 
 const getFontSlug = (family) => {
-  return family
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
+  return family.toLowerCase().replace(/\s+/g, '-')
 }
 
 const getFontFormat = (ext) => {
@@ -1485,8 +1471,8 @@ const configureFontAssets = async () => {
 
       const faceBlock = `
 @font-face {
-  font-family: '${escapeCssString(family)}';
-  src: url('${escapeCssString(relativeUrlPath)}') ${formatStr};
+  font-family: '${family}';
+  src: url('${relativeUrlPath}') ${formatStr};
   font-weight: ${weight};
   font-style: ${style};
 }`
@@ -1496,7 +1482,7 @@ const configureFontAssets = async () => {
         themeBlock = `
 
 @theme {
-  --font-${slug}: "${escapeCssString(family)}", sans-serif;
+  --font-${slug}: "${family}", sans-serif;
 }`
       }
 
@@ -1590,7 +1576,7 @@ const configureImageAssets = async () => {
     const sortedKeys = Object.keys(imageMap).sort()
     let jsContent = 'export const images = {\n'
     for (const key of sortedKeys) {
-      jsContent += `  ${key}: ${JSON.stringify(imageMap[key])},\n`
+      jsContent += `  ${key}: '${imageMap[key]}',\n`
     }
     jsContent += '}\n'
 
@@ -1625,13 +1611,6 @@ const sendJson = (res, statusCode, payload) => {
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
   })
   res.end(JSON.stringify(payload))
-}
-
-// Reject requests whose Host header is not loopback — blocks DNS-rebinding attacks
-// where a remote page rebinds its domain to 127.0.0.1 to reach these local servers.
-const isAllowedHost = (req, port) => {
-  const host = req.headers.host
-  return host === `127.0.0.1:${port}` || host === `localhost:${port}`
 }
 
 const findLocalPort = (preferredPort) => new Promise((resolve, reject) => {
@@ -1683,11 +1662,6 @@ const collectSetupUiSelections = async ({ displayName }) => {
     server = http.createServer(async (req, res) => {
       try {
         const url = new URL(req.url || '/', `http://127.0.0.1:${port}`)
-
-        if (!isAllowedHost(req, port)) {
-          sendJson(res, 403, { ok: false, error: 'Invalid host header' })
-          return
-        }
 
         if (req.method === 'OPTIONS') {
           sendJson(res, 204, {})
@@ -1782,32 +1756,20 @@ const collectSetupUiSelections = async ({ displayName }) => {
   return selections
 }
 
-// Strip ANSI/escape and other control bytes so attacker-controlled log payloads
-// cannot inject terminal escape sequences (title/clipboard/output spoofing).
-const sanitizeForTerminal = (value) =>
-  Array.from(String(value))
-    .map((ch) => {
-      const code = ch.charCodeAt(0)
-      if (code === 9 || code === 10) return ch
-      if (code < 0x20 || (code >= 0x7f && code <= 0x9f)) return ''
-      return ch
-    })
-    .join('')
-
 const printFrontendLog = (payload) => {
   const ok = payload.ok === true
-  const status = ok ? chalk.green(sanitizeForTerminal(payload.status)) : chalk.red(sanitizeForTerminal(payload.status))
-  const method = chalk.hex('#6FA8DC').bold(sanitizeForTerminal(String(payload.method || 'GET').toUpperCase()))
-  const duration = chalk.gray(`${Number(payload.durationMs) || 0}ms`)
-  const url = chalk.white(sanitizeForTerminal(String(payload.url || 'unknown url')))
+  const status = ok ? chalk.green(payload.status) : chalk.red(payload.status)
+  const method = chalk.hex('#6FA8DC').bold(String(payload.method || 'GET').toUpperCase())
+  const duration = chalk.gray(`${payload.durationMs || 0}ms`)
+  const url = chalk.white(String(payload.url || 'unknown url'))
   const time = chalk.gray(new Date().toLocaleTimeString())
 
   console.log(`${time} ${method} ${status} ${duration}`)
   console.log(`${muted('url')}      ${url}`)
 
   if (payload.response) {
-    console.log(`${muted(sanitizeForTerminal(payload.bodyLabel || 'response'))}`)
-    sanitizeForTerminal(String(payload.response))
+    console.log(`${muted(payload.bodyLabel || 'response')}`)
+    String(payload.response)
       .split('\n')
       .forEach((line) => console.log(`  ${chalk.white(line)}`))
   }
@@ -1830,11 +1792,6 @@ const watchFrontendLogs = async () => {
     const port = await findWatchPort(watchPortStart)
     const server = http.createServer(async (req, res) => {
       try {
-        if (!isAllowedHost(req, port)) {
-          sendJson(res, 403, { error: 'Invalid host header' })
-          return
-        }
-
         if (req.method === 'OPTIONS') {
           sendJson(res, 204, {})
           return
@@ -2000,26 +1957,14 @@ const createProject = async (name, options) => {
   }
 }
 
-// Reject git remote-helper transports (ext::, fd::, <transport>::) that let a
-// remote URL execute arbitrary commands. Allow only standard git transports.
-const isSafeRemoteUrl = (url) => {
-  if (typeof url !== 'string' || !url.trim()) return false
-  if (url.includes('::')) return false
-  if (Array.from(url).some((ch) => ch.charCodeAt(0) < 0x20 || ch.charCodeAt(0) === 0x7f)) return false
-  return /^(https?|git|ssh):\/\//i.test(url) || /^[\w.-]+@[\w.-]+:.+$/.test(url)
-}
-
 const gitPushWrapper = async (options) => {
   const steps = []
   let gitDirExists = await pathExists(path.join(process.cwd(), '.git'))
 
   if (options.github) {
     const isGitHubUrl = /^(https?:\/\/|git@|git:\/\/)/.test(options.github) || options.github.endsWith('.git')
-
+    
     if (isGitHubUrl) {
-      if (!isSafeRemoteUrl(options.github)) {
-        fail('Unsafe git remote URL. Use an https://, ssh://, git:// or git@host:path URL.')
-      }
       steps.push(
         {
           label: 'Initialize Git repository',
@@ -2074,11 +2019,7 @@ const gitPushWrapper = async (options) => {
   } else {
     const repoUrl = options.git
     const commitMessage = options.message || (repoUrl ? 'first commit' : 'update')
-
-    if (repoUrl && !isSafeRemoteUrl(repoUrl)) {
-      fail('Unsafe git remote URL. Use an https://, ssh://, git:// or git@host:path URL.')
-    }
-
+    
     if (!gitDirExists && !repoUrl) {
       fail('Error: This directory is not a Git repository. Please initialize it by providing the remote URL: react push --git <url>')
     }

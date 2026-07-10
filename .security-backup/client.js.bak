@@ -79,55 +79,26 @@ const formatBody = (text, contentType) => {
   }
 }
 
-let activePort = null
-let portDiscovery = null
-
-// Find the single port the watch server is actually listening on via its /health
-// endpoint, instead of broadcasting response bodies to every candidate port.
-const discoverPort = async () => {
-  for (const port of WATCH_PORTS) {
-    try {
-      const res = await originalFetch(`http://127.0.0.1:${port}/health`, { method: 'GET' })
-      if (res.ok) return port
-    } catch {
-      // Not this port.
-    }
-  }
-  return null
-}
-
-const resolveActivePort = () => {
-  if (activePort !== null) return Promise.resolve(activePort)
-  if (!portDiscovery) {
-    portDiscovery = discoverPort().then((port) => {
-      activePort = port
-      portDiscovery = null
-      return port
-    })
-  }
-  return portDiscovery
-}
-
 const sendLog = async (payload) => {
   if (Date.now() < mutedUntil) return
 
-  const port = await resolveActivePort()
-  if (port === null) {
-    mutedUntil = Date.now() + 1500
-    return
+  const body = JSON.stringify(payload)
+  let delivered = false
+
+  for (const port of WATCH_PORTS) {
+    try {
+      await originalFetch(`http://127.0.0.1:${port}/api/frontend-logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      })
+      delivered = true
+    } catch {
+      // react watch is optional and may not be running.
+    }
   }
 
-  try {
-    await originalFetch(`http://127.0.0.1:${port}/api/frontend-logs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-  } catch {
-    // Server went away — re-probe next time and briefly back off.
-    activePort = null
-    mutedUntil = Date.now() + 1500
-  }
+  if (!delivered) mutedUntil = Date.now() + 1500
 }
 
 const readXhrBody = (xhr) => {
