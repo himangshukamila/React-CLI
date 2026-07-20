@@ -11,6 +11,7 @@ import { execa } from 'execa'
 import fs from 'fs-extra'
 import {
   configureEnv,
+  ensureGitignoreWithEnv,
   copyFile,
   createPackageHandlers,
   ensureDir,
@@ -2691,6 +2692,8 @@ const createProject = async (name, options) => {
       await progress.step(async () => {
         await configureEnv(projectPath)
       })
+    } else {
+      await ensureGitignoreWithEnv(projectPath)
     }
 
     await progress.step(async () => {})
