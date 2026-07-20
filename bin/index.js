@@ -110,13 +110,38 @@ const setupLaunchChoices = [
   { value: 'runDevServer', label: 'Run npm run dev after setup', hint: '--host 0.0.0.0' },
 ]
 
-const section = (label, meta = '') => {
-  const rule = muted('·'.repeat(54))
-  console.log(`\n${accent(label.toUpperCase())} ${rule} ${muted(meta)}`)
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const typePrint = async (text, speedMs = 6) => {
+  if (!text) return
+  if (!process.stdout.isTTY) {
+    console.log(text)
+    return
+  }
+
+  const parts = text.split(/(\x1B\[[0-9;]*[A-Za-z])/g)
+
+  for (const part of parts) {
+    if (!part) continue
+    if (part.startsWith('\x1B[')) {
+      process.stdout.write(part)
+    } else {
+      for (let i = 0; i < part.length; i++) {
+        process.stdout.write(part[i])
+        await sleep(speedMs)
+      }
+    }
+  }
+  process.stdout.write('\n')
 }
 
-const row = (label, value, hint = '') => {
-  console.log(`${muted(label.padEnd(12))}${strong(value)} ${hint ? muted(` ${hint}`) : ''}`)
+const section = async (label, meta = '') => {
+  const rule = muted('·'.repeat(54))
+  await typePrint(`\n${accent(label.toUpperCase())} ${rule} ${muted(meta)}`, 6)
+}
+
+const row = async (label, value, hint = '') => {
+  await typePrint(`${muted(label.padEnd(12))}${strong(value)} ${hint ? muted(` ${hint}`) : ''}`, 6)
 }
 
 const printCommandReference = () => {
@@ -449,8 +474,8 @@ const printConfigPreview = () => {
   row('package mgr', 'npm')
 }
 
-const fail = (message) => {
-  console.error(chalk.red(message))
+const fail = async (message) => {
+  await typePrint(chalk.red(message), 6)
   process.exit(1)
 }
 
@@ -845,12 +870,12 @@ const printSummary = ({ displayName, selectedFolders, selectedSetup, commandTarg
   ].join('\n'))
 }
 
-const pass = (message, hint = '') => {
-  console.log(`${chalk.green('✓')} ${strong(message)} ${hint ? muted(hint) : ''}`)
+const pass = async (message, hint = '') => {
+  await typePrint(`${chalk.green('✓')} ${strong(message)} ${hint ? muted(hint) : ''}`, 6)
 }
 
-const warn = (message, hint = '') => {
-  console.log(`${chalk.yellow('!')} ${strong(message)} ${hint ? muted(hint) : ''}`)
+const warn = async (message, hint = '') => {
+  await typePrint(`${chalk.yellow('!')} ${strong(message)} ${hint ? muted(hint) : ''}`, 6)
 }
 
 const readCurrentPackageJson = async () => {
@@ -2835,10 +2860,11 @@ const gitPushWrapper = async (options) => {
       
       readline.clearLine(process.stdout, 0)
       readline.cursorTo(process.stdout, 0)
-      console.log(`${chalk.green('✔ success')}  ${displayLabel}`)
+      await typePrint(`${chalk.green('✔ success')}  ${displayLabel}`, 6)
       
       if (result.stdout && result.stdout.trim()) {
-        console.log(result.stdout.trim().split('\n').map(line => `${muted('  │')} ${muted(line)}`).join('\n'))
+        const lines = result.stdout.trim().split('\n').map(line => `${muted('  │')} ${muted(line)}`).join('\n')
+        await typePrint(lines, 4)
       }
     } catch (error) {
       readline.clearLine(process.stdout, 0)
@@ -2846,22 +2872,22 @@ const gitPushWrapper = async (options) => {
       
       // Handle nothing to commit scenario gracefully
       if (step.args.includes('commit') && (error.stdout || error.message || '').includes('nothing to commit')) {
-        console.log(`${chalk.yellow('⚠ skipped')}  ${displayLabel} (nothing to commit, working tree clean)`)
+        await typePrint(`${chalk.yellow('⚠ skipped')}  ${displayLabel} (nothing to commit, working tree clean)`, 6)
         continue
       }
 
-      console.log(`${chalk.red('✖ failed')}   ${displayLabel}`)
-      console.error(chalk.red(`\nError: Command failed: ${cmdStr}`))
-      console.error(chalk.red(`${error.stderr || error.message}\n`))
+      await typePrint(`${chalk.red('✖ failed')}   ${displayLabel}`, 6)
+      await typePrint(chalk.red(`\nError: Command failed: ${cmdStr}`), 6)
+      await typePrint(chalk.red(`${error.stderr || error.message}\n`), 6)
       
       if (step.args.includes('remote') && step.args.includes('add')) {
-        console.error(chalk.yellow(`Tip: If remote "origin" already exists, run 'git remote remove origin' first.`))
+        await typePrint(chalk.yellow(`Tip: If remote "origin" already exists, run 'git remote remove origin' first.`), 6)
       }
       process.exit(1)
     }
   }
 
-  console.log(`\n${chalk.green.bold('✔ Project successfully pushed to Git remote!')}`)
+  await typePrint(`\n${chalk.green.bold('✔ Project successfully pushed to Git remote!')}`, 6)
 }
 
 const program = new Command()
