@@ -38,7 +38,7 @@ const featureFlags = ['env', 'watch']
 const setupFlags = [...packageFlags, ...featureFlags]
 const folderFlags = featureFlags
 const accent = chalk.hex('#00E5FF').bold
-const muted = chalk.hex('#94A3B8')
+const muted = chalk.hex('#679fefff')
 const strong = chalk.bold.whiteBright
 
 const commandReference = [
