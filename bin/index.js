@@ -112,7 +112,7 @@ const setupLaunchChoices = [
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
-const typePrint = async (text, speedMs = 6) => {
+const typeText = async (text, typingSpeed = 12) => {
   if (!text) return
   if (!process.stdout.isTTY) {
     console.log(text)
@@ -128,20 +128,20 @@ const typePrint = async (text, speedMs = 6) => {
     } else {
       for (let i = 0; i < part.length; i++) {
         process.stdout.write(part[i])
-        await sleep(speedMs)
+        await sleep(typingSpeed)
       }
     }
   }
   process.stdout.write('\n')
 }
 
-const section = async (label, meta = '') => {
+const section = (label, meta = '') => {
   const rule = muted('·'.repeat(54))
-  await typePrint(`\n${accent(label.toUpperCase())} ${rule} ${muted(meta)}`, 6)
+  console.log(`\n${accent(label.toUpperCase())} ${rule} ${muted(meta)}`)
 }
 
-const row = async (label, value, hint = '') => {
-  await typePrint(`${muted(label.padEnd(12))}${strong(value)} ${hint ? muted(` ${hint}`) : ''}`, 6)
+const row = (label, value, hint = '') => {
+  console.log(`${muted(label.padEnd(12))}${strong(value)} ${hint ? muted(` ${hint}`) : ''}`)
 }
 
 const printCommandReference = () => {
@@ -474,8 +474,8 @@ const printConfigPreview = () => {
   row('package mgr', 'npm')
 }
 
-const fail = async (message) => {
-  await typePrint(chalk.red(message), 6)
+const fail = (message) => {
+  console.error(chalk.red(message))
   process.exit(1)
 }
 
@@ -870,12 +870,12 @@ const printSummary = ({ displayName, selectedFolders, selectedSetup, commandTarg
   ].join('\n'))
 }
 
-const pass = async (message, hint = '') => {
-  await typePrint(`${chalk.green('✓')} ${strong(message)} ${hint ? muted(hint) : ''}`, 6)
+const pass = (message, hint = '') => {
+  console.log(`${chalk.green('✓')} ${strong(message)} ${hint ? muted(hint) : ''}`)
 }
 
-const warn = async (message, hint = '') => {
-  await typePrint(`${chalk.yellow('!')} ${strong(message)} ${hint ? muted(hint) : ''}`, 6)
+const warn = (message, hint = '') => {
+  console.log(`${chalk.yellow('!')} ${strong(message)} ${hint ? muted(hint) : ''}`)
 }
 
 const readCurrentPackageJson = async () => {
@@ -1784,7 +1784,7 @@ const configureFontAssets = async () => {
     }
 
     await writeFile(indexCssPath, updatedCss)
-    console.log(chalk.green.bold('\n✔ src/index.css successfully updated with custom font classes!'))
+    await typeText(chalk.green.bold('\n✔ src/index.css successfully updated with custom font classes!'))
   } catch (error) {
     fail(error.message)
   }
@@ -1872,7 +1872,7 @@ const configureImageAssets = async () => {
 
     await ensureDir(utilsDir)
     await writeFile(imagesJsPath, jsContent)
-    console.log(chalk.green.bold('\n✔ src/utils/images.js successfully generated with custom image constants!'))
+    await typeText(chalk.green.bold('\n✔ src/utils/images.js successfully generated with custom image constants!'))
   } catch (error) {
     fail(error.message)
   }
@@ -2860,11 +2860,10 @@ const gitPushWrapper = async (options) => {
       
       readline.clearLine(process.stdout, 0)
       readline.cursorTo(process.stdout, 0)
-      await typePrint(`${chalk.green('✔ success')}  ${displayLabel}`, 6)
+      await typeText(`${chalk.green('✔ success')}  ${displayLabel}`)
       
       if (result.stdout && result.stdout.trim()) {
-        const lines = result.stdout.trim().split('\n').map(line => `${muted('  │')} ${muted(line)}`).join('\n')
-        await typePrint(lines, 4)
+        console.log(result.stdout.trim().split('\n').map(line => `${muted('  │')} ${muted(line)}`).join('\n'))
       }
     } catch (error) {
       readline.clearLine(process.stdout, 0)
@@ -2872,22 +2871,22 @@ const gitPushWrapper = async (options) => {
       
       // Handle nothing to commit scenario gracefully
       if (step.args.includes('commit') && (error.stdout || error.message || '').includes('nothing to commit')) {
-        await typePrint(`${chalk.yellow('⚠ skipped')}  ${displayLabel} (nothing to commit, working tree clean)`, 6)
+        await typeText(`${chalk.yellow('⚠ skipped')}  ${displayLabel} (nothing to commit, working tree clean)`)
         continue
       }
 
-      await typePrint(`${chalk.red('✖ failed')}   ${displayLabel}`, 6)
-      await typePrint(chalk.red(`\nError: Command failed: ${cmdStr}`), 6)
-      await typePrint(chalk.red(`${error.stderr || error.message}\n`), 6)
+      await typeText(`${chalk.red('✖ failed')}   ${displayLabel}`)
+      console.error(chalk.red(`\nError: Command failed: ${cmdStr}`))
+      console.error(chalk.red(`${error.stderr || error.message}\n`))
       
       if (step.args.includes('remote') && step.args.includes('add')) {
-        await typePrint(chalk.yellow(`Tip: If remote "origin" already exists, run 'git remote remove origin' first.`), 6)
+        console.error(chalk.yellow(`Tip: If remote "origin" already exists, run 'git remote remove origin' first.`))
       }
       process.exit(1)
     }
   }
 
-  await typePrint(`\n${chalk.green.bold('✔ Project successfully pushed to Git remote!')}`, 6)
+  await typeText(`\n${chalk.green.bold('✔ Project successfully pushed to Git remote!')}`)
 }
 
 const program = new Command()
