@@ -140,12 +140,12 @@ const typeText = async (text, typingSpeed = 12) => {
 }
 
 const section = (label, meta = '') => {
-  const rule = muted('·'.repeat(54))
-  console.log(`\n${accent(label.toUpperCase())} ${rule} ${muted(meta)}`)
+  const rule = chalk.hex('#6366F1')('·'.repeat(54))
+  console.log(`\n${accent(label.toUpperCase())} ${rule} ${chalk.hex('#94A3B8')(meta)}`)
 }
 
 const row = (label, value, hint = '') => {
-  console.log(`${muted(label.padEnd(12))}${strong(value)} ${hint ? muted(` ${hint}`) : ''}`)
+  console.log(`${chalk.hex('#38BDF8')(label.padEnd(12))}${strong(value)} ${hint ? chalk.hex('#94A3B8')(` ${hint}`) : ''}`)
 }
 
 const printCommandReference = () => {
@@ -153,10 +153,10 @@ const printCommandReference = () => {
 
   const commandWidth = Math.max(...commandReference.map(([command]) => command.length)) + 2
   commandReference.forEach(([command, purpose]) => {
-    console.log(`${accent(command.padEnd(commandWidth))}${chalk.white(purpose)}`)
+    console.log(`${chalk.hex('#00E5FF').bold(command.padEnd(commandWidth))}${chalk.whiteBright(purpose)}`)
   })
 
-  console.log(`\n${muted('alias')}    ${chalk.white('anshh can be used instead of react if you linked the personal alias.')}`)
+  console.log(`\n${chalk.hex('#F59E0B').bold('alias')}    ${chalk.whiteBright('anshh can be used instead of react if you linked the personal alias.')}`)
 }
 
 const printBanner = () => {
@@ -498,7 +498,7 @@ const printConfigPreview = () => {
 }
 
 const fail = (message) => {
-  console.error(chalk.red(message))
+  console.error(`${chalk.hex('#EF4444').bold('✖ Error:')} ${chalk.hex('#FCA5A5')(message)}`)
   process.exit(1)
 }
 
@@ -885,11 +885,11 @@ const printSummary = ({ displayName, selectedFolders, selectedSetup, commandTarg
   const setup = selectedSetup.length > 0 ? selectedSetup.join(', ') : 'none'
 
   outro([
-    `${chalk.hex('#D97757')('READY')} ${chalk.gray('project scaffold complete')}`,
-    `${chalk.gray('project')}  ${chalk.white(displayName)}`,
-    `${chalk.gray('modules')}  ${chalk.white(setup)}`,
-    `${chalk.gray('folders')}  ${chalk.white(folders)}`,
-    `${chalk.gray('launch')}   ${chalk.white(`cd ${commandTarget} && npm run dev`)}`,
+    `${chalk.hex('#10B981').bold('✔ READY')} ${chalk.hex('#94A3B8')('project scaffold complete')}`,
+    `${chalk.hex('#38BDF8')('project')}  ${chalk.bold.whiteBright(displayName)}`,
+    `${chalk.hex('#38BDF8')('modules')}  ${chalk.hex('#A855F7')(setup)}`,
+    `${chalk.hex('#38BDF8')('folders')}  ${chalk.hex('#A855F7')(folders)}`,
+    `${chalk.hex('#38BDF8')('launch')}   ${chalk.hex('#10B981').bold(`cd ${commandTarget} && npm run dev`)}`,
   ].join('\n'))
 }
 
