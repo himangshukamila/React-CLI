@@ -2863,7 +2863,10 @@ const gitPushWrapper = async (options) => {
       await typeText(`${chalk.green('✔ success')}  ${displayLabel}`)
       
       if (result.stdout && result.stdout.trim()) {
-        console.log(result.stdout.trim().split('\n').map(line => `${muted('  │')} ${muted(line)}`).join('\n'))
+        const outputLines = result.stdout.trim().split('\n')
+        for (const line of outputLines) {
+          await typeText(`${muted('  │')} ${muted(line)}`, 4)
+        }
       }
     } catch (error) {
       readline.clearLine(process.stdout, 0)
