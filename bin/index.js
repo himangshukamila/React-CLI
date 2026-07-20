@@ -22,6 +22,8 @@ import {
   runCommand,
   writeFile,
   cliIconContent,
+  socketContent,
+  printerContent,
 } from '../lib/shared.js'
 
 const projectNameRegex = /^[a-zA-Z0-9_-]+$|^\.$/
@@ -63,6 +65,7 @@ const commandReference = [
   ['react set --image', 'Scan public/images and generate src/utils/images.js constants'],
   ['react set form -name -email', 'Generate a styled React Form component with state and field icons'],
   ['react set loader', 'Generate a responsive Loader component with default text="Loading..."'],
+  ['react set printer', 'Generate a Printer page component with socket print-image queue'],
   ['pkg axios', 'Install a package or alias in an existing project'],
   ['pkg --dev @types/node', 'Install a package as a dev dependency'],
 ]
@@ -2278,6 +2281,50 @@ export default Loader
   }
 }
 
+const configurePrinterBoilerplate = async () => {
+  try {
+    const pkgJson = await readCurrentPackageJson()
+
+    const allDeps = {
+      ...(pkgJson.dependencies || {}),
+      ...(pkgJson.devDependencies || {}),
+    }
+
+    if (!allDeps['react-to-print']) {
+      console.log(chalk.yellow('Installing missing dependency: react-to-print...'))
+      await execa('npm', ['install', 'react-to-print'], { cwd: process.cwd() })
+      pass('installed react-to-print')
+    }
+
+    if (!allDeps['socket.io-client']) {
+      console.log(chalk.yellow('Installing missing dependency: socket.io-client...'))
+      await execa('npm', ['install', 'socket.io-client'], { cwd: process.cwd() })
+      pass('installed socket.io-client')
+    }
+
+    const servicesDir = path.join(process.cwd(), 'src', 'services')
+    const socketPath = path.join(servicesDir, 'socket.js')
+    if (!await fs.pathExists(socketPath)) {
+      await ensureDir(servicesDir)
+      await writeFile(socketPath, socketContent)
+      pass('created src/services/socket.js')
+    }
+
+    const pagesDir = path.join(process.cwd(), 'src', 'pages')
+    const printerJsxPath = path.join(pagesDir, 'Printer.jsx')
+
+    section('printer generator', 'building Printer.jsx page component')
+
+    await ensureDir(pagesDir)
+    await writeFile(printerJsxPath, printerContent)
+
+    pass('created src/pages/Printer.jsx')
+    await typeText(chalk.green.bold('\n✔ src/pages/Printer.jsx successfully created with socket print-image queue listener & react-to-print setup!'))
+  } catch (error) {
+    fail(error.message)
+  }
+}
+
 const collectRequestBody = (req) => new Promise((resolve, reject) => {
   let body = ''
 
@@ -3018,11 +3065,12 @@ program
 
 program
   .command('set [target] [fields...]')
-  .description('Configure project assets, environment settings, form, or loader components')
+  .description('Configure project assets, environment settings, form, loader, or printer components')
   .option('--font', 'Scan public/fonts and configure @font-face and Tailwind fonts in src/index.css')
   .option('--image', 'Scan public/images and generate src/utils/images.js constants')
   .option('--form', 'Generate a styled React Form component with field icons and state')
   .option('--loader', 'Generate a responsive Loader component with default text="Loading..."')
+  .option('--printer', 'Generate a Printer page component with socket print-image queue')
   .allowUnknownOption()
   .action(async (target, fields, options) => {
     const rawArgs = process.argv.slice(3)
@@ -3030,12 +3078,14 @@ program
       await configureFormBoilerplate(rawArgs)
     } else if (target === 'loader' || options.loader || rawArgs.some(a => a.toLowerCase().includes('loader'))) {
       await configureLoaderBoilerplate()
+    } else if (target === 'printer' || target === 'print' || options.printer || rawArgs.some(a => a.toLowerCase().includes('print'))) {
+      await configurePrinterBoilerplate()
     } else if (target === 'font' || options.font) {
       await configureFontAssets()
     } else if (target === 'image' || options.image) {
       await configureImageAssets()
     } else {
-      console.error(chalk.red('Error: Please specify what to set (e.g. set form, set loader, --font, or --image)'))
+      console.error(chalk.red('Error: Please specify what to set (e.g. set form, set loader, set printer, --font, or --image)'))
       process.exit(1)
     }
   })
