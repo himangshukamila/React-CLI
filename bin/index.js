@@ -3004,7 +3004,7 @@ const gitPushWrapper = async (options) => {
     }
   }
 
-  await typeText(`\n${chalk.hex('#10B981').bold('✔ Project successfully pushed to Git remote!')}`)
+  await typeText(`\n${chalk.hex('#10B981').bold('✔ Project successfully pushed to Git remote! ☻')}`)
 }
 
 const program = new Command()
