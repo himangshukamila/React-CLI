@@ -62,6 +62,7 @@ const commandReference = [
   ['react set --font', 'Scan public/fonts and configure @font-face and Tailwind fonts in src/index.css'],
   ['react set --image', 'Scan public/images and generate src/utils/images.js constants'],
   ['react set form -name -email', 'Generate a styled React Form component with state and field icons'],
+  ['react set loader', 'Generate a responsive Loader component with default text="Loading..."'],
   ['pkg axios', 'Install a package or alias in an existing project'],
   ['pkg --dev @types/node', 'Install a package as a dev dependency'],
 ]
@@ -156,63 +157,82 @@ const printCommandReference = () => {
 }
 
 const printBanner = () => {
-//   const banner = [
-//     '███╗   ███╗ █████╗ ██████╗ ███████╗    ██████╗ ██╗   ██╗',
-//     '████╗ ████║██╔══██╗██╔══██╗██╔════╝    ██╔══██╗╚██╗ ██╔╝',
-//     '██╔████╔██║███████║██║  ██║█████╗      ██████╔╝ ╚████╔╝ ',
-//     '██║╚██╔╝██║██╔══██║██║  ██║██╔══╝      ██╔══██╗  ╚██╔╝  ',
-//     '██║ ╚═╝ ██║██║  ██║██████╔╝███████╗    ██████╔╝   ██║   ',
-//     '╚═╝     ╚═╝╚═╝  ╚═╝╚═════╝ ╚══════╝    ╚═════╝    ╚═╝   ',
-//     '',
-//     ' █████╗ ███╗   ██╗███████╗██╗  ██╗██╗  ██╗',
-//     '██╔══██╗████╗  ██║██╔════╝██║  ██║██║  ██║',
-//     '███████║██╔██╗ ██║███████╗███████║███████║',
-//     '██╔══██║██║╚██╗██║╚════██║██╔══██║██╔══██║',
-//     '██║  ██║██║ ╚████║███████║██║  ██║██║  ██║',
-//     '╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝',
-  // ]
-  
- 
-  const banner = [
-    "╔══════════════════════════════════════════════════════════════════════════════════════════════╗",
-    "║                                                                                              ║",
-    "║                                                                                              ║",
-    "║                                                                                              ║",
-    "║         ██╗  ██╗   ██████╗         ██████╗   ███████╗   █████╗    ██████╗  ████████╗         ║",
-    "║         ██║  ██║   ██╔══██╗        ██╔══██╗  ██╔════╝  ██╔══██╗  ██╔════╝  ╚══██╔══╝         ║",
-    "║         ███████║   ██████╔╝        ██████╔╝  █████╗    ███████║  ██║          ██║            ║",
-    "║         ╚════██║   ██╔══██╗        ██╔══██╗  ██╔══╝    ██╔══██║  ██║          ██║            ║",
-    "║              ██║   ██████╔╝        ██║  ██║  ███████╗  ██║  ██║  ╚██████╗     ██║            ║",
-    "║              ╚═╝   ╚═════╝         ╚═╝  ╚═╝  ╚══════╝  ╚═╝  ╚═╝   ╚═════╝     ╚═╝            ║",
-    "║                                                                                              ║",
-    "║                                                                                              ║",
-    "║                                                                                              ║",
-    "║                                         Crafted With a Little Help of AI & Designed by Anshh ║",
-    "╚══════════════════════════════════════════════════════════════════════════════════════════════╝",
-  ];
-
-
+  /*
+  // Banner Option 1 (Slant Blocks):
   // const banner = [
-  //   "╔═════════════════════════════════════════════════════════════════════════════╗",
-  //   "║                                                                             ║",
-  //   "║                                                                             ║",
-  //   "║                                                                             ║",
-  //   "║                 ██████╗ ██████╗  █████╗ ██████╗ ██╗  ██╗                    ║",
-  //   "║                ██╔════╝ ██╔══██╗██╔══██╗██╔══██╗██║ ██╔╝                    ║",
-  //   "║                ╚█████╗  ██████╔╝███████║██████╔╝█████╔╝                     ║",
-  //   "║                 ╚═══██╗ ██╔═══╝ ██╔══██║██╔══██╗██╔═██╗                     ║",
-  //   "║                ██████╔╝ ██║     ██║  ██║██║  ██║██║  ██╗                    ║",
-  //   "║                ╚═════╝  ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝                    ║",
-  //   "║                                                                             ║",
-  //   "║                                                                             ║",
-  //   "║                                                                             ║",
-  //   "║                                                                             ║",
-  //   "╚═════════════════════════════════════════════════════════════════════════════╝",
-  // ];
-
+  //   '███╗   ███╗ █████╗ ██████╗ ███████╗    ██████╗ ██╗   ██╗',
+  //   '████╗ ████║██╔══██╗██╔══██╗██╔════╝    ██╔══██╗╚██╗ ██╔╝',
+  //   '██╔████╔██║███████║██║  ██║█████╗      ██████╔╝ ╚████╔╝ ',
+  //   '██║╚██╔╝██║██╔══██║██║  ██║██╔══╝      ██╔══██╗  ╚██╔╝  ',
+  //   '██║ ╚═╝ ██║██║  ██║██████╔╝███████╗    ██████╔╝   ██║   ',
+  //   '╚═╝     ╚═╝╚═╝  ╚═╝╚═════╝ ╚══════╝    ╚═════╝    ╚═╝   ',
+  //   '',
+  //   ' █████╗ ███╗   ██╗███████╗██╗  ██╗██╗  ██╗',
+  //   '██╔══██╗████╗  ██║██╔════╝██║  ██║██║  ██║',
+  //   '███████║██╔██╗ ██║███████╗███████║███████║',
+  //   '██╔══██║██║╚██╗██║╚════██║██╔══██║██╔══██║',
+  //   '██║  ██║██║ ╚████║███████║██║  ██║██║  ██║',
+  //   '╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝',
+  // ]
+*/
+  // Banner Option 2 (Spark Box):
+  const banner = [
+    "╔═════════════════════════════════════════════════════════════════════════════╗",
+    "║                                                                             ║",
+    "║                 ██████╗ ██████╗   █████╗  ██████╗  ██╗  ██╗                 ║",
+    "║                ██╔════╝ ██╔══██╗ ██╔══██╗ ██╔══██╗ ██║ ██╔╝                 ║",
+    "║                ╚█████╗  ██████╔╝ ███████║ ██████╔╝ █████╔╝                  ║",
+    "║                 ╚═══██╗ ██╔═══╝  ██╔══██║ ██╔══██╗ ██╔═██╗                  ║",
+    "║                ██████╔╝ ██║      ██║  ██║ ██║  ██║ ██║  ██╗                 ║",
+    "║                ╚═════╝  ╚═╝      ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚═╝  ╚═╝                 ║",
+    "║                                                                             ║",
+    "║     Crafted With a Little Help of AI & Designed & Implemented by Anshh      ║",
+    "║                                                                             ║",
+    "╚═════════════════════════════════════════════════════════════════════════════╝",
+  ];
   console.log('')
   banner.forEach((line) => console.log(chalk.hex("#1dbbf5").bold(line)));
   console.log('')
+
+  // Banner Option 3 (Double Box):
+  // const banner = [
+  //   "╔══════════════════════════════════════════════════════════════════════════════════════════════╗",
+  //   "║                                                                                              ║",
+  //   "║                                                                                              ║",
+  //   "║                                                                                              ║",
+  //   "║         ██╗  ██╗   ██████╗         ██████╗   ███████╗   █████╗    ██████╗  ████████╗         ║",
+  //   "║         ██║  ██║   ██╔══██╗        ██╔══██╗  ██╔════╝  ██╔══██╗  ██╔════╝  ╚══██╔══╝         ║",
+  //   "║         ███████║   ██████╔╝        ██████╔╝  █████╗    ███████║  ██║          ██║            ║",
+  //   "║         ╚════██║   ██╔══██╗        ██╔══██╗  ██╔══╝    ██╔══██║  ██║          ██║            ║",
+  //   "║              ██║   ██████╔╝        ██║  ██║  ███████╗  ██║  ██║  ╚██████╗     ██║            ║",
+  //   "║              ╚═╝   ╚═════╝         ╚═╝  ╚═╝  ╚══════╝  ╚═╝  ╚═╝   ╚═════╝     ╚═╝            ║",
+  //   "║                                                                                              ║",
+  //   "║                                                                                              ║",
+  //   "║                                                                                              ║",
+  //   "║                                         Crafted With a Little Help of AI & Designed by Anshh ║",
+  //   "╚══════════════════════════════════════════════════════════════════════════════════════════════╝",
+  // ];
+  
+
+
+  // const borderColor = chalk.hex('#5B50A0')
+  // const titleColor = chalk.hex('#38BDF8').bold
+  // const subtextColor = chalk.hex('#888888')
+
+  // console.log('')
+  // console.log(borderColor('╭───────────────────────────────────────────────────────────────────╮'))
+  // console.log(borderColor('│                                                                   │'))
+  // console.log(borderColor('│') + titleColor('             _____   ____    ___     ____    __ __                  ') + borderColor('│'))
+  // console.log(borderColor('│') + titleColor('            / ___/  / __ \\  /   |   / __ \\  / //_/                  ') + borderColor('│'))
+  // console.log(borderColor('│') + titleColor('            \\__ \\  / /_/ / /| | |  / /_/ / / ,<                     ') + borderColor('│'))
+  // console.log(borderColor('│') + titleColor('           ___/ / / ____/ / ___ | / _, _/ / /| |                    ') + borderColor('│'))
+  // console.log(borderColor('│') + titleColor('          /____/ /_/     /_/  |_|/_/ |_| /_/ |_|                    ') + borderColor('│'))
+  // console.log(borderColor('│                                                                   │'))
+  // console.log(borderColor('│') + '                           🚀 ' + chalk.bold.white('Spark CLI') + '                            ' + borderColor('│'))
+  // console.log(borderColor('│') + '  ' + subtextColor('Crafted with a little help of AI & designed & implemented by Anshh') + '  ' + borderColor('│'))
+  // console.log(borderColor('│                                                                   │'))
+  // console.log(borderColor('╰───────────────────────────────────────────────────────────────────╯'))
+  // console.log('')
 }
 
 const printControls = () => {
@@ -2221,6 +2241,43 @@ export default Form
   }
 }
 
+const configureLoaderBoilerplate = async () => {
+  try {
+    const componentsDir = path.join(process.cwd(), 'src', 'components')
+    const loaderJsxPath = path.join(componentsDir, 'Loader.jsx')
+
+    section('loader generator', 'building styled backdrop Loader.jsx component')
+
+    await ensureDir(componentsDir)
+
+    const loaderJsxContent = `const Loader = ({ text = 'Please wait...', className = '' }) => {
+  return (
+    <div className={\`flex flex-col items-center justify-center h-full w-full absolute inset-0 z-30 bg-[#060818]/80 backdrop-blur-sm \${className}\`}>
+      {/* Loading Spinner */}
+      <div className="w-[12vw] h-[12vw] max-w-14 max-h-14 border-4 border-white/20 border-t-[#1059DD] rounded-full animate-spin"></div>
+
+      {/* Text */}
+      {text && (
+        <p className="text-white text-[1.1rem] font-poppins mt-4.5 tracking-wide">
+          {text}
+        </p>
+      )}
+    </div>
+  )
+}
+
+export default Loader
+`
+
+    await writeFile(loaderJsxPath, loaderJsxContent)
+
+    pass('created src/components/Loader.jsx')
+    await typeText(chalk.green.bold('\n✔ src/components/Loader.jsx successfully created with backdrop blur spinner and prop text support!'))
+  } catch (error) {
+    fail(error.message)
+  }
+}
+
 const collectRequestBody = (req) => new Promise((resolve, reject) => {
   let body = ''
 
@@ -2961,21 +3018,24 @@ program
 
 program
   .command('set [target] [fields...]')
-  .description('Configure project assets, environment settings, or form components')
+  .description('Configure project assets, environment settings, form, or loader components')
   .option('--font', 'Scan public/fonts and configure @font-face and Tailwind fonts in src/index.css')
   .option('--image', 'Scan public/images and generate src/utils/images.js constants')
   .option('--form', 'Generate a styled React Form component with field icons and state')
+  .option('--loader', 'Generate a responsive Loader component with default text="Loading..."')
   .allowUnknownOption()
   .action(async (target, fields, options) => {
     const rawArgs = process.argv.slice(3)
     if (target === 'form' || options.form || rawArgs.some(a => a.toLowerCase().includes('form'))) {
       await configureFormBoilerplate(rawArgs)
+    } else if (target === 'loader' || options.loader || rawArgs.some(a => a.toLowerCase().includes('loader'))) {
+      await configureLoaderBoilerplate()
     } else if (target === 'font' || options.font) {
       await configureFontAssets()
     } else if (target === 'image' || options.image) {
       await configureImageAssets()
     } else {
-      console.error(chalk.red('Error: Please specify what to set (e.g. set form -name -email, --font, or --image)'))
+      console.error(chalk.red('Error: Please specify what to set (e.g. set form, set loader, --font, or --image)'))
       process.exit(1)
     }
   })
