@@ -2354,7 +2354,8 @@ const gitPushWrapper = async (options) => {
   const autoCommitMessage = await generateAutoCommitMessage()
 
   if (options.github) {
-    const isGitHubUrl = /^(https?:\/\/|git@|git:\/\/)/.test(options.github) || options.github.endsWith('.git')
+    const isGitHubUrl = typeof options.github === 'string' && (/^(https?:\/\/|git@|git:\/\/)/.test(options.github) || options.github.endsWith('.git'))
+    const isFlagOnly = options.github === true
 
     if (isGitHubUrl) {
       if (!isSafeRemoteUrl(options.github)) {
@@ -2393,6 +2394,7 @@ const gitPushWrapper = async (options) => {
         },
       )
     } else {
+      const commitMessage = isFlagOnly ? autoCommitMessage : options.github
       steps.push(
         {
           label: 'Stage all files',
@@ -2400,9 +2402,9 @@ const gitPushWrapper = async (options) => {
           args: ['add', '.'],
         },
         {
-          label: `Create commit: "${options.github}"`,
+          label: `Create commit: "${commitMessage}"`,
           cmd: 'git',
-          args: ['commit', '-m', options.github],
+          args: ['commit', '-m', commitMessage],
         },
         {
           label: 'Push changes',
@@ -2606,7 +2608,7 @@ program
   .command('push')
   .description('Initialize Git and push the current workspace to a remote repository')
   .option('--git <url>', 'Git remote repository URL (origin)')
-  .option('--github <arg>', 'Git remote repository URL or subsequent push commit message')
+  .option('--github [arg]', 'Git remote repository URL or subsequent push commit message')
   .option('-m, --message <message>', 'Git commit message')
   .action(gitPushWrapper)
 
