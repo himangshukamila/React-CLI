@@ -37,9 +37,9 @@ const packageFlags = ['tailwind', 'axios', 'socket', 'toast', 'icon', 'lucide', 
 const featureFlags = ['env', 'watch']
 const setupFlags = [...packageFlags, ...featureFlags]
 const folderFlags = featureFlags
-const accent = chalk.hex('#D97757')
-const muted = chalk.gray
-const strong = chalk.bold.white
+const accent = chalk.hex('#00E5FF').bold
+const muted = chalk.hex('#94A3B8')
+const strong = chalk.bold.whiteBright
 
 const commandReference = [
   ['react <name>', 'Create a new Vite + React app'],
@@ -894,11 +894,11 @@ const printSummary = ({ displayName, selectedFolders, selectedSetup, commandTarg
 }
 
 const pass = (message, hint = '') => {
-  console.log(`${chalk.green('✓')} ${strong(message)} ${hint ? muted(hint) : ''}`)
+  console.log(`${chalk.hex('#10B981').bold('✔')} ${chalk.bold.whiteBright(message)} ${hint ? chalk.hex('#94A3B8')(hint) : ''}`)
 }
 
 const warn = (message, hint = '') => {
-  console.log(`${chalk.yellow('!')} ${strong(message)} ${hint ? muted(hint) : ''}`)
+  console.log(`${chalk.hex('#F59E0B').bold('⚠')} ${chalk.bold.yellowBright(message)} ${hint ? chalk.hex('#94A3B8')(hint) : ''}`)
 }
 
 const readCurrentPackageJson = async () => {
@@ -2956,20 +2956,31 @@ const gitPushWrapper = async (options) => {
 
   for (const step of steps) {
     const cmdStr = `${step.cmd} ${step.args.join(' ')}`
-    const displayLabel = `${strong(step.label)} (${muted(cmdStr)})`
+    const displayLabel = `${chalk.bold.whiteBright(step.label)} ${chalk.hex('#38BDF8')(`(${cmdStr})`)}`
     
-    process.stdout.write(`${muted('running')}  ${displayLabel}...`)
+    process.stdout.write(`${chalk.hex('#EC4899')('⚡ running')}  ${displayLabel}...`)
     try {
       const result = await execa(step.cmd, step.args, { cwd: process.cwd() })
       
       readline.clearLine(process.stdout, 0)
       readline.cursorTo(process.stdout, 0)
-      await typeText(`${chalk.green('✔ success')}  ${displayLabel}`)
+      await typeText(`${chalk.hex('#10B981').bold('✔ success')}  ${displayLabel}`)
       
       if (result.stdout && result.stdout.trim()) {
         const outputLines = result.stdout.trim().split('\n')
         for (const line of outputLines) {
-          await typeText(`${muted('  │')} ${muted(line)}`, 4)
+          let styledLine = chalk.hex('#CBD5E1')(line)
+          if (line.includes('files changed') || line.includes('insertions(+)')) {
+            styledLine = line
+              .replace(/(\d+ files? changed)/g, chalk.hex('#38BDF8').bold('$1'))
+              .replace(/(\d+ insertions?\(\+\))/g, chalk.hex('#10B981').bold('$1'))
+              .replace(/(\d+ deletions?\(-\))/g, chalk.hex('#EF4444').bold('$1'))
+          } else if (line.trim().startsWith('[') && line.includes(']')) {
+            styledLine = chalk.hex('#F59E0B').bold(line)
+          } else if (line.includes('create mode') || line.includes('delete mode')) {
+            styledLine = chalk.hex('#A855F7')(line)
+          }
+          await typeText(`${chalk.hex('#8B5CF6')('  │')} ${styledLine}`, 4)
         }
       }
     } catch (error) {
@@ -2978,22 +2989,22 @@ const gitPushWrapper = async (options) => {
       
       // Handle nothing to commit scenario gracefully
       if (step.args.includes('commit') && (error.stdout || error.message || '').includes('nothing to commit')) {
-        await typeText(`${chalk.yellow('⚠ skipped')}  ${displayLabel} (nothing to commit, working tree clean)`)
+        await typeText(`${chalk.hex('#F59E0B').bold('⚠ skipped')}  ${displayLabel} ${chalk.hex('#94A3B8')('(nothing to commit, working tree clean)')}`)
         continue
       }
 
-      await typeText(`${chalk.red('✖ failed')}   ${displayLabel}`)
-      console.error(chalk.red(`\nError: Command failed: ${cmdStr}`))
-      console.error(chalk.red(`${error.stderr || error.message}\n`))
+      await typeText(`${chalk.hex('#EF4444').bold('✖ failed')}   ${displayLabel}`)
+      console.error(chalk.hex('#FCA5A5')(`\nError: Command failed: ${cmdStr}`))
+      console.error(chalk.hex('#FCA5A5')(`${error.stderr || error.message}\n`))
       
       if (step.args.includes('remote') && step.args.includes('add')) {
-        console.error(chalk.yellow(`Tip: If remote "origin" already exists, run 'git remote remove origin' first.`))
+        console.error(chalk.hex('#F59E0B')(`Tip: If remote "origin" already exists, run 'git remote remove origin' first.`))
       }
       process.exit(1)
     }
   }
 
-  await typeText(`\n${chalk.green.bold('✔ Project successfully pushed to Git remote!')}`)
+  await typeText(`\n${chalk.hex('#10B981').bold('✔ Project successfully pushed to Git remote! 🚀')}`)
 }
 
 const program = new Command()
