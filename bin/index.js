@@ -61,6 +61,7 @@ const commandReference = [
   ['react push -m <msg>', 'Push subsequent updates to remote repo'],
   ['react set --font', 'Scan public/fonts and configure @font-face and Tailwind fonts in src/index.css'],
   ['react set --image', 'Scan public/images and generate src/utils/images.js constants'],
+  ['react set form -name -email', 'Generate a styled React Form component with state and field icons'],
   ['pkg axios', 'Install a package or alias in an existing project'],
   ['pkg --dev @types/node', 'Install a package as a dev dependency'],
 ]
@@ -69,7 +70,7 @@ const packageOptions = [
   { value: 'tailwind', label: 'Tailwind CSS', hint: 'style engine + Vite plugin' },
   { value: 'axios', label: 'Axios', hint: 'typed API client starter' },
   { value: 'socket', label: 'Socket.IO Client', hint: 'realtime websocket layer' },
-  { value: 'toast', label: 'React Toastify', hint: 'toast helpers + container' },
+  { value: 'toast', label: 'React Hot Toast', hint: 'toast notifications + Toaster' },
   { value: 'router', label: 'React Router', hint: 'react-router-dom + src/router' },
   { value: 'qr', label: 'QR Code', hint: 'react-qr-code' },
   { value: 'webcam', label: 'Webcam', hint: 'react-webcam' },
@@ -1852,6 +1853,348 @@ const configureImageAssets = async () => {
   }
 }
 
+const extractRawFormFields = (rawArgs) => {
+  const fields = []
+  rawArgs.forEach((arg) => {
+    if (typeof arg !== 'string') return
+    const clean = arg.replace(/^--?/, '').trim()
+    if (clean && clean.toLowerCase() !== 'form' && clean.toLowerCase() !== 'set') {
+      clean.split(/[\s,]+/).forEach((f) => {
+        const fieldKey = f.replace(/^--?/, '').trim()
+        if (fieldKey && !fields.includes(fieldKey)) {
+          fields.push(fieldKey)
+        }
+      })
+    }
+  })
+  return fields
+}
+
+const getExistingFormFields = async (formJsxPath) => {
+  try {
+    const exists = await pathExists(formJsxPath)
+    if (!exists) return []
+    const content = await readFile(formJsxPath, 'utf8')
+    const match = content.match(/const\s+\[formData,\s+setFormData\]\s*=\s*useState\(\{([\s\S]*?)\}\)/)
+    if (match && match[1]) {
+      const keys = []
+      const lines = match[1].split('\n')
+      lines.forEach((line) => {
+        const keyMatch = line.match(/^\s*([a-zA-Z0-9_]+)\s*:/)
+        if (keyMatch && keyMatch[1] && !keys.includes(keyMatch[1])) {
+          keys.push(keyMatch[1])
+        }
+      })
+      return keys
+    }
+  } catch (e) {
+    return []
+  }
+  return []
+}
+
+const getFieldLucideIcon = (fieldName) => {
+  const key = fieldName.toLowerCase()
+  if (key.includes('email') || key.includes('mail')) return 'Mail'
+  if (key.includes('phone') || key.includes('tel') || key.includes('mobile') || key.includes('contact')) return 'Phone'
+  if (key.includes('location') || key.includes('address') || key.includes('city') || key.includes('country') || key.includes('state') || key.includes('zip')) return 'MapPin'
+  if (key.includes('password') || key.includes('pass') || key.includes('pin') || key.includes('secret')) return 'Lock'
+  if (key.includes('date') || key.includes('dob') || key.includes('birth')) return 'Calendar'
+  if (key.includes('search') || key.includes('find')) return 'Search'
+  if (key.includes('url') || key.includes('website') || key.includes('link')) return 'Globe'
+  if (key.includes('name') || key.includes('user')) return 'User'
+  return 'FileText'
+}
+
+const getFieldInputType = (fieldName) => {
+  const key = fieldName.toLowerCase()
+  if (key.includes('email') || key.includes('mail')) return 'email'
+  if (key.includes('password') || key.includes('pass') || key.includes('secret')) return 'password'
+  if (key.includes('phone') || key.includes('tel') || key.includes('mobile')) return 'tel'
+  if (key.includes('date') || key.includes('dob') || key.includes('birth')) return 'date'
+  if (key.includes('age') || key.includes('number') || key.includes('amount') || key.includes('count')) return 'number'
+  if (key.includes('url') || key.includes('website')) return 'url'
+  return 'text'
+}
+
+const formatFieldLabel = (fieldName) => {
+  const clean = fieldName.replace(/[-_]/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').trim()
+  return clean.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+}
+
+const configureFormBoilerplate = async (rawArgs = []) => {
+  try {
+    const pkgJson = await readCurrentPackageJson()
+
+    const allDeps = {
+      ...(pkgJson.dependencies || {}),
+      ...(pkgJson.devDependencies || {}),
+    }
+
+    const missingDeps = []
+    if (!allDeps['react-hot-toast']) missingDeps.push('react-hot-toast')
+    if (!allDeps['lucide-react']) missingDeps.push('lucide-react')
+
+    if (missingDeps.length > 0) {
+      console.log(chalk.yellow(`Installing missing dependencies: ${missingDeps.join(', ')}...`))
+      await execa('npm', ['install', ...missingDeps], { cwd: process.cwd() })
+      pass(`installed ${missingDeps.join(', ')}`)
+    }
+
+    const componentsDir = path.join(process.cwd(), 'src', 'components')
+    const formJsxPath = path.join(componentsDir, 'Form.jsx')
+    const toastJsxPath = path.join(componentsDir, 'Toast.jsx')
+
+    section('form generator', 'building styled form & react-hot-toast system')
+
+    await ensureDir(componentsDir)
+
+    const toastJsxContent = `import { Toaster, toast } from 'react-hot-toast'
+import { CheckCircle2, XCircle } from 'lucide-react'
+
+export const CustomToaster = () => {
+  return (
+    <Toaster
+      position="top-right"
+      reverseOrder={false}
+      toastOptions={{
+        duration: 4000,
+        style: {
+          background: '#18181b',
+          color: '#fff',
+          border: '1px solid #27272a',
+          borderRadius: '0.75rem',
+          padding: '12px 16px',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+          fontSize: '14px',
+          fontFamily: 'sans-serif',
+        },
+        success: {
+          icon: <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />,
+        },
+        error: {
+          icon: <XCircle className="w-5 h-5 text-rose-500 shrink-0" />,
+        },
+      }}
+    />
+  )
+}
+
+export { toast }
+`
+
+    await writeFile(toastJsxPath, toastJsxContent)
+    pass(`created ${path.relative(process.cwd(), toastJsxPath)}`)
+
+    const newRequestedFields = extractRawFormFields(rawArgs)
+    const existingFields = await getExistingFormFields(formJsxPath)
+
+    let fields = []
+    if (existingFields.length > 0) {
+      fields = [...existingFields]
+      newRequestedFields.forEach((f) => {
+        if (!fields.includes(f)) {
+          fields.push(f)
+        }
+      })
+    } else {
+      fields = newRequestedFields.length > 0 ? newRequestedFields : ['name', 'email', 'phone']
+    }
+
+    const stateInit = fields.map((f) => `    ${f}: ''`).join(',\n')
+    const stateReset = fields.map((f) => `        ${f}: ''`).join(',\n')
+
+    const lucideIconsUsed = Array.from(new Set(fields.map((f) => getFieldLucideIcon(f))))
+
+    const fieldBlocks = fields.map((f) => {
+      const label = formatFieldLabel(f)
+      const inputType = getFieldInputType(f)
+      const iconName = getFieldLucideIcon(f)
+
+      return `        {/* ${label} Field */}
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+            ${label}
+          </label>
+          <div className="relative flex items-center">
+            <span className="absolute left-3.5 pointer-events-none">
+              <${iconName} className="w-5 h-5 text-zinc-400" />
+            </span>
+            <input
+              type="${inputType}"
+              name="${f}"
+              value={formData.${f}}
+              onChange={handleChange}
+              placeholder="Enter your ${label.toLowerCase()}"
+              className="w-full pl-11 pr-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-300 dark:border-zinc-700 focus:ring-2 focus:ring-amber-500 focus:border-transparent rounded-xl text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none transition-all"
+            />
+          </div>
+        </div>`
+    }).join('\n\n')
+
+    const formJsxContent = `import { useState } from 'react'
+import { ${lucideIconsUsed.join(', ')} } from 'lucide-react'
+import { CustomToaster as Toaster, toast } from './Toast'
+
+const Form = () => {
+  const [formData, setFormData] = useState({
+${stateInit}
+  })
+
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const validateField = (name, value) => {
+    let error = ''
+    const val = value ? value.trim() : ''
+
+    if (name === 'name' || name.includes('name')) {
+      const nameRegex = /^[a-zA-Z\\s]+$/
+      if (!val) {
+        error = 'Name is required'
+      } else if (val.length < 2) {
+        error = 'Name must be at least 2 characters'
+      } else if (!nameRegex.test(val)) {
+        error = 'Name can only contain letters'
+      }
+    } else if (name === 'email' || name.includes('mail')) {
+      const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/
+      if (!val) {
+        error = 'Email is required'
+      } else if (!emailRegex.test(val)) {
+        error = 'Please enter a valid email address'
+      }
+    } else if (name === 'phone' || name.includes('tel') || name.includes('mobile')) {
+      const phoneRegex = /^[0-9]{10}$/
+      if (!val) {
+        error = 'Phone number is required'
+      } else if (!phoneRegex.test(val.replace(/\\s+/g, ''))) {
+        error = 'Phone number must be exactly 10 digits'
+      }
+    } else if (name === 'password' || name.includes('pass')) {
+      if (!val) {
+        error = 'Password is required'
+      } else if (val.length < 6) {
+        error = 'Password must be at least 6 characters'
+      }
+    } else {
+      if (!val) {
+        error = name.charAt(0).toUpperCase() + name.slice(1) + ' is required'
+      }
+    }
+
+    return error
+  }
+
+  const validateForm = () => {
+    const errors = []
+    Object.keys(formData).forEach((key) => {
+      const err = validateField(key, formData[key])
+      if (err) {
+        errors.push(err)
+        toast.error(err)
+      }
+    })
+    return errors.length === 0
+  }
+
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    let val = value
+
+    if (name === 'name' || name.includes('name')) {
+      val = value.replace(/[^a-zA-Z\\s]/g, '')
+    } else if (name === 'phone' || name.includes('tel') || name.includes('mobile') || name.includes('contact')) {
+      val = value.replace(/\\D/g, '').slice(0, 10)
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: val,
+    }))
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+
+    if (!validateForm()) {
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch('/api/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        throw new Error('Server error: ' + response.statusText)
+      }
+
+      const data = await response.json()
+      console.log('Form submission response:', data)
+      toast.success('Form submitted successfully!')
+
+      setFormData({
+${stateReset}
+      })
+    } catch (error) {
+      console.error('Submission error:', error)
+      toast.error(error.message || 'Failed to submit form')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="w-full max-w-lg mx-auto p-6 md:p-8 bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-800 transition-all">
+      <Toaster />
+      <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-6 text-center">
+        Form
+      </h2>
+
+      <form onSubmit={handleSubmit} noValidate className="space-y-5">
+${fieldBlocks}
+
+        {/* Submit Button */}
+        <div className="pt-3">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-3 px-4 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-black font-semibold rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
+          >
+            {isSubmitting ? (
+              <>
+                <svg className="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Submitting...</span>
+              </>
+            ) : (
+              <span>Submit</span>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+export default Form
+`
+
+    await writeFile(formJsxPath, formJsxContent)
+    pass(`created ${path.relative(process.cwd(), formJsxPath)}`)
+    console.log(chalk.green.bold(`\n✔ src/components/Form.jsx and Toast.jsx successfully updated with [${fields.join(', ')}] fields!`))
+  } catch (error) {
+    fail(error.message)
+  }
+}
 
 const collectRequestBody = (req) => new Promise((resolve, reject) => {
   let body = ''
@@ -2589,19 +2932,33 @@ program
   .action(makeFile)
 
 program
-  .command('set')
-  .description('Configure project assets or environment settings')
+  .command('set [target] [fields...]')
+  .description('Configure project assets, environment settings, or form components')
   .option('--font', 'Scan public/fonts and configure @font-face and Tailwind fonts in src/index.css')
   .option('--image', 'Scan public/images and generate src/utils/images.js constants')
-  .action(async (options) => {
-    if (options.font) {
+  .option('--form', 'Generate a styled React Form component with field icons and state')
+  .allowUnknownOption()
+  .action(async (target, fields, options) => {
+    const rawArgs = process.argv.slice(3)
+    if (target === 'form' || options.form || rawArgs.some(a => a.toLowerCase().includes('form'))) {
+      await configureFormBoilerplate(rawArgs)
+    } else if (target === 'font' || options.font) {
       await configureFontAssets()
-    } else if (options.image) {
+    } else if (target === 'image' || options.image) {
       await configureImageAssets()
     } else {
-      console.error(chalk.red('Error: Please specify what to set (e.g. --font or --image)'))
+      console.error(chalk.red('Error: Please specify what to set (e.g. set form -name -email, --font, or --image)'))
       process.exit(1)
     }
+  })
+
+program
+  .command('form [fields...]')
+  .description('Generate a styled React Form component with field icons and state')
+  .allowUnknownOption()
+  .action(async () => {
+    const rawArgs = process.argv.slice(3)
+    await configureFormBoilerplate(rawArgs)
   })
 
 program
@@ -2617,7 +2974,7 @@ program
   .option('--tailwind', 'install tailwindcss + @tailwindcss/vite')
   .option('--axios', 'install axios')
   .option('--socket', 'install socket.io-client')
-  .option('--toast', 'install react-toastify')
+  .option('--toast', 'install react-hot-toast')
   .option('--icon', 'install react-icons')
   .option('--lucide', 'install lucide-react')
   .option('--router', 'install react-router-dom and create src/router')
