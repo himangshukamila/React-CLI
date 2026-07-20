@@ -49,6 +49,7 @@ const commandReference = [
   ['react run --port 3000', 'Run the dev server on a specific port'],
   ['react update', 'Show outdated dependencies without upgrading'],
   ['react doctor', 'Check the current React project setup'],
+  ['react audit', 'Audit project dependencies for security vulnerabilities'],
   ['react env list', 'List Vite environment variables from .env'],
   ['react env add VITE_SERVER_URL http://localhost:3000', 'Add or update a VITE_ environment variable'],
   ['react env remove VITE_SERVER_URL', 'Remove a VITE_ environment variable'],
@@ -964,6 +965,161 @@ const readTextIfExists = async (targetPath) => {
   return readFile(targetPath)
 }
 
+const runAudit = async () => {
+  try {
+    const packageJsonPath = path.join(process.cwd(), 'package.json')
+    if (!(await pathExists(packageJsonPath))) {
+      warn('package.json missing', 'run this inside a Node/React project')
+      return
+    }
+
+    section('audit', 'dependency vulnerability check')
+    console.log(muted('Running security audit...\n'))
+
+    const auditRes = await execa('npm', ['audit', '--json'], { cwd: process.cwd(), reject: false })
+
+    if (auditRes.exitCode >= 2) {
+      throw new Error(`npm audit failed to execute: ${auditRes.stderr || auditRes.stdout}`)
+    }
+
+    let auditData
+    try {
+      auditData = JSON.parse(auditRes.stdout)
+    } catch (e) {
+      if (auditRes.stderr && auditRes.stderr.includes('ENOTFOUND')) {
+        throw new Error('Network error: Could not reach the npm registry. Please check your internet connection.')
+      }
+      throw new Error(`Failed to parse npm audit output: ${auditRes.stderr || auditRes.stdout || e.message}`)
+    }
+
+    const vulnerabilities = auditData.vulnerabilities || {}
+    const vulnKeys = Object.keys(vulnerabilities)
+    const total = auditData.metadata?.vulnerabilities?.total || vulnKeys.length
+
+    if (total === 0 || vulnKeys.length === 0) {
+      pass('No vulnerabilities found!')
+      console.log(`\nHello! Your project looks completely secure. The project is safe for further development process.\n`)
+      return
+    }
+
+    const counts = auditData.metadata?.vulnerabilities || {}
+    const countSummary = []
+    if (counts.critical) countSummary.push(`${counts.critical} critical`)
+    if (counts.high) countSummary.push(`${counts.high} high`)
+    if (counts.moderate) countSummary.push(`${counts.moderate} moderate`)
+    if (counts.low) countSummary.push(`${counts.low} low`)
+    if (counts.info) countSummary.push(`${counts.info} info`)
+
+    const countStr = countSummary.join(', ') || `${total} total`
+    console.log(chalk.red(`Found ${total} vulnerabilities (${countStr})\n`))
+
+    for (const pkgName of vulnKeys) {
+      const vuln = vulnerabilities[pkgName]
+      const severity = vuln.severity
+      const via = vuln.via || []
+      
+      const reasons = via.map(v => typeof v === 'object' ? v.title : `dependent package "${v}"`).filter(Boolean)
+      const reasonStr = reasons.length > 0 ? reasons.join('; ') : 'Unknown issue'
+      
+      const directStr = vuln.isDirect ? chalk.yellow('direct dependency') : chalk.gray('transitive dependency')
+      const severityColor = severity === 'critical' || severity === 'high' ? chalk.red : chalk.yellow
+      
+      console.log(`  ${strong(pkgName)} (${severityColor(severity)})`)
+      console.log(`  ${muted('├─ type:')}     ${directStr}`)
+      console.log(`  ${muted('├─ reason:')}   ${chalk.white(reasonStr)}`)
+      
+      if (vuln.fixAvailable) {
+        if (typeof vuln.fixAvailable === 'object') {
+          const fix = vuln.fixAvailable
+          const semverStr = fix.isSemVerMajor ? chalk.red('major breaking update') : chalk.green('semver compatible')
+          console.log(`  ${muted('└─ fix:')}      ${chalk.green(`upgrade to ${fix.name}@${fix.version}`)} (${semverStr})`)
+        } else if (vuln.fixAvailable === true) {
+          console.log(`  ${muted('└─ fix:')}      ${chalk.green('fix available via npm audit fix')}`)
+        } else {
+          console.log(`  ${muted('└─ fix:')}      ${chalk.gray('no simple fix available')}`)
+        }
+      } else {
+        console.log(`  ${muted('└─ fix:')}      ${chalk.gray('no fix available')}`)
+      }
+      console.log('')
+    }
+
+    const confirmFix = await customConfirm({
+      message: 'Would you like to run audit fix?',
+      initialValue: true,
+    })
+
+    if (!confirmFix) {
+      console.log(chalk.yellow('\nAudit fix aborted.'))
+      return
+    }
+
+    console.log(chalk.gray('\nRunning npm audit fix...'))
+    const fixRes = await execa('npm', ['audit', 'fix'], { cwd: process.cwd(), reject: false })
+
+    if (fixRes.stdout && fixRes.stdout.trim()) {
+      console.log(fixRes.stdout.trim())
+    }
+    if (fixRes.stderr && fixRes.stderr.trim()) {
+      console.error(fixRes.stderr.trim())
+    }
+
+    console.log(chalk.gray('\nVerifying resolutions...'))
+    const postAuditRes = await execa('npm', ['audit', '--json'], { cwd: process.cwd(), reject: false })
+
+    let postAuditData
+    try {
+      postAuditData = JSON.parse(postAuditRes.stdout)
+    } catch (e) {
+      postAuditData = { vulnerabilities: {} }
+    }
+
+    const postVulns = postAuditData.vulnerabilities || {}
+    const postKeys = Object.keys(postVulns)
+
+    const resolvedList = []
+    const remainingList = []
+
+    for (const pkgName of vulnKeys) {
+      if (!postVulns[pkgName]) {
+        const preVuln = vulnerabilities[pkgName]
+        const via = preVuln.via || []
+        const reasons = via.map(v => typeof v === 'object' ? v.title : `dependent package "${v}"`).filter(Boolean)
+        resolvedList.push({ name: pkgName, severity: preVuln.severity, reason: reasons.join('; ') })
+      }
+    }
+
+    for (const pkgName of postKeys) {
+      const postVuln = postVulns[pkgName]
+      const via = postVuln.via || []
+      const reasons = via.map(v => typeof v === 'object' ? v.title : `dependent package "${v}"`).filter(Boolean)
+      remainingList.push({ name: pkgName, severity: postVuln.severity, reason: reasons.join('; ') })
+    }
+
+    console.log(`\n${chalk.green.bold('✔ Audit fix complete!')}\n`)
+
+    if (resolvedList.length > 0) {
+      console.log(chalk.green.bold('Resolved:'))
+      resolvedList.forEach(r => {
+        console.log(`  ${chalk.green('✔')} ${strong(r.name)} (${chalk.green(r.severity)}) - ${r.reason}`)
+      })
+      console.log('')
+    }
+
+    if (remainingList.length > 0) {
+      console.log(chalk.yellow.bold('Remaining Issues:'))
+      remainingList.forEach(r => {
+        console.log(`  ${chalk.yellow('⚠')} ${strong(r.name)} (${chalk.yellow(r.severity)}) - ${r.reason}`)
+      })
+      console.log(`\n${muted('Some vulnerabilities could not be auto-resolved. They may require manual dependency updates or npm audit fix --force.')}\n`)
+    } else {
+      console.log(chalk.green('All vulnerabilities have been resolved successfully! The project is safe for further development process.\n'))
+    }
+  } catch (error) {
+    fail(error.message)
+  }
+}
+
 const doctor = async () => {
   try {
     section('doctor', 'project health check')
@@ -1388,62 +1544,143 @@ const getFontFiles = async (dir, filesList = []) => {
   return filesList
 }
 
-const getFontFamily = (filePath) => {
-  const parentDir = path.basename(path.dirname(filePath))
-  let rawName = parentDir
-  if (parentDir.toLowerCase() === 'fonts') {
-    rawName = path.basename(filePath, path.extname(filePath))
-  }
-  let cleanName = rawName
-    .replace(/[_-]/g, ' ')
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-  
-  cleanName = cleanName
-    .replace(/\b(Regular|Bold|Italic|VariableFont|Variable|Medium|Light|SemiBold|Thin|Black)\b/gi, '')
-    .trim()
-    
-  return cleanName
-    .split(/\s+/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
-
-const getFontSlug = (family) => {
-  return family
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-}
-
 const getFontFormat = (ext) => {
-  switch (ext) {
+  switch (ext.toLowerCase()) {
     case '.ttf':
-    case '.ttc': return "format('truetype')"
-    case '.otf': return "format('opentype')"
-    case '.woff': return "format('woff')"
-    case '.woff2': return "format('woff2')"
+    case '.ttc': return 'format("truetype")'
+    case '.otf': return 'format("opentype")'
+    case '.woff': return 'format("woff")'
+    case '.woff2': return 'format("woff2")'
     default: return ''
   }
 }
 
+const parseFontInfo = (filePath) => {
+  const ext = path.extname(filePath)
+  const filename = path.basename(filePath, ext)
+  const lowerName = filename.toLowerCase()
+
+  const style = lowerName.includes('italic') ? 'italic' : 'normal'
+
+  let weight = 400
+  let suffix = ''
+
+  if (lowerName.includes('variable')) {
+    weight = '100 900'
+    suffix = ''
+  } else if (lowerName.includes('black') || lowerName.includes('heavy')) {
+    weight = 900
+    suffix = ''
+  } else if (lowerName.includes('extrabold') || lowerName.includes('ultrabold')) {
+    weight = 800
+    suffix = '-xb'
+  } else if (lowerName.includes('semibold') || lowerName.includes('demibold')) {
+    weight = 600
+    suffix = '-s'
+  } else if (lowerName.includes('bold')) {
+    weight = 700
+    suffix = '-b'
+  } else if (lowerName.includes('medium')) {
+    weight = 500
+    suffix = '-m'
+  } else if (lowerName.includes('regular') || lowerName.includes('book')) {
+    weight = 400
+    suffix = ''
+  } else if (lowerName.includes('extralight') || lowerName.includes('ultralight')) {
+    weight = 200
+    suffix = '-xl'
+  } else if (lowerName.includes('light')) {
+    weight = 300
+    suffix = '-l'
+  } else if (lowerName.includes('thin') || lowerName.includes('hairline')) {
+    weight = 100
+    suffix = '-t'
+  }
+
+  let cleanName = filename
+    .replace(/[-_]/g, ' ')
+    .replace(/\b(ExtraBold|UltraBold|SemiBold|DemiBold|ExtraLight|UltraLight|Regular|Bold|Italic|VariableFont|Variable|Medium|Light|Thin|Black|Heavy|Book|Hairline)\b/gi, '')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/([A-Za-z])([0-9])/g, '$1 $2')
+    .replace(/([0-9])([A-Za-z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (!cleanName) {
+    cleanName = filename.replace(/[-_]/g, ' ').trim()
+  }
+
+  const baseFamily = cleanName
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+
+  const fontFamily = `${baseFamily}${suffix}`
+
+  return {
+    filename,
+    ext,
+    baseFamily,
+    fontFamily,
+    weight,
+    style,
+    format: getFontFormat(ext),
+  }
+}
+
+const getThemeSlug = (fontFamily, usedSlugs) => {
+  let primarySlug = fontFamily.split(' ')[0].toLowerCase().replace(/[^a-z0-9-]/g, '')
+  if (fontFamily.includes('-')) {
+    primarySlug = fontFamily.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+  }
+  if (!usedSlugs.has(primarySlug)) {
+    usedSlugs.add(primarySlug)
+    return primarySlug
+  }
+  let fullSlug = fontFamily.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+  usedSlugs.add(fullSlug)
+  return fullSlug
+}
+
 const configureFontAssets = async () => {
   try {
-    const fontsDir = path.join(process.cwd(), 'public', 'fonts')
+    const fontsDirPrimary = path.join(process.cwd(), 'public', 'fonts')
+    const fontsDirSecondary = path.join(process.cwd(), 'public', 'assets', 'fonts')
     const indexCssPath = path.join(process.cwd(), 'src', 'index.css')
 
-    if (!(await pathExists(fontsDir))) {
-      throw new Error(`Directory public/fonts does not exist. Run 'react asset' or create it first.`)
+    const hasPrimary = await pathExists(fontsDirPrimary)
+    const hasSecondary = await pathExists(fontsDirSecondary)
+
+    if (!hasPrimary && !hasSecondary) {
+      throw new Error(`Font directory (public/fonts or public/assets/fonts) does not exist. Run 'react asset' or create it first.`)
     }
 
     if (!(await pathExists(indexCssPath))) {
       throw new Error(`Stylesheet src/index.css does not exist.`)
     }
 
-    const fontFiles = await getFontFiles(fontsDir)
+    let rawFontFiles = []
+    if (hasPrimary) {
+      const files = await getFontFiles(fontsDirPrimary)
+      rawFontFiles.push(...files)
+    }
+    if (hasSecondary) {
+      const files = await getFontFiles(fontsDirSecondary)
+      rawFontFiles.push(...files)
+    }
+
+    // Deduplicate font files by relative URL path
+    const fileMap = new Map()
+    for (const f of rawFontFiles) {
+      const relUrl = getRelativeUrlPath(f)
+      if (!fileMap.has(relUrl)) {
+        fileMap.set(relUrl, f)
+      }
+    }
+    const fontFiles = Array.from(fileMap.values())
+
     if (fontFiles.length === 0) {
-      console.log(chalk.yellow('No font files found under public/fonts/'))
+      console.log(chalk.yellow('No font files found under public/fonts/ or public/assets/fonts/'))
       return
     }
 
@@ -1452,76 +1689,76 @@ const configureFontAssets = async () => {
 
     section('font auto-config', 'scanning and registering local fonts')
 
+    const newFontFaceBlocks = []
+    const newThemeLines = []
+    const usedSlugs = new Set()
+
+    // Collect existing theme slugs if @theme block exists
+    const existingThemeVars = cssContent.match(/--font-([a-z0-9-]+)\s*:/g) || []
+    existingThemeVars.forEach((v) => {
+      const m = v.match(/--font-([a-z0-9-]+)/)
+      if (m) usedSlugs.add(m[1])
+    })
+
     for (const filePath of fontFiles) {
-      const ext = path.extname(filePath).toLowerCase()
-      const relativeUrlPath = getRelativeUrlPath(filePath)
-      
-      const escapedPath = escapeRegExp(relativeUrlPath)
+      const relUrlPath = getRelativeUrlPath(filePath)
+      const escapedPath = escapeRegExp(relUrlPath)
       const urlRegex = new RegExp(`url\\(['"]?${escapedPath}['"]?\\)`, 'i')
       if (urlRegex.test(cssContent)) {
         continue
       }
 
-      const family = getFontFamily(filePath)
-      const slug = getFontSlug(family)
-      const formatStr = getFontFormat(ext)
-      
-      const fileNameLower = path.basename(filePath).toLowerCase()
-      const style = fileNameLower.includes('italic') ? 'italic' : 'normal'
-      let weight = 'normal'
-      if (fileNameLower.includes('variable')) {
-        weight = '100 900'
-      } else if (fileNameLower.includes('bold')) {
-        weight = 'bold'
-      } else if (fileNameLower.includes('semibold') || fileNameLower.includes('demibold')) {
-        weight = '600'
-      } else if (fileNameLower.includes('medium')) {
-        weight = '500'
-      } else if (fileNameLower.includes('light')) {
-        weight = '300'
-      } else if (fileNameLower.includes('thin')) {
-        weight = '100'
-      }
+      const fontInfo = parseFontInfo(filePath)
+      const slug = getThemeSlug(fontInfo.fontFamily, usedSlugs)
 
-      const faceBlock = `
-@font-face {
-  font-family: '${escapeCssString(family)}';
-  src: url('${escapeCssString(relativeUrlPath)}') ${formatStr};
-  font-weight: ${weight};
-  font-style: ${style};
+      const faceBlock = `@font-face {
+  font-family: "${escapeCssString(fontInfo.fontFamily)}";
+  src: url("${escapeCssString(relUrlPath)}") ${fontInfo.format};
+  font-weight: ${fontInfo.weight};
+  font-style: ${fontInfo.style};
+  font-display: swap;
 }`
 
-      let themeBlock = ''
-      if (!cssContent.includes(`--font-${slug}:`) && !cssContent.includes(`--font-${slug} `)) {
-        themeBlock = `
-
-@theme {
-  --font-${slug}: "${escapeCssString(family)}", sans-serif;
-}`
-      }
-
-      let utilityBlock = ''
-      if (!cssContent.includes(`.font-${slug} `) && !cssContent.includes(`.font-${slug}{`)) {
-        utilityBlock = `
-
-@layer utilities {
-  .font-${slug} {
-    font-family: var(--font-${slug});
-  }
-}`
-      }
-
-      cssContent += `${faceBlock}${themeBlock}${utilityBlock}\n`
+      newFontFaceBlocks.push(faceBlock)
+      newThemeLines.push(`  --font-${slug}: "${escapeCssString(fontInfo.fontFamily)}", sans-serif;`)
       cssAppended = true
-      pass(`registered ${family} (${path.basename(filePath)})`)
+      pass(`registered ${fontInfo.fontFamily} (${path.basename(filePath)})`)
     }
 
-    if (cssAppended) {
-      await writeFile(indexCssPath, cssContent)
-      console.log(chalk.green.bold('\n✔ src/index.css successfully updated with custom font classes!'))
-    } else {
+    if (!cssAppended) {
       console.log(chalk.gray('\nAll fonts are already configured in src/index.css'))
+      return
     }
+
+    let updatedCss = cssContent
+
+    // Insert @font-face blocks
+    if (newFontFaceBlocks.length > 0) {
+      const fontFaceGroup = '\n' + newFontFaceBlocks.join('\n\n') + '\n'
+      const themeIndex = updatedCss.indexOf('@theme')
+      if (themeIndex !== -1) {
+        updatedCss = updatedCss.slice(0, themeIndex) + fontFaceGroup + '\n' + updatedCss.slice(themeIndex)
+      } else {
+        updatedCss = updatedCss.trimEnd() + '\n' + fontFaceGroup
+      }
+    }
+
+    // Insert or update @theme block
+    if (newThemeLines.length > 0) {
+      const themeRegex = /@theme\s*\{([^}]*)\}/
+      if (themeRegex.test(updatedCss)) {
+        updatedCss = updatedCss.replace(themeRegex, (match, inner) => {
+          const trimmedInner = inner.trimEnd()
+          return `@theme {${trimmedInner}\n${newThemeLines.join('\n')}\n}`
+        })
+      } else {
+        const themeBlock = `\n@theme {\n${newThemeLines.join('\n')}\n}\n`
+        updatedCss = updatedCss.trimEnd() + '\n' + themeBlock
+      }
+    }
+
+    await writeFile(indexCssPath, updatedCss)
+    console.log(chalk.green.bold('\n✔ src/index.css successfully updated with custom font classes!'))
   } catch (error) {
     fail(error.message)
   }
@@ -1563,26 +1800,39 @@ const getImageKey = (filePath, imagesDir) => {
 
 const configureImageAssets = async () => {
   try {
-    const imagesDir = path.join(process.cwd(), 'public', 'images')
+    const imagesDirPrimary = path.join(process.cwd(), 'public', 'images')
+    const imagesDirSecondary = path.join(process.cwd(), 'public', 'assets', 'images')
     const utilsDir = path.join(process.cwd(), 'src', 'utils')
     const imagesJsPath = path.join(utilsDir, 'images.js')
 
-    if (!(await pathExists(imagesDir))) {
-      throw new Error(`Directory public/images does not exist. Run 'react asset' or create it first.`)
+    const hasPrimary = await pathExists(imagesDirPrimary)
+    const hasSecondary = await pathExists(imagesDirSecondary)
+
+    if (!hasPrimary && !hasSecondary) {
+      throw new Error(`Directory public/images or public/assets/images does not exist. Run 'react asset' or create it first.`)
     }
 
-    const imageFiles = await getImageFiles(imagesDir)
-    if (imageFiles.length === 0) {
-      console.log(chalk.yellow('No image files found under public/images/'))
+    let imageItems = []
+    if (hasPrimary) {
+      const files = await getImageFiles(imagesDirPrimary)
+      imageItems.push(...files.map(f => ({ filePath: f, dir: imagesDirPrimary })))
+    }
+    if (hasSecondary) {
+      const files = await getImageFiles(imagesDirSecondary)
+      imageItems.push(...files.map(f => ({ filePath: f, dir: imagesDirSecondary })))
+    }
+
+    if (imageItems.length === 0) {
+      console.log(chalk.yellow('No image files found under public/images/ or public/assets/images/'))
       return
     }
 
     section('image auto-config', 'scanning and mapping local images')
 
     const imageMap = {}
-    for (const filePath of imageFiles) {
-      const key = getImageKey(filePath, imagesDir)
-      const relativeUrlPath = getRelativeUrlPath(filePath)
+    for (const item of imageItems) {
+      const key = getImageKey(item.filePath, item.dir)
+      const relativeUrlPath = getRelativeUrlPath(item.filePath)
       imageMap[key] = relativeUrlPath
       pass(`mapped image: ${key} ➔ ${relativeUrlPath}`)
     }
@@ -2009,9 +2259,99 @@ const isSafeRemoteUrl = (url) => {
   return /^(https?|git|ssh):\/\//i.test(url) || /^[\w.-]+@[\w.-]+:.+$/.test(url)
 }
 
+const generateAutoCommitMessage = async () => {
+  try {
+    const result = await execa('git', ['status', '--porcelain'], { cwd: process.cwd(), reject: false })
+    const stdout = result.stdout || ''
+    const lines = stdout.trim().split('\n').filter(Boolean)
+
+    if (lines.length === 0) {
+      return 'update project files'
+    }
+
+    const modifiedFiles = []
+    const addedFiles = []
+    const deletedFiles = []
+    const renamedFiles = []
+
+    lines.forEach((line) => {
+      const status = line.slice(0, 2).trim()
+      let filePath = line.slice(3).trim()
+      if (filePath.includes('->')) {
+        filePath = filePath.split('->')[1].trim()
+      }
+      filePath = filePath.replace(/^"|"$/g, '')
+
+      if (status.includes('D')) {
+        deletedFiles.push(filePath)
+      } else if (status.includes('A') || status === '??') {
+        addedFiles.push(filePath)
+      } else if (status.includes('R')) {
+        renamedFiles.push(filePath)
+      } else {
+        modifiedFiles.push(filePath)
+      }
+    })
+
+    const allChangedFiles = [...modifiedFiles, ...addedFiles, ...deletedFiles, ...renamedFiles]
+
+    if (allChangedFiles.length === 1) {
+      const file = allChangedFiles[0]
+      const baseName = path.basename(file)
+
+      if (addedFiles.length === 1) return `add ${baseName}`
+      if (deletedFiles.length === 1) return `remove ${baseName}`
+      if (renamedFiles.length === 1) return `rename ${baseName}`
+      return `update ${baseName}`
+    }
+
+    const categories = new Set()
+
+    allChangedFiles.forEach((file) => {
+      const normalized = file.replace(/\\/g, '/')
+      if (normalized.startsWith('src/components/')) {
+        categories.add('components')
+      } else if (normalized.startsWith('src/pages/')) {
+        categories.add('pages')
+      } else if (normalized.startsWith('src/hooks/')) {
+        categories.add('hooks')
+      } else if (normalized.startsWith('src/services/')) {
+        categories.add('services')
+      } else if (normalized.startsWith('src/store/')) {
+        categories.add('state store')
+      } else if (normalized.startsWith('src/utils/')) {
+        categories.add('utilities')
+      } else if (normalized.startsWith('public/fonts/') || normalized.startsWith('public/assets/fonts/')) {
+        categories.add('fonts')
+      } else if (normalized.startsWith('public/images/') || normalized.startsWith('public/assets/images/')) {
+        categories.add('images')
+      } else if (normalized.endsWith('.css') || normalized.endsWith('.scss')) {
+        categories.add('styling')
+      } else if (normalized === 'package.json' || normalized === 'package-lock.json') {
+        categories.add('dependencies')
+      } else if (normalized === 'vite.config.js' || normalized.startsWith('.env')) {
+        categories.add('project config')
+      }
+    })
+
+    const categoryList = Array.from(categories)
+
+    if (categoryList.length > 0 && categoryList.length <= 3) {
+      const action = addedFiles.length > modifiedFiles.length ? 'add and update' : 'update'
+      return `${action} ${categoryList.join(', ')}`
+    }
+
+    const mainAction = addedFiles.length > modifiedFiles.length ? 'add' : 'update'
+    return `${mainAction} project files (${allChangedFiles.length} files changed)`
+  } catch (error) {
+    return 'update project files'
+  }
+}
+
 const gitPushWrapper = async (options) => {
   const steps = []
   let gitDirExists = await pathExists(path.join(process.cwd(), '.git'))
+  const autoCommitMessage = await generateAutoCommitMessage()
 
   if (options.github) {
     const isGitHubUrl = /^(https?:\/\/|git@|git:\/\/)/.test(options.github) || options.github.endsWith('.git')
@@ -2032,9 +2372,9 @@ const gitPushWrapper = async (options) => {
           args: ['add', '.'],
         },
         {
-          label: 'Create first commit: "first commit"',
+          label: `Create first commit: "${autoCommitMessage}"`,
           cmd: 'git',
-          args: ['commit', '-m', 'first commit'],
+          args: ['commit', '-m', autoCommitMessage],
         },
         {
           label: 'Rename branch to main',
@@ -2073,7 +2413,7 @@ const gitPushWrapper = async (options) => {
     }
   } else {
     const repoUrl = options.git
-    const commitMessage = options.message || (repoUrl ? 'first commit' : 'update')
+    const commitMessage = options.message || autoCommitMessage
 
     if (repoUrl && !isSafeRemoteUrl(repoUrl)) {
       fail('Unsafe git remote URL. Use an https://, ssh://, git:// or git@host:path URL.')
@@ -2200,6 +2540,11 @@ program
   .command('doctor')
   .description('Check the current React project setup')
   .action(doctor)
+
+program
+  .command('audit')
+  .description('Audit project dependencies for security vulnerabilities')
+  .action(runAudit)
 
 program
   .command('update')
