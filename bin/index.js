@@ -27,6 +27,11 @@ import {
   printerContent,
 } from '../lib/shared.js'
 
+process.on('SIGINT', () => {
+  console.log(chalk.hex('#94A3B8')('\nOperation cancelled 👋\n'))
+  process.exit(0)
+})
+
 const projectNameRegex = /^[a-zA-Z0-9_-]+$|^\.$/
 const fileNameRegex = /^[a-zA-Z][a-zA-Z0-9_-]*$/
 const envKeyRegex = /^VITE_[A-Z][A-Z0-9_]*$/
@@ -329,9 +334,10 @@ const customMultiselect = ({ options, initialValues = [] }) => {
     const selected = new Set(initialValues)
     let activeIndex = 0
     let renderedLines = 0
+    const startTime = Date.now()
 
-    readline.emitKeypressEvents(process.stdin)
-    process.stdin.setRawMode(true)
+    if (process.stdin.setRawMode) process.stdin.setRawMode(true)
+    process.stdin.resume()
 
     const render = () => {
       if (renderedLines > 0) clearLines(renderedLines)
@@ -347,8 +353,8 @@ const customMultiselect = ({ options, initialValues = [] }) => {
     }
 
     const done = () => {
-      process.stdin.setRawMode(false)
-      process.stdin.off('keypress', onKeypress)
+      process.stdin.off('data', onData)
+      if (process.stdin.setRawMode) process.stdin.setRawMode(false)
       clearLines(renderedLines)
 
       const lines = options.map((option) => renderSelectOption({
@@ -361,27 +367,40 @@ const customMultiselect = ({ options, initialValues = [] }) => {
       resolve([...selected])
     }
 
-    const onKeypress = (_, key) => {
-      if (key?.name === 'c' && key.ctrl) {
-        process.stdin.setRawMode(false)
-        process.stdin.off('keypress', onKeypress)
-        cancel('Operation cancelled')
-        process.exit(1)
+    const onData = (buffer) => {
+      const str = buffer.toString('utf8')
+
+      // Ctrl+C
+      if (str === '\x03' || str.includes('\x03') || str.charCodeAt(0) === 3) {
+        process.stdin.off('data', onData)
+        if (process.stdin.setRawMode) process.stdin.setRawMode(false)
+        console.log(chalk.hex('#94A3B8')('\nOperation cancelled 👋\n'))
+        process.exit(0)
       }
 
-      if (key?.name === 'up') {
+      // Enter
+      if (str === '\r' || str === '\n' || str === '\r\n') {
+        if (Date.now() - startTime < 300) return
+        done()
+        return
+      }
+
+      // Up Arrow
+      if (str === '\x1b[A' || str === '\x1bOA') {
         activeIndex = activeIndex === 0 ? options.length - 1 : activeIndex - 1
         render()
         return
       }
 
-      if (key?.name === 'down') {
+      // Down Arrow
+      if (str === '\x1b[B' || str === '\x1bOB') {
         activeIndex = activeIndex === options.length - 1 ? 0 : activeIndex + 1
         render()
         return
       }
 
-      if (key?.name === 'space') {
+      // Space
+      if (str === ' ') {
         const value = options[activeIndex].value
         if (selected.has(value)) selected.delete(value)
         else selected.add(value)
@@ -389,19 +408,16 @@ const customMultiselect = ({ options, initialValues = [] }) => {
         return
       }
 
-      if (key?.name === 'a') {
+      // 'a' or 'A'
+      if (str === 'a' || str === 'A') {
         if (selected.size === options.length) selected.clear()
         else options.forEach((option) => selected.add(option.value))
         render()
         return
       }
-
-      if (key?.name === 'return') {
-        done()
-      }
     }
 
-    process.stdin.on('keypress', onKeypress)
+    process.stdin.on('data', onData)
     render()
   })
 }
@@ -414,9 +430,10 @@ const customConfirm = ({ message, initialValue = true }) => {
   return new Promise((resolve) => {
     let value = initialValue
     let renderedLines = 0
+    const startTime = Date.now()
 
-    readline.emitKeypressEvents(process.stdin)
-    process.stdin.setRawMode(true)
+    if (process.stdin.setRawMode) process.stdin.setRawMode(true)
+    process.stdin.resume()
 
     const render = () => {
       if (renderedLines > 0) clearLines(renderedLines)
@@ -433,8 +450,8 @@ const customConfirm = ({ message, initialValue = true }) => {
     }
 
     const done = () => {
-      process.stdin.setRawMode(false)
-      process.stdin.off('keypress', onKeypress)
+      process.stdin.off('data', onData)
+      if (process.stdin.setRawMode) process.stdin.setRawMode(false)
       clearLines(renderedLines)
 
       const answer = value ? accent('yes') : muted('no')
@@ -442,40 +459,49 @@ const customConfirm = ({ message, initialValue = true }) => {
       resolve(value)
     }
 
-    const onKeypress = (input, key) => {
-      if (key?.name === 'c' && key.ctrl) {
-        process.stdin.setRawMode(false)
-        process.stdin.off('keypress', onKeypress)
-        cancel('Operation cancelled')
-        process.exit(1)
+    const onData = (buffer) => {
+      const str = buffer.toString('utf8')
+
+      // Ctrl+C
+      if (str === '\x03' || str.includes('\x03') || str.charCodeAt(0) === 3) {
+        process.stdin.off('data', onData)
+        if (process.stdin.setRawMode) process.stdin.setRawMode(false)
+        console.log(chalk.hex('#94A3B8')('\nOperation cancelled 👋\n'))
+        process.exit(0)
       }
 
-      const pressed = String(input || key?.name || '').toLowerCase()
+      // Enter
+      if (str === '\r' || str === '\n' || str === '\r\n') {
+        if (Date.now() - startTime < 300) return
+        done()
+        return
+      }
 
-      if (pressed === 'y' || key?.name === 'left' || key?.name === 'up') {
+      const lower = str.toLowerCase()
+
+      // 'y', Left, Up
+      if (lower === 'y' || str === '\x1b[D' || str === '\x1b[A' || str === '\x1bOD' || str === '\x1bOA') {
         value = true
         render()
         return
       }
 
-      if (pressed === 'n' || key?.name === 'right' || key?.name === 'down') {
+      // 'n', Right, Down
+      if (lower === 'n' || str === '\x1b[C' || str === '\x1b[B' || str === '\x1bOC' || str === '\x1bOB') {
         value = false
         render()
         return
       }
 
-      if (key?.name === 'space' || key?.name === 'tab') {
+      // Space or Tab
+      if (str === ' ' || str === '\t') {
         value = !value
         render()
         return
       }
-
-      if (key?.name === 'return') {
-        done()
-      }
     }
 
-    process.stdin.on('keypress', onKeypress)
+    process.stdin.on('data', onData)
     render()
   })
 }
@@ -789,7 +815,7 @@ const configureIndexHtml = async (projectPath, projectName) => {
   }
 }
 
-const postInstallHandlers = createPackageHandlers({ installPackages: true })
+const postInstallHandlers = createPackageHandlers({ installPackages: false })
 
 const collectProjectEntries = (selectedFolders, selectedSetup) => {
   const srcEntries = ['main.jsx', 'App.jsx']
@@ -2679,7 +2705,30 @@ const createProject = async (name, options) => {
     })
 
     await progress.step(async () => {
-      await runCommand('npm', ['install'], { cwd: projectPath }, 'Failed to install base dependencies')
+      const packageMap = {
+        tailwind: ['tailwindcss', '@tailwindcss/vite'],
+        axios: ['axios'],
+        socket: ['socket.io-client'],
+        toast: ['react-hot-toast'],
+        icon: ['react-icons'],
+        lucide: ['lucide-react'],
+        router: ['react-router-dom'],
+        qr: ['react-qr-code'],
+        webcam: ['react-webcam'],
+        printer: ['react-to-print', 'socket.io-client'],
+      }
+
+      const batchPackages = []
+      for (const pkg of selections.selectedPackages) {
+        if (packageMap[pkg]) {
+          packageMap[pkg].forEach((p) => {
+            if (!batchPackages.includes(p)) batchPackages.push(p)
+          })
+        }
+      }
+
+      const installArgs = batchPackages.length > 0 ? ['install', ...batchPackages] : ['install']
+      await runCommand('npm', installArgs, { cwd: projectPath }, 'Failed to install project dependencies')
     })
 
     for (const packageName of selections.selectedPackages) {
@@ -3010,6 +3059,65 @@ const gitPushWrapper = async (options) => {
   await typeText(`\n${chalk.hex('#10B981').bold('✔ Project successfully pushed to Git remote! ♥︎')}`)
 }
 
+const runSparkAgentIntro = async () => {
+  const { text, isCancel } = await import('@clack/prompts')
+  printBanner()
+  
+  section('spark agent cli', 'interactive prompt mode')
+
+  console.log([
+    `  ${chalk.hex('#38BDF8').bold('💡 Quick Guide & Commands:')}`,
+    `     ${chalk.hex('#00E5FF').bold('• <project-name>')}   ${chalk.white('Create a new React + Vite project')} ${chalk.hex('#94A3B8')('(e.g. my-app or .)')}`,
+    `     ${chalk.hex('#00E5FF').bold('• /help')}            ${chalk.white('Check all available CLI commands & usage')}`,
+    `     ${chalk.hex('#00E5FF').bold('• /doctor')}          ${chalk.white('Run project health & environment checks')}`,
+    `     ${chalk.hex('#00E5FF').bold('• /set loader')}      ${chalk.white('Generate responsive backdrop-blur Loader.jsx')}`,
+    `     ${chalk.hex('#00E5FF').bold('• /set printer')}     ${chalk.white('Generate Printer.jsx page with socket print queue')}`,
+    `     ${chalk.hex('#00E5FF').bold('• /set form')}        ${chalk.white('Generate styled Form.jsx component')}`,
+    `     ${chalk.hex('#00E5FF').bold('• /push')}            ${chalk.white('Stage, commit, and push updates to Git remote')}`,
+    `     ${chalk.hex('#00E5FF').bold('• /exit')}            ${chalk.white('Exit Spark CLI (or press Ctrl+C)')}`,
+  ].join('\n'))
+
+  while (true) {
+    console.log('')
+    const input = await text({
+      message: 'spark agent ❯',
+      placeholder: 'e.g. my-app, /help, /doctor, /set loader, /exit',
+    })
+
+    if (isCancel(input) || !input || input.trim() === '/exit' || input.trim() === 'exit' || input.trim() === 'quit') {
+      console.log(chalk.hex('#94A3B8')('\nGoodbye! 👋\n'))
+      process.exit(0)
+    }
+
+    const trimmed = input.trim()
+    const lower = trimmed.toLowerCase()
+
+    if (lower === '/help' || lower === 'help' || lower === '/list' || lower === 'list') {
+      printCommandReference()
+    } else if (lower === '/doctor' || lower === 'doctor') {
+      await doctor()
+    } else if (lower === '/set loader' || lower === 'set loader' || lower === 'loader') {
+      await configureLoaderBoilerplate()
+    } else if (lower === '/set printer' || lower === 'set printer' || lower === 'printer' || lower === 'print') {
+      await configurePrinterBoilerplate()
+    } else if (lower.startsWith('/set form') || lower.startsWith('set form') || lower === 'form') {
+      const parts = trimmed.split(' ').slice(2)
+      await configureFormBoilerplate(parts)
+    } else if (lower.startsWith('/push') || lower === 'push') {
+      const gitMsg = await text({
+        message: 'Enter commit message or remote repository URL:',
+        placeholder: 'update project files',
+        defaultValue: 'update project files',
+      })
+      if (isCancel(gitMsg)) process.exit(0)
+      await gitPushWrapper({ github: gitMsg })
+    } else {
+      const projName = trimmed.startsWith('/') ? trimmed.slice(1) : trimmed
+      return { action: 'create', projName }
+    }
+  }
+}
+
 const program = new Command()
 
 program
@@ -3039,47 +3147,22 @@ program
 
 program
   .command('update')
-  .description('Show outdated dependencies without upgrading')
+  .description('Show outdated dependencies')
   .action(checkUpdates)
 
 program
   .command('run')
-  .description('Run npm run dev with host enabled')
-  .option('--port <port>', 'Vite dev server port')
-  .action(runDevServer)
+  .description('Run npm run dev with --host 0.0.0.0 enabled')
+  .option('-p, --port <number>', 'server port number')
+  .action((options) => runDevServer(options.port))
 
 program
   .command('asset')
-  .description('Create public/assets folders for images, icons, and fonts')
+  .description('Create public images and fonts folders')
   .action(createAssetFolders)
 
-const envCommand = program
+program
   .command('env')
-  .description('Manage Vite .env variables')
-
-envCommand
-  .command('list')
-  .description('List .env variables')
-  .action(envList)
-
-envCommand
-  .command('add <key> <value>')
-  .description('Add or update a VITE_ environment variable')
-  .action(envAdd)
-
-envCommand
-  .command('remove <key>')
-  .description('Remove a VITE_ environment variable')
-  .action(envRemove)
-
-program
-  .command('make <folder> <name> [subfolder]')
-  .description('Create a file inside an existing src folder')
-  .action(makeFile)
-
-program
-  .command('set [target] [fields...]')
-  .description('Configure project assets, environment settings, form, loader, or printer components')
   .option('--font', 'Scan public/fonts and configure @font-face and Tailwind fonts in src/index.css')
   .option('--image', 'Scan public/images and generate src/utils/images.js constants')
   .option('--form', 'Generate a styled React Form component with field icons and state')
@@ -3122,7 +3205,7 @@ program
   .action(gitPushWrapper)
 
 program
-  .argument('<name>', 'project name or . for current directory')
+  .argument('[name]', 'project name or . for current directory')
   .option('--tailwind', 'install tailwindcss + @tailwindcss/vite')
   .option('--axios', 'install axios')
   .option('--socket', 'install socket.io-client')
@@ -3138,6 +3221,16 @@ program
   .option('--ui', 'configure setup in a local browser wizard')
   .action(createProject)
 
-program.parseAsync(process.argv).catch((error) => {
-  fail(error.message)
-})
+;(async () => {
+  if (process.argv.length <= 2) {
+    const res = await runSparkAgentIntro()
+    if (res && res.action === 'create') {
+      await sleep(300)
+      await createProject(res.projName, {})
+    }
+  } else {
+    await program.parseAsync(process.argv).catch((error) => {
+      fail(error.message)
+    })
+  }
+})()

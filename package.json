@@ -10,6 +10,7 @@
   "bin": {
     "anshh": "./bin/index.js",
     "react": "./bin/index.js",
+    "spark": "./bin/index.js",
     "pkg": "./bin/get.js"
   },
   "dependencies": {
