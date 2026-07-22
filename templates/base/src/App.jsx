@@ -60,7 +60,7 @@ function ResourceCard({ title, description, href, delay }) {
   );
 }
 
-export const App = () => {
+const App = () => {
   return (
     <div className="dashboard-container">
       <style>{`
@@ -325,50 +325,42 @@ export const App = () => {
           <div className="orbit-ring-outer" />
           <div className="orbit-ring-inner" />
           <div className="logo-container">
-            <svg
-              viewBox="0 0 500 500"
-              width="100%"
-              height="100%"
-              style={{ display: "block" }}
-            >
+            <svg viewBox="0 0 500 500" width="100%" height="100%" style={{ display: "block" }} fill="none">
               <defs>
-                <linearGradient id="app-lg-2" x1="110.2" y1="209.7" x2="238.89999" y2="116" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stop-color="#00ced1" />
-                  <stop offset=".3" stop-color="#02b1cb" />
-                  <stop offset="1" stop-color="#0969bd" />
-                  <stop offset="1" stop-color="#0a64bc" />
+                <linearGradient id="zenith-grad-1" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#00fee6" />
+                  <stop offset="50%" stopColor="#3b82f6" />
+                  <stop offset="100%" stopColor="#8b5cf6" />
                 </linearGradient>
-                <linearGradient id="app-lg1-9" x1="140.60001" y1="241.8" x2="357.10001" y2="241.8" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stop-color="#0a64bc" />
-                  <stop offset="0" stop-color="#0969bd" />
-                  <stop offset=".7" stop-color="#02b1cb" />
-                  <stop offset="1" stop-color="#00ced1" />
+
+                <linearGradient id="zenith-grad-2" x1="100%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#d2bbff" />
+                  <stop offset="50%" stopColor="#a855f7" />
+                  <stop offset="100%" stopColor="#00fee6" />
                 </linearGradient>
-                <linearGradient id="app-lg2-9" x1="267.79999" y1="218.8" x2="267.79999" y2="305.79999" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stop-color="#00ced1" />
-                  <stop offset=".3" stop-color="#03a9c9" />
-                  <stop offset=".8" stop-color="#0877bf" />
-                  <stop offset="1" stop-color="#0a64bc" />
+
+                <linearGradient id="zenith-grad-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#00fee6" stopOpacity="0.8" />
+                  <stop offset="100%" stopColor="#d2bbff" stopOpacity="0.2" />
                 </linearGradient>
               </defs>
-              <g transform="translate(578.336,832.80383)">
-                <rect style={{ fill: "#ffffff" }} width="500" height="500" x="-578.336" y="-832.80383" ry="250" />
-                <g transform="matrix(1.564053,0,0,1.564053,-710.99228,-892.17352)">
-                  <path d="m 140.6,214.1 c -13.9,0 -24.3,-8.9 -23.7,-20.6 0.3,-5.6 3.4,-10.2 8,-14 13.7,-11.4 109.9,-87.3 109.9,-87.3 v 48.1 l -52.2,40.1 -42.1,33.7 z" style={{ fill: "url(#app-lg-2)" }} />
-                  <path d="m 286.4,271.1 c 0,0 8,0.1 12.6,-1.3 8.4,-2.6 15.9,-6.6 19,-16.9 0.3,-1 0.6,-2 0.7,-3 1.9,-10.2 -0.7,-23.4 -9.9,-29.4 -8.3,-5.4 -18.7,-6.2 -28.3,-6.4 -11.1,-0.3 -22.3,-0.3 -33.4,-0.4 -21.9,-0.1 -43.8,0 -65.6,0.2 -13.7,0 -27.3,0.2 -41,0.2 l 42.1,-33.7 c 0,0 61.7,-0.3 90.7,0 75.3,0.5 102.8,62.6 70.4,99 -8.1,9.1 -20.8,16.7 -38.7,21.4 -6.9,1.8 -14,2.6 -21.2,2.6 -11.8,-0.1 -34.8,0 -34.8,0 l 37.4,-32.1 z" style={{ fill: "url(#app-lg1-9)" }} />
-                  <polygon points="286.4,271.1 249,303.2 249,227.9 286.6,227.9" style={{ fill: "url(#app-lg2-9)" }} />
-                  <polygon points="234.9,227.9 234.9,303.3 192.8,271.3 192.9,227.9" style={{ fill: "#f72d37" }} />
-                  <path d="m 249.1,92.3 c 0,0 26.6,-0.1 17.4,0 23.1,0.3 46.2,13 56.1,34.3 7.7,16.5 4.8,33.8 -2.6,49.8 0,0.1 -2.2,5.9 -2.3,5.8 0,0 -28.7,-11.3 -28.7,-11.3 0.4,0.2 2.9,-3.5 3.1,-3.8 9.6,-13.7 7.2,-34.1 -7.8,-42.9 -5.3,-3.1 -11.2,-5 -17.2,-6.4 0,0 -0.7,-0.1 -0.7,-0.2" style={{ fill: "#00c68f" }} />
-                  <polyline points="286.4 117.6 286.5 166.1 249 166.1 249.1 92.3" style={{ fill: "#11a876" }} />
-                </g>
+
+              <rect x="25" y="25" width="450" height="450" rx="120" fill="#09090b" stroke="url(#zenith-grad-1)" strokeWidth="14" strokeOpacity="0.6" />
+              <path d="M 120,250 L 250,120 L 380,250 L 250,380 Z" stroke="url(#zenith-grad-glow)" strokeWidth="3" strokeDasharray="8 8" opacity="0.35" />
+
+              <g>
+                <path d="M 120 140 L 380 140 L 320 200 L 170 200 Z" fill="url(#zenith-grad-1)" />
+                <path d="M 380 140 L 170 360 L 120 360 L 320 200 Z" fill="url(#zenith-grad-2)" />
+                <path d="M 120 360 L 380 360 L 330 300 L 180 300 Z" fill="url(#zenith-grad-1)" />
+                <polygon points="390,110 404,125 390,140 376,125" fill="#00fee6" />
               </g>
             </svg>
           </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
-          <h1 className="title-text">4B React</h1>
-          <span className="brand-badge">by 4brains</span>
+          <h1 className="title-text">Zenith</h1>
+          <span className="brand-badge">by Anshh</span>
         </div>
       </div>
 
