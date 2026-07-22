@@ -377,25 +377,25 @@ export const App = () => {
         <ResourceCard
           title="Docs"
           description="Find in-depth information about react-cli configurations, modules, and utilities."
-          href="https://fourb-react-cli.onrender.com/"
+          href="https://zenith-cli-1ae6.onrender.com"
           delay={0.2}
         />
         <ResourceCard
           title="Features"
           description="Check out how to use preconfigured environment variables, axios clients, and socket streams."
-          href="https://fourb-react-cli.onrender.com/"
+          href="https://zenith-cli-1ae6.onrender.com"
           delay={0.28}
         />
         <ResourceCard
           title="CLI Commands"
           description="Run diagnostics, start dev servers, and maintain workspaces with custom CLI scripts."
-          href="https://fourb-react-cli.onrender.com/"
+          href="https://zenith-cli-1ae6.onrender.com"
           delay={0.36}
         />
         <ResourceCard
           title="Templates"
           description="Explore our base scaffolding structures, services patterns, and UI skeletons."
-          href="https://fourb-react-cli.onrender.com/"
+          href="https://zenith-cli-1ae6.onrender.com"
           delay={0.44}
         />
       </div>

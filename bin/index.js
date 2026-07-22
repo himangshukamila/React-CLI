@@ -48,32 +48,34 @@ const muted = chalk.hex('#679fefff')
 const strong = chalk.bold.whiteBright
 
 const commandReference = [
-  ['react <name>', 'Create a new Vite + React app'],
-  ['react <name> --ui', 'Configure the app in a local browser setup wizard'],
-  ['react .', 'Create the app in the current directory'],
-  ['react <name> --tailwind --axios', 'Create an app without prompts using flags'],
-  ['react list -c', 'Show all available commands and their purpose'],
-  ['react run', 'Run npm run dev with --host enabled'],
-  ['react run --port 3000', 'Run the dev server on a specific port'],
+  ['zenith', 'Launch Zenith Interactive Agent Welcome Hub & Prompt Mode'],
+  ['react <name>', 'Create a new Vite + React app interactively'],
+  ['react <name> --ui', 'Configure app setup in a local browser setup wizard GUI'],
+  ['react .', 'Create Vite + React app in the current directory'],
+  ['react <name> --tailwind --axios', 'Create an app non-interactively using package flags'],
+  ['react list -c', 'Show all available CLI commands and usage reference'],
+  ['react run', 'Run npm run dev with --host 0.0.0.0 enabled'],
+  ['react run --port 3000', 'Run development server on a specific port'],
   ['react update', 'Show outdated dependencies without upgrading'],
-  ['react doctor', 'Check the current React project setup'],
-  ['react audit', 'Audit project dependencies for security vulnerabilities'],
+  ['react doctor', 'Audit project health, dependencies, and .env configuration'],
+  ['react audit', 'Security audit dependencies (npm audit) with auto-fix option'],
   ['react env list', 'List Vite environment variables from .env'],
-  ['react env add VITE_SERVER_URL http://localhost:3000', 'Add or update a VITE_ environment variable'],
-  ['react env remove VITE_SERVER_URL', 'Remove a VITE_ environment variable'],
-  ['react make f components/ui', 'Create a folder under src/'],
-  ['react make components Button', 'Create a file inside an existing src folder'],
-  ['react asset', 'Create public asset folders'],
-  ['react watch', 'Print frontend fetch/XHR response logs'],
-  ['react push --git <url>', 'Initialize Git and push workspace to remote repo'],
-  ['react push -m <msg>', 'Push subsequent updates to remote repo'],
-  ['react set --font', 'Scan public/fonts and configure @font-face and Tailwind fonts in src/index.css'],
+  ['react env add VITE_SERVER_URL http://localhost:3000', 'Add or update a VITE_ environment variable in .env'],
+  ['react env remove VITE_SERVER_URL', 'Remove a VITE_ environment variable from .env'],
+  ['react make f components/ui', 'Create a directory path under src/'],
+  ['react make components Button', 'Generate a component file inside an existing src folder'],
+  ['react asset', 'Create public asset folders (images, icons, fonts)'],
+  ['react watch', 'Print frontend fetch/XHR API response logs in real time'],
+  ['react push --git <url>', 'Initialize Git, add remote origin, stage, commit, and push'],
+  ['react push -m <msg>', 'Stage all changes, commit with message, and push to remote'],
+  ['react push --github', 'Stage all changes, auto-generate commit message, and push'],
+  ['react set --font', 'Scan public/fonts, auto-generate @font-face & register in src/index.css'],
   ['react set --image', 'Scan public/images and generate src/utils/images.js constants'],
-  ['react set form -name -email', 'Generate a styled React Form component with state and field icons'],
-  ['react set loader', 'Generate a responsive Loader component with default text="Loading..."'],
-  ['react set printer', 'Generate a Printer page component with socket print-image queue'],
-  ['pkg axios', 'Install a package or alias in an existing project'],
-  ['pkg --dev @types/node', 'Install a package as a dev dependency'],
+  ['react set form -name -email', 'Generate styled Form component with state, icons & react-hot-toast'],
+  ['react set loader', 'Generate responsive backdrop-blur Loader (src/components/Loader.jsx)'],
+  ['react set printer', 'Generate Printer page (src/pages/Printer.jsx) with socket print queue'],
+  ['pkg <name>', 'Install a package or alias in an existing project'],
+  ['pkg --dev <name>', 'Install a package as a dev dependency (-D)'],
 ]
 
 const packageOptions = [
@@ -185,23 +187,39 @@ const printBanner = () => {
   // ]
 */
   // Banner Option 2 (Spark Box):
-  const banner = [
-    "╔═════════════════════════════════════════════════════════════════════════════╗",
-    "║                                                                             ║",
-    "║                 ██████╗ ██████╗   █████╗  ██████╗  ██╗  ██╗                 ║",
-    "║                ██╔════╝ ██╔══██╗ ██╔══██╗ ██╔══██╗ ██║ ██╔╝                 ║",
-    "║                ╚█████╗  ██████╔╝ ███████║ ██████╔╝ █████╔╝                  ║",
-    "║                 ╚═══██╗ ██╔═══╝  ██╔══██║ ██╔══██╗ ██╔═██╗                  ║",
-    "║                ██████╔╝ ██║      ██║  ██║ ██║  ██║ ██║  ██╗                 ║",
-    "║                ╚═════╝  ╚═╝      ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚═╝  ╚═╝                 ║",
-    "║                                                                             ║",
-    "║     Crafted With a Little Help of AI & Designed & Implemented by Anshh      ║",
-    "║                                                                             ║",
-    "╚═════════════════════════════════════════════════════════════════════════════╝",
-  ];
-  console.log('')
-  banner.forEach((line) => console.log(chalk.hex("#1dbbf5").bold(line)));
-  console.log('')
+  // const banner = [
+  //   "╔═════════════════════════════════════════════════════════════════════════════╗",
+  //   "║                                                                             ║",
+  //   "║                 ██████╗ ██████╗   █████╗  ██████╗  ██╗  ██╗                 ║",
+  //   "║                ██╔════╝ ██╔══██╗ ██╔══██╗ ██╔══██╗ ██║ ██╔╝                 ║",
+  //   "║                ╚█████╗  ██████╔╝ ███████║ ██████╔╝ █████╔╝                  ║",
+  //   "║                 ╚═══██╗ ██╔═══╝  ██╔══██║ ██╔══██╗ ██╔═██╗                  ║",
+  //   "║                ██████╔╝ ██║      ██║  ██║ ██║  ██║ ██║  ██╗                 ║",
+  //   "║                ╚═════╝  ╚═╝      ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚═╝  ╚═╝                 ║",
+  //   "║                                                                             ║",
+  //   "║     Crafted With a Little Help of AI & Designed & Implemented by Anshh      ║",
+  //   "║                                                                             ║",
+  //   "╚═════════════════════════════════════════════════════════════════════════════╝",
+  // ];
+  // console.log('')
+  // banner.forEach((line) => console.log(chalk.hex("#1dbbf5").bold(line)));
+  // console.log('')
+
+
+const banner = [
+  " ________        _______         ________         ___        _________      ___  ___     ",
+  "|\\_____  \\      |\\  ___ \\       |\\   ___  \\      |\\  \\      |\\___   ___\\   |\\  \\|\\  \\    ",
+  " \\|___/  /|     \\ \\   __/|      \\ \\  \\\\ \\  \\     \\ \\  \\     \\|___ \\  \\_|   \\ \\  \\\\\\  \\   ",
+  "     /  / /      \\ \\  \\_|/__     \\ \\  \\\\ \\  \\     \\ \\  \\         \\ \\  \\     \\ \\   __  \\  ",
+  "    /  /_/__      \\ \\  \\_|\\ \\     \\ \\  \\\\ \\  \\     \\ \\  \\         \\ \\  \\     \\ \\  \\ \\  \\ ",
+  "   |\\________\\     \\ \\_______\\     \\ \\__\\\\ \\__\\     \\ \\__\\         \\ \\__\\     \\ \\__\\ \\__\\",
+  "    \\|_______|      \\|_______|      \\|__| \\|__|      \\|__|          \\|__|      \\|__|\\|__|",
+];
+
+console.log("");
+banner.forEach((line) => console.log(chalk.hex("#1dbbf5").bold(line)));
+console.log("");
+
 
   // Banner Option 3 (Double Box):
   // const banner = [
@@ -3059,11 +3077,11 @@ const gitPushWrapper = async (options) => {
   await typeText(`\n${chalk.hex('#10B981').bold('✔ Project successfully pushed to Git remote! ♥︎')}`)
 }
 
-const runSparkAgentIntro = async () => {
+const runZenithAgentIntro = async () => {
   const { text, isCancel } = await import('@clack/prompts')
   printBanner()
   
-  section('spark agent cli', 'interactive prompt mode')
+  section('zenith agent cli', 'interactive prompt mode')
 
   console.log([
     `  ${chalk.hex('#38BDF8').bold('💡 Quick Guide & Commands:')}`,
@@ -3074,13 +3092,13 @@ const runSparkAgentIntro = async () => {
     `     ${chalk.hex('#00E5FF').bold('• /set printer')}     ${chalk.white('Generate Printer.jsx page with socket print queue')}`,
     `     ${chalk.hex('#00E5FF').bold('• /set form')}        ${chalk.white('Generate styled Form.jsx component')}`,
     `     ${chalk.hex('#00E5FF').bold('• /push')}            ${chalk.white('Stage, commit, and push updates to Git remote')}`,
-    `     ${chalk.hex('#00E5FF').bold('• /exit')}            ${chalk.white('Exit Spark CLI (or press Ctrl+C)')}`,
+    `     ${chalk.hex('#00E5FF').bold('• /exit')}            ${chalk.white('Exit Zenith CLI (or press Ctrl+C)')}`,
   ].join('\n'))
 
   while (true) {
     console.log('')
     const input = await text({
-      message: 'spark agent ❯',
+      message: 'zenith agent ❯',
       placeholder: 'e.g. my-app, /help, /doctor, /set loader, /exit',
     })
 
@@ -3223,7 +3241,7 @@ program
 
 ;(async () => {
   if (process.argv.length <= 2) {
-    const res = await runSparkAgentIntro()
+    const res = await runZenithAgentIntro()
     if (res && res.action === 'create') {
       await sleep(300)
       await createProject(res.projName, {})

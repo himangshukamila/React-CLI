@@ -1,6 +1,6 @@
 <div align="center">
 
-# 4B React (Spark CLI)
+# 4B React (Zenith CLI)
 
 ### Scaffold, configure, and maintain Vite + React projects from the terminal.
 
@@ -11,6 +11,8 @@
 ![License MIT](https://img.shields.io/badge/license-MIT-7C3AED?style=for-the-badge)
 
 ```bash
+zenith
+# or
 react my-app
 # or
 anshh my-app
@@ -20,7 +22,7 @@ anshh my-app
 
 ---
 
-`react-cli` (also accessible globally via the **`anshh`** personal alias) is a high-performance CLI for creating, configuring, and maintaining Vite + React applications. It provides one-command component generators, real-time socket printer pages, backdrop blur loaders, automated font/image mapping, git remote workflow tools, and terminal response styling.
+`react-cli` (also accessible globally via the **`zenith`** agent command and **`anshh`** personal alias) is a high-performance CLI for creating, configuring, and maintaining Vite + React applications. It provides one-command component generators, real-time socket printer pages, backdrop blur loaders, automated font/image mapping, git remote workflow tools, and terminal response styling.
 
 ---
 
@@ -43,11 +45,12 @@ anshh my-app
 ## Features
 
 ```text
-Spark CLI (react-cli)
+Zenith CLI (react-cli)
+├─ Zenith Interactive Agent Welcome Hub (zenith)
 ├─ Fast Vite + React project creation (<1s initialization)
 ├─ Native node:fs/promises engine (2x-3x faster file I/O)
 ├─ Fast package manager auto-detection (bun -> pnpm -> yarn -> npm)
-├─ Centered ASCII Spark banner with aligned column framing
+├─ Centered ASCII Zenith banner with aligned column framing
 ├─ Electric Cyan & Emerald Green vibrant terminal color system
 ├─ Automatic .env Gitignore security protection
 ├─ Component & Page Boilerplate Generators:
