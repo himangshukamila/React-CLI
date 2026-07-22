@@ -9,6 +9,7 @@ import { doctor } from '../lib/commands/doctor.js'
 import { runAudit } from '../lib/commands/audit.js'
 import { checkUpdates } from '../lib/commands/updates.js'
 import { runDevServer } from '../lib/commands/dev.js'
+import { envList, envAdd, envRemove } from '../lib/commands/env.js'
 import { configureFontAssets, configureImageAssets, createAssetFolders } from '../lib/generators/assets.js'
 import { configureFormBoilerplate } from '../lib/generators/form.js'
 import { configureLoaderBoilerplate } from '../lib/generators/loader.js'
@@ -65,9 +66,25 @@ program
   .description('Create public images and fonts folders')
   .action(createAssetFolders)
 
+const envCmd = program.command('env').description('Manage Vite environment variables in .env')
+
+envCmd
+  .command('list')
+  .description('List environment variables in .env')
+  .action(envList)
+
+envCmd
+  .command('add <key> <value>')
+  .description('Add or update an environment variable in .env')
+  .action(envAdd)
+
+envCmd
+  .command('remove <key>')
+  .description('Remove an environment variable from .env')
+  .action(envRemove)
+
 program
   .command('set [target] [fields...]')
-  .alias('env')
   .option('--font', 'Scan public/fonts and configure @font-face and Tailwind fonts in src/index.css')
   .option('--image', 'Scan public/images and generate src/utils/images.js constants')
   .option('--form', 'Generate a styled React Form component with field icons and state')
