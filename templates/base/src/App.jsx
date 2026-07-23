@@ -3,11 +3,8 @@ import { useState } from "react";
 function GridBackground() {
   return (
     <div
+      className="absolute inset-0 pointer-events-none z-0"
       style={{
-        position: "absolute",
-        inset: 0,
-        pointerEvents: "none",
-        zIndex: 0,
         backgroundImage: `
           linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
           linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px)
@@ -24,18 +21,10 @@ function GridBackground() {
 function Spotlight() {
   return (
     <div
+      className="absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] pointer-events-none z-0 blur-[40px] animate-spotlight-pulse"
       style={{
-        position: "absolute",
-        top: "38%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        width: "700px",
-        height: "700px",
-        background: "radial-gradient(circle, rgba(232, 147, 90, 0.10) 0%, rgba(232, 147, 90, 0.03) 45%, transparent 70%)",
-        pointerEvents: "none",
-        zIndex: 0,
-        filter: "blur(40px)",
-        animation: "spotlightPulse 12s ease-in-out infinite",
+        background:
+          "radial-gradient(circle, rgba(232, 147, 90, 0.10) 0%, rgba(232, 147, 90, 0.03) 45%, transparent 70%)",
       }}
     />
   );
@@ -47,23 +36,37 @@ function ResourceCard({ index, title, description, href, delay }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="card-item"
-      style={{
-        animationDelay: `${delay}s`,
-      }}
+      className="group flex items-start gap-3.5 px-5 py-5 bg-[rgba(12,12,14,0.92)] no-underline text-inherit relative transition-colors duration-300 ease-in-out hover:bg-[rgba(232,147,90,0.045)] animate-fade-in-up"
+      style={{ animationDelay: `${delay}s` }}
     >
-      <div className="card-index">{index}</div>
-      <div className="card-body">
-        <h2 className="card-title">
+      <div className="font-mono text-[0.7rem] text-[#4c4c52] font-medium shrink-0 pt-0.5 transition-colors duration-300 group-hover:text-[#e8935a]">
+        {index}
+      </div>
+
+      <div className="min-w-0">
+        <h2 className="text-[0.92rem] font-semibold text-[#eeeeef] m-0 mb-1.5 flex items-center gap-1.5 transition-colors duration-[250ms] group-hover:text-[#f2a874]">
           {title}
-          <span className="card-arrow">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+
+          <span className="inline-flex text-[#e8935a] opacity-0 -translate-x-[3px] translate-y-[3px] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:opacity-100 group-hover:translate-x-0 group-hover:translate-y-0">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <line x1="5" y1="19" x2="19" y2="5" />
               <polyline points="8 5 19 5 19 16" />
             </svg>
           </span>
         </h2>
-        <p className="card-desc">{description}</p>
+
+        <p className="text-[0.78rem] text-[#838389] m-0 leading-[1.55]">
+          {description}
+        </p>
       </div>
     </a>
   );
@@ -71,66 +74,21 @@ function ResourceCard({ index, title, description, href, delay }) {
 
 const App = () => {
   return (
-    <div className="dashboard-container">
+    <div className="h-screen w-screen bg-[#08080a] text-[#f4f4f5] font-sans flex flex-col justify-between items-center px-6 pt-14 pb-10 relative overflow-hidden box-border [&_*]:box-border">
       <style>{`
-        /* Global CSS reset overrides locally */
-        .dashboard-container {
-          height: 100vh;
-          width: 100vw;
-          background-color: #08080a;
-          color: #f4f4f5;
-          font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          align-items: center;
-          padding: 56px 24px 40px;
-          position: relative;
-          overflow: hidden;
-          box-sizing: border-box;
-        }
-
-        .dashboard-container * {
-          box-sizing: border-box;
-        }
-
-        /* Keyframes */
         @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(14px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(14px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         @keyframes spotlightPulse {
-          0%, 100% {
-            opacity: 0.75;
-            transform: translate(-50%, -50%) scale(0.96);
-          }
-          50% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1.05);
-          }
+          0%, 100% { opacity: 0.75; transform: translate(-50%, -50%) scale(0.96); }
+          50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
         }
         @keyframes shineSweep {
-          0% {
-            transform: translateY(-100%);
-            opacity: 0;
-          }
-          10% {
-            opacity: 0.95;
-          }
-          50% {
-            transform: translateY(100%);
-            opacity: 0.95;
-          }
-          60%, 100% {
-            transform: translateY(100%);
-            opacity: 0;
-          }
+          0% { transform: translateY(-100%); opacity: 0; }
+          10% { opacity: 0.95; }
+          50% { transform: translateY(100%); opacity: 0.95; }
+          60%, 100% { transform: translateY(100%); opacity: 0; }
         }
         @keyframes markFloat {
           0%, 100% { transform: translateY(0px); }
@@ -140,218 +98,20 @@ const App = () => {
           0%, 100% { opacity: 0.4; transform: scale(0.85); }
           50% { opacity: 1; transform: scale(1); }
         }
-
-        /* Top Banner */
-        .top-banner {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          border: 1px solid rgba(255, 255, 255, 0.09);
-          background-color: rgba(255, 255, 255, 0.025);
-          padding: 9px 18px 9px 14px;
-          border-radius: 7px;
-          font-family: "SF Mono", "Berkeley Mono", ui-monospace, Menlo, monospace;
-          font-size: 0.76rem;
-          letter-spacing: 0.01em;
-          z-index: 10;
-          backdrop-filter: blur(10px);
-          color: #b4b4bb;
+        .animate-fade-in-up {
           animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-          transition: border-color 0.25s ease, background-color 0.25s ease;
         }
-        .top-banner:hover {
-          border-color: rgba(232, 147, 90, 0.35);
-          background-color: rgba(232, 147, 90, 0.04);
-          color: #e5e5e8;
+        .animate-spotlight-pulse {
+          animation: spotlightPulse 12s ease-in-out infinite;
         }
-        .banner-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: #e8935a;
-          flex-shrink: 0;
-          animation: dotPulse 2.4s ease-in-out infinite;
+        .animate-shine-sweep {
+          animation: shineSweep 3.5s ease-in-out infinite;
         }
-
-        /* Logo mark */
-        .brand-mark-wrapper {
-          position: relative;
-          width: 88px;
-          height: 88px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+        .animate-mark-float {
           animation: markFloat 7s ease-in-out infinite;
         }
-        .mark-frame {
-          position: relative;
-          width: 88px;
-          height: 88px;
-          border-radius: 22px;
-          border: 1px solid rgba(232, 147, 90, 0.35);
-          background: #08080a;
-          box-shadow: 0 0 25px rgba(232, 147, 90, 0.12), inset 0 0 15px rgba(232, 147, 90, 0.05);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-        }
-        .mark-scan {
-          position: absolute;
-          left: 0;
-          right: 0;
-          top: 0;
-          height: 60%;
-          background: linear-gradient(
-            180deg,
-            transparent 0%,
-            rgba(255, 255, 255, 0.22) 35%,
-            rgba(242, 168, 116, 0.45) 50%,
-            rgba(255, 255, 255, 0.22) 65%,
-            transparent 100%
-          );
-          animation: shineSweep 3.5s ease-in-out infinite;
-          pointer-events: none;
-          z-index: 3;
-        }
-        .mark-svg-container {
-          position: relative;
-          z-index: 2;
-          width: 64px;
-          height: 64px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        /* Title branding */
-        .brand-info {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 22px;
-          z-index: 10;
-          animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
-        }
-        .title-text {
-          font-family: "SF Mono", "Berkeley Mono", ui-monospace, Menlo, monospace;
-          font-size: clamp(2.4rem, 6.4vw, 3.4rem);
-          font-weight: 700;
-          letter-spacing: -0.03em;
-          margin: 0;
-          color: #f7f7f8;
-          line-height: 1;
-        }
-        .title-text .title-dim {
-          color: #4c4c52;
-        }
-        .brand-tagline {
-          font-size: 0.86rem;
-          color: #6f6f78;
-          text-align: center;
-          margin: 0;
-          max-width: 380px;
-          line-height: 1.5;
-        }
-        .brand-badge {
-          font-size: 0.7rem;
-          color: #e8935a;
-          font-family: "SF Mono", "Berkeley Mono", ui-monospace, Menlo, monospace;
-          background-color: rgba(232, 147, 90, 0.06);
-          border: 1px solid rgba(232, 147, 90, 0.22);
-          padding: 4px 13px;
-          border-radius: 99px;
-          font-weight: 500;
-          letter-spacing: 0.04em;
-          transition: all 0.25s ease;
-        }
-        .brand-badge:hover {
-          background-color: rgba(232, 147, 90, 0.12);
-          border-color: rgba(232, 147, 90, 0.4);
-        }
-
-        /* Card grid */
-        .cards-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-          gap: 1px;
-          width: 100%;
-          max-width: 980px;
-          z-index: 10;
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-radius: 14px;
-          overflow: hidden;
-        }
-        .card-item {
-          display: flex;
-          align-items: flex-start;
-          gap: 14px;
-          padding: 20px 20px;
-          background: rgba(12, 12, 14, 0.92);
-          text-decoration: none;
-          color: inherit;
-          position: relative;
-          transition: background-color 0.3s ease;
-          animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-        }
-        .card-item:hover {
-          background: rgba(232, 147, 90, 0.045);
-        }
-        .card-index {
-          font-family: "SF Mono", "Berkeley Mono", ui-monospace, Menlo, monospace;
-          font-size: 0.7rem;
-          color: #4c4c52;
-          font-weight: 500;
-          flex-shrink: 0;
-          padding-top: 2px;
-          transition: color 0.3s ease;
-        }
-        .card-item:hover .card-index {
-          color: #e8935a;
-        }
-        .card-body {
-          min-width: 0;
-        }
-        .card-title {
-          font-size: 0.92rem;
-          font-weight: 600;
-          color: #eeeeef;
-          margin: 0 0 6px 0;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          transition: color 0.25s ease;
-        }
-        .card-item:hover .card-title {
-          color: #f2a874;
-        }
-        .card-arrow {
-          display: inline-flex;
-          color: #e8935a;
-          opacity: 0;
-          transform: translate(-3px, 3px);
-          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .card-item:hover .card-arrow {
-          opacity: 1;
-          transform: translate(0, 0);
-        }
-        .card-desc {
-          font-size: 0.78rem;
-          color: #838389;
-          margin: 0;
-          line-height: 1.55;
-        }
-
-        @media (max-width: 640px) {
-          .dashboard-container {
-            padding: 40px 18px 32px;
-          }
-          .cards-grid {
-            grid-template-columns: 1fr;
-          }
+        .animate-dot-pulse {
+          animation: dotPulse 2.4s ease-in-out infinite;
         }
       `}</style>
 
@@ -359,23 +119,29 @@ const App = () => {
       <Spotlight />
 
       {/* Top Banner (Capsule) */}
-      <div className="top-banner">
-        <span className="banner-dot" />
+      <div className="flex items-center justify-center gap-2.5 border border-white/[0.09] bg-white/[0.025] py-2.5 pr-4.5 pl-3.5 rounded-[7px] font-mono text-[0.76rem] tracking-[0.01em] z-10 backdrop-blur-[10px] text-[#b4b4bb] animate-fade-in-up transition-colors duration-[250ms] ease-in-out hover:border-[rgba(232,147,90,0.35)] hover:bg-[rgba(232,147,90,0.04)] hover:text-[#e5e5e8]">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#e8935a] shrink-0 animate-dot-pulse" />
         <span>Get started by editing</span>
-        <code style={{ fontWeight: "700", color: "#f2a874" }}>src/App.jsx</code>
+        <code className="font-bold text-[#f2a874]">src/App.jsx</code>
       </div>
 
       {/* Center Logo branding */}
-      <div className="brand-info">
-        <div className="brand-mark-wrapper">
-          <div className="mark-frame">
-            <div className="mark-scan" />
-            <div className="mark-svg-container">
+      <div className="flex flex-col items-center gap-[22px] z-10 animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
+        <div className="relative w-[88px] h-[88px] flex items-center justify-center animate-mark-float">
+          <div className="relative w-[88px] h-[88px] rounded-[22px] border border-[rgba(232,147,90,0.35)] bg-[#08080a] flex items-center justify-center overflow-hidden shadow-[0_0_25px_rgba(232,147,90,0.12),inset_0_0_15px_rgba(232,147,90,0.05)]">
+            <div
+              className="absolute left-0 right-0 top-0 h-[60%] pointer-events-none z-[3] animate-shine-sweep"
+              style={{
+                background:
+                  "linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.22) 35%, rgba(242, 168, 116, 0.45) 50%, rgba(255, 255, 255, 0.22) 65%, transparent 100%)",
+              }}
+            />
+            <div className="relative z-[2] w-16 h-16 flex items-center justify-center">
               <svg
                 width="64"
                 height="64"
                 viewBox="0 0 64 64"
-                style={{ display: "block" }}
+                className="block"
                 xmlns="http://www.w3.org/2000/svg"
               >
                 <defs>
@@ -416,19 +182,21 @@ const App = () => {
           </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-          <h1 className="title-text">
-            zenith<span className="title-dim">.cli</span>
+        <div className="flex flex-col items-center gap-2.5">
+          <h1 className="font-mono text-[clamp(2.4rem,6.4vw,3.4rem)] font-bold tracking-[-0.03em] m-0 text-[#f7f7f8] leading-none">
+            zenith<span className="text-[#4c4c52]">.cli</span>
           </h1>
-          <p className="brand-tagline">
+          <p className="text-[0.86rem] text-[#6f6f78] text-center m-0 max-w-[380px] leading-[1.5]">
             Scaffold, configure, and ship React projects from a single command.
           </p>
-          <span className="brand-badge">by Anshh</span>
+          <span className="text-[0.7rem] text-[#e8935a] font-mono bg-[rgba(232,147,90,0.06)] border border-[rgba(232,147,90,0.22)] py-1 px-3.5 rounded-full font-medium tracking-[0.04em] transition-all duration-[250ms] ease-in-out hover:bg-[rgba(232,147,90,0.12)] hover:border-[rgba(232,147,90,0.4)]">
+            by Anshh
+          </span>
         </div>
       </div>
 
       {/* Bottom Grid (4 columns) */}
-      <div className="cards-grid">
+      <div className="grid [grid-template-columns:repeat(auto-fit,minmax(210px,1fr))] gap-px w-full max-w-[980px] z-10 bg-white/[0.06] border border-white/[0.06] rounded-[14px] overflow-hidden">
         <ResourceCard
           index="01"
           title="Docs"
