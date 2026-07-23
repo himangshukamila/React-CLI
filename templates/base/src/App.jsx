@@ -57,24 +57,10 @@ function ResourceCard({ index, title, description, href, delay }) {
         <h2 className="card-title">
           {title}
           <span className="card-arrow">
-           <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="favFill" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#e8935a" stop-opacity="0.14" />
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.02" />
-    </linearGradient>
-    <linearGradient id="zStrokeFav" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f2a874" />
-      <stop offset="100%" stop-color="#e8935a" />
-    </linearGradient>
-  </defs>
-
-  <rect width="64" height="64" rx="15" fill="#08080a" />
-  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#favFill)" stroke="#e8935a" stroke-opacity="0.35" stroke-width="1.5" />
-
-  <path d="M 18 20 L 46 20 L 22 44 L 46 44" fill="none" stroke="url(#zStrokeFav)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
-  <circle cx="46" cy="20" r="4" fill="#f4f4f5" />
-</svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="19" x2="19" y2="5" />
+              <polyline points="8 5 19 5 19 16" />
+            </svg>
           </span>
         </h2>
         <p className="card-desc">{description}</p>
@@ -129,17 +115,22 @@ const App = () => {
             transform: translate(-50%, -50%) scale(1.05);
           }
         }
-        @keyframes cursorBlink {
-          0%, 45% { opacity: 1; }
-          50%, 95% { opacity: 0; }
-          100% { opacity: 1; }
-        }
-        @keyframes scanSweep {
-          0% { transform: translateY(-100%); opacity: 0; }
-          8% { opacity: 0.9; }
-          45% { opacity: 0.9; }
-          55% { transform: translateY(100%); opacity: 0; }
-          100% { transform: translateY(100%); opacity: 0; }
+        @keyframes shineSweep {
+          0% {
+            transform: translateY(-100%);
+            opacity: 0;
+          }
+          10% {
+            opacity: 0.95;
+          }
+          50% {
+            transform: translateY(100%);
+            opacity: 0.95;
+          }
+          60%, 100% {
+            transform: translateY(100%);
+            opacity: 0;
+          }
         }
         @keyframes markFloat {
           0%, 100% { transform: translateY(0px); }
@@ -198,8 +189,9 @@ const App = () => {
           width: 88px;
           height: 88px;
           border-radius: 22px;
-          border: 1px solid rgba(232, 147, 90, 0.28);
-          background: linear-gradient(155deg, rgba(232, 147, 90, 0.07) 0%, rgba(255, 255, 255, 0.015) 100%);
+          border: 1px solid rgba(232, 147, 90, 0.35);
+          background: #08080a;
+          box-shadow: 0 0 25px rgba(232, 147, 90, 0.12), inset 0 0 15px rgba(232, 147, 90, 0.05);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -209,34 +201,28 @@ const App = () => {
           position: absolute;
           left: 0;
           right: 0;
-          height: 40%;
-          background: linear-gradient(180deg, transparent 0%, rgba(232, 147, 90, 0.16) 50%, transparent 100%);
-          animation: scanSweep 5s ease-in-out infinite;
+          top: 0;
+          height: 60%;
+          background: linear-gradient(
+            180deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.22) 35%,
+            rgba(242, 168, 116, 0.45) 50%,
+            rgba(255, 255, 255, 0.22) 65%,
+            transparent 100%
+          );
+          animation: shineSweep 3.5s ease-in-out infinite;
           pointer-events: none;
+          z-index: 3;
         }
-        .mark-glyph {
+        .mark-svg-container {
           position: relative;
           z-index: 2;
-          font-family: "SF Mono", "Berkeley Mono", ui-monospace, Menlo, monospace;
-          font-size: 2.1rem;
-          font-weight: 600;
-          color: #f4f4f5;
-          letter-spacing: -0.02em;
+          width: 64px;
+          height: 64px;
           display: flex;
-          align-items: baseline;
-          gap: 1px;
-        }
-        .mark-glyph .accent-char {
-          color: #e8935a;
-        }
-        .mark-glyph .cursor-char {
-          display: inline-block;
-          width: 3px;
-          height: 26px;
-          background: #e8935a;
-          margin-left: 3px;
-          animation: cursorBlink 1.3s step-end infinite;
-          border-radius: 1px;
+          align-items: center;
+          justify-content: center;
         }
 
         /* Title branding */
@@ -384,10 +370,48 @@ const App = () => {
         <div className="brand-mark-wrapper">
           <div className="mark-frame">
             <div className="mark-scan" />
-            <div className="mark-glyph">
-              <span className="accent-char">&gt;</span>
-              <span>_</span>
-              <span className="cursor-char" />
+            <div className="mark-svg-container">
+              <svg
+                width="64"
+                height="64"
+                viewBox="0 0 64 64"
+                style={{ display: "block" }}
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <defs>
+                  <linearGradient id="appFavFill" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#e8935a" stopOpacity="0.14" />
+                    <stop offset="100%" stopColor="#ffffff" stopOpacity="0.02" />
+                  </linearGradient>
+                  <linearGradient id="appZStrokeFav" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#f2a874" />
+                    <stop offset="100%" stopColor="#e8935a" />
+                  </linearGradient>
+                </defs>
+
+                <rect width="64" height="64" rx="15" fill="#08080a" />
+                <rect
+                  x="2"
+                  y="2"
+                  width="60"
+                  height="60"
+                  rx="14"
+                  fill="url(#appFavFill)"
+                  stroke="#e8935a"
+                  strokeOpacity="0.35"
+                  strokeWidth="1.5"
+                />
+
+                <path
+                  d="M 18 20 L 46 20 L 22 44 L 46 44"
+                  fill="none"
+                  stroke="url(#appZStrokeFav)"
+                  strokeWidth="7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="46" cy="20" r="4" fill="#f4f4f5" />
+              </svg>
             </div>
           </div>
         </div>
