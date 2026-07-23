@@ -183,8 +183,11 @@ const App = () => {
         }
         .logo-container {
           position: relative;
-          width: 75px;
-          height: 75px;
+          width: 80px;
+          height: 80px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           z-index: 2;
         }
 
@@ -272,7 +275,7 @@ const App = () => {
           transform: skewX(-25deg);
           transition: 0.75s;
         }
-        .card-item:hover::before {
+        .card-item:hover::beforlogo-containere {
           left: 150%;
         }
         .card-item:hover {
@@ -325,25 +328,44 @@ const App = () => {
           <div className="orbit-ring-outer" />
           <div className="orbit-ring-inner" />
           <div className="logo-container">
-            <svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-        <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#7C3AED"/>
-            <stop offset="50%" stop-color="#3B82F6"/>
-            <stop offset="100%" stop-color="#06B6D4"/>
-        </linearGradient>
-    </defs>
+            <svg
+              viewBox="0 0 500 500"
+              width="100%"
+              height="100%"
+              style={{ display: "block" }}
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+            >
+              <defs>
+                <linearGradient id="zenith-grad-1" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#00fee6" />
+                  <stop offset="50%" stopColor="#3b82f6" />
+                  <stop offset="100%" stopColor="#8b5cf6" />
+                </linearGradient>
 
-    <rect width="128" height="128" rx="30" fill="#0F172A"/>
+                <linearGradient id="zenith-grad-2" x1="100%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#d2bbff" />
+                  <stop offset="50%" stopColor="#a855f7" />
+                  <stop offset="100%" stopColor="#00fee6" />
+                </linearGradient>
 
-    <path
-        d="M34 34H96L50 66H92L36 94H96"
-        fill="none"
-        stroke="url(#g1)"
-        stroke-width="10"
-        stroke-linecap="round"
-        stroke-linejoin="round"/>
-</svg>
+                <linearGradient id="zenith-grad-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#00fee6" stopOpacity="0.8" />
+                  <stop offset="100%" stopColor="#d2bbff" stopOpacity="0.2" />
+                </linearGradient>
+              </defs>
+
+              <rect x="25" y="25" width="450" height="450" rx="120" fill="#09090b" stroke="url(#zenith-grad-1)" strokeWidth="14" strokeOpacity="0.6" />
+
+              <path d="M 120,250 L 250,120 L 380,250 L 250,380 Z" stroke="url(#zenith-grad-glow)" strokeWidth="3" strokeDasharray="8 8" opacity="0.35" />
+
+              <g>
+                <path d="M 120 140 L 380 140 L 320 200 L 170 200 Z" fill="url(#zenith-grad-1)" />
+                <path d="M 380 140 L 170 360 L 120 360 L 320 200 Z" fill="url(#zenith-grad-2)" />
+                <path d="M 120 360 L 380 360 L 330 300 L 180 300 Z" fill="url(#zenith-grad-1)" />
+                <polygon points="390,110 404,125 390,140 376,125" fill="#00fee6" />
+              </g>
+            </svg>
           </div>
         </div>
 
