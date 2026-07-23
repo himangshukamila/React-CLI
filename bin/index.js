@@ -84,49 +84,49 @@ envCmd
   .action(envRemove)
 
 program
-  .command('set [target] [fields...]')
+  .command('set [target]')
+  .description('Configure font assets or image constants')
   .option('--font', 'Scan public/fonts and configure @font-face and Tailwind fonts in src/index.css')
   .option('--image', 'Scan public/images and generate src/utils/images.js constants')
-  .option('--form', 'Generate a styled React Form component with field icons and state')
-  .option('--loader', 'Generate a responsive Loader component with default text="Loading..."')
-  .option('--printer', 'Generate a Printer page component with socket print-image queue')
   .allowUnknownOption()
-  .action(async (target, fields, options) => {
+  .action(async (target, options) => {
     const rawArgs = process.argv.slice(3)
-    if (target === 'form' || options.form || rawArgs.some(a => a.toLowerCase().includes('form'))) {
-      await configureFormBoilerplate(rawArgs)
-    } else if (target === 'loader' || options.loader || rawArgs.some(a => a.toLowerCase().includes('loader'))) {
-      await configureLoaderBoilerplate()
-    } else if (target === 'printer' || target === 'print' || options.printer || rawArgs.some(a => a.toLowerCase().includes('print'))) {
-      await configurePrinterBoilerplate()
-    } else if (target === 'font' || options.font) {
+    const lowerTarget = (target || '').toLowerCase()
+    if (lowerTarget === 'font' || options.font) {
       await configureFontAssets()
-    } else if (target === 'image' || options.image) {
+    } else if (lowerTarget === 'image' || options.image) {
       await configureImageAssets()
+    } else if (lowerTarget === 'form' || options.form) {
+      await configureFormBoilerplate(rawArgs)
+    } else if (lowerTarget === 'loader' || options.loader) {
+      await configureLoaderBoilerplate()
+    } else if (lowerTarget === 'printer' || lowerTarget === 'print' || options.printer) {
+      await configurePrinterBoilerplate()
     } else {
-      console.error(chalk.red('Error: Please specify what to set (e.g. set form, set loader, set printer, --font, or --image)'))
+      console.error(chalk.red('Error: Please specify what to set (e.g. anshh set --font or anshh set --image)'))
       process.exit(1)
     }
-  })
-
-program
-  .command('form [fields...]')
-  .description('Generate a styled React Form component with field icons and state')
-  .allowUnknownOption()
-  .action(async () => {
-    const rawArgs = process.argv.slice(3)
-    await configureFormBoilerplate(rawArgs)
   })
 
 program
   .command('make [folder] [name] [subfolder]')
-  .description('Create src folder structures or boilerplate files')
+  .description('Create src components, pages, forms, loaders, printers, or folder structures')
+  .allowUnknownOption()
   .action(async (folder, name, subfolder) => {
-    if (!folder) {
-      console.error(chalk.red('Error: Please specify target folder (e.g. react make components Button or react make f components/ui)'))
+    const rawArgs = process.argv.slice(3)
+    const lowerFolder = (folder || '').toLowerCase()
+    if (lowerFolder === 'form') {
+      await configureFormBoilerplate(rawArgs)
+    } else if (lowerFolder === 'loader') {
+      await configureLoaderBoilerplate()
+    } else if (lowerFolder === 'printer' || lowerFolder === 'print') {
+      await configurePrinterBoilerplate()
+    } else if (folder) {
+      await makeFile(folder, name, subfolder)
+    } else {
+      console.error(chalk.red('Error: Please specify what to make (e.g. anshh make form, anshh make loader, anshh make printer, or anshh make components Button)'))
       process.exit(1)
     }
-    await makeFile(folder, name, subfolder)
   })
 
 program
