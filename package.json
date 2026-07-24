@@ -7,6 +7,9 @@
   "engines": {
     "node": ">=18.0.0"
   },
+  "scripts": {
+    "test": "node --test tests/unit.test.js"
+  },
   "bin": {
     "anshh": "./bin/index.js",
     "react": "./bin/index.js",

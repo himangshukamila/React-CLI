@@ -285,6 +285,58 @@
     </div>
   </section>
 
+  <!-- Project Name Selection Modal (shown when anshh --ui is launched without a project name) -->
+  <div class="project-name-modal-overlay" id="project-name-modal" aria-live="polite">
+    <div class="project-name-modal-card">
+      <div class="modal-header">
+        <span class="material-symbols-outlined modal-icon">edit_square</span>
+        <div>
+          <h2 class="modal-title">Enter Project Name</h2>
+          <p class="modal-subtitle">Specify your React app folder name to proceed with setup</p>
+        </div>
+      </div>
+      <form id="project-name-form" class="modal-body">
+        <div class="modal-input-group">
+          <label for="modal-project-name-input">Project Name</label>
+          <div class="modal-input-wrapper">
+            <span class="material-symbols-outlined input-prefix">folder</span>
+            <input type="text" id="modal-project-name-input" placeholder="my-react-app" required autocomplete="off" spellcheck="false" />
+          </div>
+          <span class="modal-error-msg" id="modal-name-error"></span>
+        </div>
+        <div class="modal-footer flex-row">
+          <button type="button" id="modal-cancel-btn" class="modal-secondary-btn">
+            <span>Cancel</span>
+          </button>
+          <button type="submit" id="confirm-project-name-btn" class="modal-primary-btn">
+            <span>Continue Setup</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Cancel Setup Confirmation Modal -->
+  <div class="project-name-modal-overlay" id="cancel-confirm-modal" aria-live="polite">
+    <div class="project-name-modal-card">
+      <div class="modal-header">
+        <span class="material-symbols-outlined modal-icon danger-icon">warning</span>
+        <div>
+          <h2 class="modal-title">Cancel Project Setup?</h2>
+          <p class="modal-subtitle">This will terminate the CLI wizard session and discard your current configuration.</p>
+        </div>
+      </div>
+      <div class="modal-footer flex-row">
+        <button type="button" id="abort-cancel-btn" class="modal-secondary-btn">
+          <span>Keep Editing</span>
+        </button>
+        <button type="button" id="confirm-cancel-btn" class="modal-danger-btn">
+          <span>Yes, Cancel Setup</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <canvas id="click-spark-canvas" aria-hidden="true"></canvas>
 
   <script>
@@ -297,7 +349,7 @@
     const SUBMIT_URL_PLACEHOLDER = "__" + "SUBMIT_URL__";
     const TIME_LEFT_MS_PLACEHOLDER = "__" + "TIME_LEFT_MS__";
     const URL_TOKEN = new URLSearchParams(window.location.search).get("token") || "";
-    const PROJECT_NAME = TEMPLATE_PROJECT_NAME === PROJECT_NAME_PLACEHOLDER ? "react-app" : TEMPLATE_PROJECT_NAME;
+    let PROJECT_NAME = (TEMPLATE_PROJECT_NAME === PROJECT_NAME_PLACEHOLDER || !TEMPLATE_PROJECT_NAME.trim()) ? "" : TEMPLATE_PROJECT_NAME.trim();
     const SESSION_TOKEN = TEMPLATE_SESSION_TOKEN === SESSION_TOKEN_PLACEHOLDER ? URL_TOKEN : TEMPLATE_SESSION_TOKEN;
     const SUBMIT_URL = TEMPLATE_SUBMIT_URL === SUBMIT_URL_PLACEHOLDER && window.location.protocol !== "file:"
       ? `${window.location.origin}/api/setup`
@@ -1077,9 +1129,90 @@
       showToast("Reset complete", "Selections returned to the default launch profile.");
     });
 
-    // Removed old introStart listener
+    const modalEl = document.getElementById("project-name-modal");
+    const modalInput = document.getElementById("modal-project-name-input");
+    const modalForm = document.getElementById("project-name-form");
+    const modalError = document.getElementById("modal-name-error");
+    const headerProjNameEl = document.getElementById("project-name");
+
+    let introAnimationStarted = false;
+
+    const startIntroAnimation = () => {
+      if (introAnimationStarted) return;
+      introAnimationStarted = true;
+
+      const typedTextEl = document.getElementById("intro-typed-text");
+      if (typedTextEl) typedTextEl.innerHTML = "";
+
+      const textToType = PROJECT_NAME
+        ? `Let's build your new React App ☀︎`
+        : "Let's build your new React App ☀︎";
+
+      initTextType({
+        text: [textToType],
+        el: typedTextEl,
+        typingSpeed: 55,
+        pauseDuration: 1200,
+        deletingSpeed: 25,
+        loop: false,
+        textColors: ["#ffffff", "#74f5ff", "#60a5fa"],
+        onComplete: () => {
+          setTimeout(enterSetupScreen, 1200);
+        }
+      });
+    };
+
+    const checkProjectNameRequired = () => {
+      if (!PROJECT_NAME) {
+        if (headerProjNameEl) headerProjNameEl.textContent = "(Project Name Required)";
+        if (modalEl) {
+          modalEl.classList.add("is-visible");
+          setTimeout(() => modalInput && modalInput.focus(), 150);
+        }
+      } else {
+        if (headerProjNameEl) headerProjNameEl.textContent = PROJECT_NAME;
+        startIntroAnimation();
+      }
+    };
+
+    if (modalForm) {
+      modalForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const val = (modalInput ? modalInput.value : "").trim();
+        const validNameRegex = /^[a-zA-Z0-9_.-]+$/;
+
+        if (!val) {
+          if (modalError) modalError.textContent = "Please enter a project name.";
+          return;
+        }
+        if (!validNameRegex.test(val) || val.includes("..") || val.includes("/")) {
+          if (modalError) modalError.textContent = "Invalid name. Use letters, numbers, hyphens or underscores.";
+          return;
+        }
+
+        PROJECT_NAME = val;
+        if (headerProjNameEl) headerProjNameEl.textContent = PROJECT_NAME;
+        if (modalEl) modalEl.classList.remove("is-visible");
+        if (typeof renderTree === 'function') renderTree();
+
+        // Start background intro typing animation now that project name is set!
+        startIntroAnimation();
+      });
+    }
+
+    if (modalInput) {
+      modalInput.addEventListener("input", () => {
+        if (modalError) modalError.textContent = "";
+      });
+    }
 
     createButton.addEventListener("click", async () => {
+      if (!PROJECT_NAME) {
+        checkProjectNameRequired();
+        showToast("Project Name Required", "Please enter a project name in the popup modal before creating.", true);
+        return;
+      }
+
       setSetupLocked(true);
       createButton.innerHTML = `<span class="material-symbols-outlined">progress_activity</span> Sending Launch Sequence`;
 
@@ -1093,6 +1226,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             token: SESSION_TOKEN,
+            projectName: PROJECT_NAME,
             packages: [...selectedPackages],
             structure: [...selectedStructure],
             launch: getSelectedLaunch(),
@@ -1116,68 +1250,93 @@
       }
     });
 
-    document.getElementById("cancel-setup").addEventListener("click", async () => {
+    const cancelModalEl = document.getElementById("cancel-confirm-modal");
+    const abortCancelBtn = document.getElementById("abort-cancel-btn");
+    const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
+
+    const openCancelModal = () => {
       if (setupLocked) return;
+      if (cancelModalEl) cancelModalEl.classList.add("is-visible");
+    };
 
-      const confirmCancel = confirm("Are you sure you want to cancel the setup process?");
-      if (!confirmCancel) return;
+    const closeCancelModal = () => {
+      if (cancelModalEl) cancelModalEl.classList.remove("is-visible");
+    };
 
-      setSetupLocked(true);
-      const cancelBtn = document.getElementById("cancel-setup");
-      cancelBtn.innerHTML = `<span class="material-symbols-outlined">progress_activity</span> Cancelling...`;
+    if (abortCancelBtn) {
+      abortCancelBtn.addEventListener("click", closeCancelModal);
+    }
 
-      try {
-        if (IS_TEMPLATE_PREVIEW) {
-          throw new Error("Open this wizard from react <name> --ui to cancel setup.");
-        }
+    const modalCancelBtn = document.getElementById("modal-cancel-btn");
+    if (modalCancelBtn) {
+      modalCancelBtn.addEventListener("click", () => {
+        openCancelModal();
+      });
+    }
 
-        const cancelUrl = SUBMIT_URL.replace("/api/setup", "/api/cancel");
-        const response = await fetch(cancelUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token: SESSION_TOKEN,
-          }),
-        });
-        const result = await response.json();
-
-        if (!response.ok || !result.ok) {
-          throw new Error(result.error || "Cancellation failed");
-        }
-
-        showToast("Setup cancelled", "The CLI terminal process has been terminated.", true);
-        document.getElementById("cancel-screen").classList.add("is-visible");
-        document.body.classList.add("final-active");
-      } catch (error) {
-        setSetupLocked(false);
-        cancelBtn.innerHTML = `<span class="material-symbols-outlined">close</span> Cancel Setup`;
-        showToast("Cancellation failed", error.message, true);
-      }
+    document.getElementById("cancel-setup").addEventListener("click", () => {
+      openCancelModal();
     });
+
+    if (confirmCancelBtn) {
+      confirmCancelBtn.addEventListener("click", async () => {
+        closeCancelModal();
+        if (setupLocked) return;
+
+        setSetupLocked(true);
+        const cancelBtn = document.getElementById("cancel-setup");
+        if (cancelBtn) {
+          cancelBtn.innerHTML = `<span class="material-symbols-outlined">progress_activity</span> Cancelling...`;
+        }
+
+        try {
+          if (IS_TEMPLATE_PREVIEW) {
+            throw new Error("Open this wizard from react <name> --ui to cancel setup.");
+          }
+
+          const cancelUrl = SUBMIT_URL.replace("/api/setup", "/api/cancel");
+          const response = await fetch(cancelUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              token: SESSION_TOKEN,
+            }),
+          });
+          const result = await response.json();
+
+          if (!response.ok || !result.ok) {
+            throw new Error(result.error || "Cancellation failed");
+          }
+
+          showToast("Setup cancelled", "The CLI terminal process has been terminated.", true);
+          if (modalEl) modalEl.classList.remove("is-visible");
+          if (cancelModalEl) cancelModalEl.classList.remove("is-visible");
+          if (typeof enterSetupScreen === "function") enterSetupScreen();
+          document.getElementById("cancel-screen").classList.add("is-visible");
+          document.body.classList.add("final-active");
+        } catch (error) {
+          setSetupLocked(false);
+          if (cancelBtn) {
+            cancelBtn.innerHTML = `<span class="material-symbols-outlined">close</span> Cancel Setup`;
+          }
+          showToast("Cancellation failed", error.message, true);
+        }
+      });
+    }
 
     renderAll();
     setActiveSection(activeSection);
+    checkProjectNameRequired();
 
-    // Initialize TextType animation
-    initTextType({
-      text: [
-        "Let's build your new React App."
-      ],
-      el: document.getElementById("intro-typed-text"),
-      typingSpeed: 60,
-      pauseDuration: 1000,
-      deletingSpeed: 25,
-      loop: false,
-      textColors: ["#ffffff", "#60a5fa", "#3b82f6"],
-      onComplete: () => {
-        setTimeout(enterSetupScreen, 2000);
-      }
-    });
-
-    // Let user skip by clicking anywhere on the intro screen
-    document.getElementById("intro-screen").addEventListener("click", () => {
-      enterSetupScreen();
-    });
+    // Allow user to skip intro by clicking background intro screen once project name is set
+    const introScreenEl = document.getElementById("intro-screen");
+    if (introScreenEl) {
+      introScreenEl.addEventListener("click", () => {
+        if (PROJECT_NAME) {
+          enterSetupScreen();
+        }
+      });
+    }
 
     if (IS_TEMPLATE_PREVIEW) {
       showToast("Template preview only", "Run react <name> --ui and open the printed 127.0.0.1 URL.", true);
