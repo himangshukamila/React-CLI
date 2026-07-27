@@ -137,46 +137,40 @@ const App = () => {
               }}
             />
             <div className="relative z-[2] w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center">
-              <svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+           <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    
-    <linearGradient id="bioFlow" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.2"/>
-      <stop offset="50%" stop-color="#67e8f9"/>
-      <stop offset="100%" stop-color="#0891b2" stop-opacity="0.3"/>
+    <linearGradient id="monoTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22d3ee" />
+      <stop offset="100%" stop-color="#0891b2" />
+    </linearGradient>
+    <linearGradient id="monoSide" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#155e75" />
+      <stop offset="100%" stop-color="#0e7490" />
     </linearGradient>
 
-   
-    <radialGradient id="waveGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.12" />
-      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0" />
-    </radialGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
   </defs>
 
-  <rect width="256" height="256" rx="64" fill="#030712" />
-
-  <circle cx="128" cy="128" r="112" fill="url(#waveGlow)" />
-
-
-  <circle cx="128" cy="128" r="112" stroke="#1e293b" stroke-width="4" fill="none" />
+  
+  <rect width="512" height="512" rx="128" fill="#030712" />
 
  
-  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-  
-    <path d="M 48 128 C 48 128, 72 96, 96 96 C 120 96, 136 160, 160 160 C 184 160, 208 128, 208 128" 
-          stroke="#155e75" 
-          stroke-width="6" 
-          stroke-dasharray="8 12"/>
-    
-   
-    <path d="M 48 128 C 48 128, 72 64, 96 64 C 120 64, 136 192, 160 192 C 184 192, 208 128, 208 128" 
-          stroke="url(#bioFlow)" 
-          stroke-width="16"/>
-  </g>
+  <circle cx="256" cy="256" r="180" fill="#22d3ee" opacity="0.1" filter="blur(30px)" />
 
   
-  <circle cx="160" cy="192" r="8" fill="#ffffff"/>
+  <g stroke="#030712" stroke-width="12" stroke-linejoin="round">
+  
+    <polygon points="91,168 201,102 201,366 91,432" fill="url(#monoTop)" />
+    
+    <polygon points="201,102 311,36 311,300 201,366" fill="#67e8f9" />
+    
+    <polygon points="311,212 421,146 421,410 311,476" fill="url(#monoSide)" />
+  </g>
 </svg>
+
 
             </div>
           </div>
