@@ -137,47 +137,47 @@ const App = () => {
               }}
             />
             <div className="relative z-[2] w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center">
-              <svg
-                width="64"
-                height="64"
-                viewBox="0 0 64 64"
-                className="block w-full h-full"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <defs>
-                  <linearGradient id="appFavFill" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#e8935a" stopOpacity="0.14" />
-                    <stop offset="100%" stopColor="#ffffff" stopOpacity="0.02" />
-                  </linearGradient>
-                  <linearGradient id="appZStrokeFav" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#f2a874" />
-                    <stop offset="100%" stopColor="#e8935a" />
-                  </linearGradient>
-                </defs>
+              <svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    
+    <linearGradient id="bioFlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.2"/>
+      <stop offset="50%" stop-color="#67e8f9"/>
+      <stop offset="100%" stop-color="#0891b2" stop-opacity="0.3"/>
+    </linearGradient>
 
-                <rect width="64" height="64" rx="15" fill="#08080a" />
-                <rect
-                  x="2"
-                  y="2"
-                  width="60"
-                  height="60"
-                  rx="14"
-                  fill="url(#appFavFill)"
-                  stroke="#e8935a"
-                  strokeOpacity="0.35"
-                  strokeWidth="1.5"
-                />
+   
+    <radialGradient id="waveGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0" />
+    </radialGradient>
+  </defs>
 
-                <path
-                  d="M 18 20 L 46 20 L 22 44 L 46 44"
-                  fill="none"
-                  stroke="url(#appZStrokeFav)"
-                  strokeWidth="7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle cx="46" cy="20" r="4" fill="#f4f4f5" />
-              </svg>
+  <rect width="256" height="256" rx="64" fill="#030712" />
+
+  <circle cx="128" cy="128" r="112" fill="url(#waveGlow)" />
+
+
+  <circle cx="128" cy="128" r="112" stroke="#1e293b" stroke-width="4" fill="none" />
+
+ 
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+  
+    <path d="M 48 128 C 48 128, 72 96, 96 96 C 120 96, 136 160, 160 160 C 184 160, 208 128, 208 128" 
+          stroke="#155e75" 
+          stroke-width="6" 
+          stroke-dasharray="8 12"/>
+    
+   
+    <path d="M 48 128 C 48 128, 72 64, 96 64 C 120 64, 136 192, 160 192 C 184 192, 208 128, 208 128" 
+          stroke="url(#bioFlow)" 
+          stroke-width="16"/>
+  </g>
+
+  
+  <circle cx="160" cy="192" r="8" fill="#ffffff"/>
+</svg>
+
             </div>
           </div>
         </div>
