@@ -17,6 +17,7 @@ import { configurePrinterBoilerplate } from '../lib/generators/printer.js'
 import { makeFile } from '../lib/generators/make.js'
 import { gitPushWrapper } from '../lib/commands/git.js'
 import { createProject } from '../lib/generators/create.js'
+import { configureApiMethods, configureWebSocket } from '../lib/shared.js'
 
 process.on('SIGINT', () => {
   console.log(chalk.hex('#94A3B8')('\nOperation cancelled 👋\n'))
@@ -86,13 +87,19 @@ envCmd
 
 program
   .command('set [target]')
-  .description('Configure font assets or image constants')
+  .description('Configure font assets, image constants, API client methods, or WebSocket service')
   .option('--font', 'Scan public/fonts and configure @font-face and Tailwind fonts in src/index.css')
   .option('--image', 'Scan public/images and generate src/utils/images.js constants')
+  .option('--ws', 'Generate src/services/webSocket.js with auto-reconnect and message handlers')
   .allowUnknownOption()
   .action(async (target, options) => {
     const rawArgs = process.argv.slice(3)
     const lowerTarget = (target || '').toLowerCase()
+    const validApiMethods = ['put', 'delete', 'patch']
+    const requestedMethods = rawArgs
+      .map((a) => a.toLowerCase().replace(/^--/, ''))
+      .filter((a) => validApiMethods.includes(a))
+
     if (lowerTarget === 'font' || options.font) {
       await configureFontAssets()
     } else if (lowerTarget === 'image' || options.image) {
@@ -103,8 +110,15 @@ program
       await configureLoaderBoilerplate()
     } else if (lowerTarget === 'printer' || lowerTarget === 'print' || options.printer) {
       await configurePrinterBoilerplate()
+    } else if (lowerTarget === 'ws' || lowerTarget === 'websocket' || options.ws) {
+      await configureWebSocket()
+    } else if (requestedMethods.length > 0) {
+      await configureApiMethods(requestedMethods)
+    } else if (lowerTarget === 'api' || options.api) {
+      const methodsToSet = requestedMethods.length > 0 ? requestedMethods : ['put', 'delete', 'patch']
+      await configureApiMethods(methodsToSet)
     } else {
-      console.error(chalk.red('Error: Please specify what to set (e.g. anshh set --font or anshh set --image)'))
+      console.error(chalk.red('Error: Please specify what to set (e.g. anshh set --font, anshh set ws, or anshh set put delete patch)'))
       process.exit(1)
     }
   })
