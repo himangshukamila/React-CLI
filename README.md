@@ -157,6 +157,7 @@ anshh list -c
 | `react .` | Create the app in the current directory |
 | `react run` | Run `npm run dev -- --host 0.0.0.0` |
 | `react run --port 3000` | Run dev server on a specific port |
+| `react run -f` | Run dev server and open in Firefox Developer Edition |
 | `react update` | Check outdated dependencies using `npm outdated` |
 | `react doctor` | Audit project health, setup, dependencies, and environment keys |
 | `react set loader` | Generate a responsive backdrop-blur `Loader.jsx` component |
