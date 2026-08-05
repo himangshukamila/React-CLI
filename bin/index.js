@@ -17,7 +17,7 @@ import { configurePrinterBoilerplate } from '../lib/generators/printer.js'
 import { makeFile } from '../lib/generators/make.js'
 import { gitPushWrapper } from '../lib/commands/git.js'
 import { createProject } from '../lib/generators/create.js'
-import { configureApiMethods, configureWebSocket } from '../lib/shared.js'
+import { configureApiMethods, configureWebSocket, configureButton } from '../lib/shared.js'
 
 process.on('SIGINT', () => {
   console.log(chalk.hex('#94A3B8')('\nOperation cancelled 👋\n'))
@@ -110,6 +110,8 @@ program
       await configureLoaderBoilerplate()
     } else if (lowerTarget === 'printer' || lowerTarget === 'print' || options.printer) {
       await configurePrinterBoilerplate()
+    } else if (lowerTarget === 'button' || lowerTarget === 'btn' || options.button) {
+      await configureButton()
     } else if (lowerTarget === 'ws' || lowerTarget === 'websocket' || options.ws) {
       await configureWebSocket()
     } else if (requestedMethods.length > 0) {
@@ -118,14 +120,14 @@ program
       const methodsToSet = requestedMethods.length > 0 ? requestedMethods : ['put', 'delete', 'patch']
       await configureApiMethods(methodsToSet)
     } else {
-      console.error(chalk.red('Error: Please specify what to set (e.g. anshh set --font, anshh set ws, or anshh set put delete patch)'))
+      console.error(chalk.red('Error: Please specify what to set (e.g. anshh set --font, anshh set button, anshh set ws, or anshh set put delete patch)'))
       process.exit(1)
     }
   })
 
 program
   .command('make [folder] [name] [subfolder]')
-  .description('Create src components, pages, forms, loaders, printers, or folder structures')
+  .description('Create src components, pages, forms, loaders, printers, buttons, or folder structures')
   .allowUnknownOption()
   .action(async (folder, name, subfolder) => {
     const rawArgs = process.argv.slice(3)
@@ -136,6 +138,8 @@ program
       await configureLoaderBoilerplate()
     } else if (lowerFolder === 'printer' || lowerFolder === 'print') {
       await configurePrinterBoilerplate()
+    } else if (lowerFolder === 'button' || lowerFolder === 'btn') {
+      await configureButton()
     } else if (folder) {
       await makeFile(folder, name, subfolder)
     } else {
