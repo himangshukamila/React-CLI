@@ -105,9 +105,9 @@ program
   .action(async (target, options) => {
     const rawArgs = process.argv.slice(3)
     const lowerTarget = (target || '').toLowerCase()
-    const validApiMethods = ['put', 'delete', 'patch']
+    const validApiMethods = ['get', 'post', 'put', 'delete', 'patch']
     const requestedMethods = rawArgs
-      .map((a) => a.toLowerCase().replace(/^--/, ''))
+      .map((a) => a.toLowerCase().replace(/^--?/, ''))
       .filter((a) => validApiMethods.includes(a))
 
     if (lowerTarget === 'font' || options.font) {
@@ -124,13 +124,11 @@ program
       await configureButton()
     } else if (lowerTarget === 'ws' || lowerTarget === 'websocket' || options.ws) {
       await configureWebSocket()
-    } else if (requestedMethods.length > 0) {
-      await configureApiMethods(requestedMethods)
-    } else if (lowerTarget === 'api' || options.api) {
-      const methodsToSet = requestedMethods.length > 0 ? requestedMethods : ['put', 'delete', 'patch']
+    } else if (lowerTarget === 'api' || options.api || requestedMethods.length > 0) {
+      const methodsToSet = requestedMethods.length > 0 ? requestedMethods : ['get', 'post']
       await configureApiMethods(methodsToSet)
     } else {
-      console.error(chalk.red('Error: Please specify what to set (e.g. anshh set --font, anshh set button, anshh set ws, or anshh set put delete patch)'))
+      console.error(chalk.red('Error: Please specify what to set (e.g. anshh set api -get -post, anshh set button, or anshh set ws)'))
       process.exit(1)
     }
   })
