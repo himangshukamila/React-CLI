@@ -6,7 +6,9 @@ import { Command } from 'commander'
 import {
   aliasMap,
   createPackageHandlers,
+  getBasePackageName,
   pathExists,
+  resolvePackageName,
   reverseAliasMap,
   runCommand,
 } from '../lib/shared.js'
@@ -19,13 +21,15 @@ const fail = (message) => {
 }
 
 const validatePackageName = (packageName) => {
-  const slashCount = packageName.split('/').length - 1
-  const isScopedPackage = packageName.startsWith('@') && slashCount === 1
+  const baseName = getBasePackageName(packageName)
+  const slashCount = baseName.split('/').length - 1
+  const isScopedPackage = baseName.startsWith('@') && slashCount === 1
 
   if (
-    !packageNameRegex.test(packageName) ||
+    !baseName ||
+    !packageNameRegex.test(baseName) ||
     packageName.includes('..') ||
-    (packageName.includes('/') && !isScopedPackage)
+    (baseName.includes('/') && !isScopedPackage)
   ) {
     fail(`Invalid package name: ${packageName}`)
   }
@@ -49,7 +53,7 @@ const installPackages = async (packageNames, options) => {
       fail('Not inside a node project. Run react first.')
     }
 
-    const resolvedPackages = packageNames.map((packageName) => aliasMap[packageName] || packageName)
+    const resolvedPackages = packageNames.map(resolvePackageName)
 
     packageNames.forEach((packageName, index) => {
       const resolvedPackage = resolvedPackages[index]
@@ -61,9 +65,11 @@ const installPackages = async (packageNames, options) => {
     const normalPackages = []
     const devPackages = []
 
-    for (const packageName of packageNames) {
-      const resolvedPackage = aliasMap[packageName] || packageName
-      const isTailwind = packageName === 'tailwind' || resolvedPackage === 'tailwindcss'
+    for (let index = 0; index < packageNames.length; index++) {
+      const packageName = packageNames[index]
+      const baseName = getBasePackageName(packageName)
+      const resolvedPackage = resolvedPackages[index]
+      const isTailwind = baseName === 'tailwind' || getBasePackageName(resolvedPackage) === 'tailwindcss'
 
       if (isTailwind) {
         normalPackages.push('tailwindcss', '@tailwindcss/vite')
@@ -87,8 +93,10 @@ const installPackages = async (packageNames, options) => {
 
     const handlersToRun = new Set()
     for (const packageName of packageNames) {
-      const resolvedPackage = aliasMap[packageName] || packageName
-      const handlerName = aliasMap[packageName] ? packageName : reverseAliasMap[resolvedPackage]
+      const baseName = getBasePackageName(packageName)
+      const resolvedPackage = resolvePackageName(packageName)
+      const resolvedBase = getBasePackageName(resolvedPackage)
+      const handlerName = aliasMap[baseName] ? baseName : reverseAliasMap[resolvedBase]
       if (handlerName && postInstallHandlers[handlerName]) {
         handlersToRun.add(handlerName)
       }

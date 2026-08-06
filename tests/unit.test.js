@@ -28,3 +28,25 @@ test('normalizeUiSelections rejects invalid project name format', () => {
     /Invalid project name/,
   )
 })
+
+test('getBasePackageName and resolvePackageName handle versioned and scoped packages', async () => {
+  const { getBasePackageName, resolvePackageName } = await import('../lib/shared.js')
+
+  assert.equal(getBasePackageName('react@18.3.1'), 'react')
+  assert.equal(getBasePackageName('@tailwindcss/vite@latest'), '@tailwindcss/vite')
+  assert.equal(getBasePackageName('tailwind@latest'), 'tailwind')
+
+  assert.equal(resolvePackageName('tailwind@latest'), 'tailwindcss@latest')
+  assert.equal(resolvePackageName('react@18.3.1'), 'react@18.3.1')
+  assert.equal(resolvePackageName('@tailwindcss/vite'), '@tailwindcss/vite')
+})
+
+test('form generator helpers parse fields and input types correctly', async () => {
+  const { extractRawFormFields, getFieldInputType, formatFieldLabel } = await import('../lib/generators/form.js')
+
+  assert.deepEqual(extractRawFormFields(['--form', 'name', 'user_email', 'phone']), ['name', 'user_email', 'phone'])
+  assert.equal(getFieldInputType('password'), 'password')
+  assert.equal(getFieldInputType('user_email'), 'email')
+  assert.equal(getFieldInputType('phone'), 'tel')
+  assert.equal(formatFieldLabel('user_email'), 'User Email')
+})
