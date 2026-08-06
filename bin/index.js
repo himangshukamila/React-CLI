@@ -109,6 +109,7 @@ program
     const requestedMethods = rawArgs
       .map((a) => a.toLowerCase().replace(/^--?/, ''))
       .filter((a) => validApiMethods.includes(a))
+    const hasAuthFlag = rawArgs.some((a) => a.toLowerCase().replace(/^--?/, '') === 'auth')
 
     if (lowerTarget === 'font' || options.font) {
       await configureFontAssets()
@@ -124,9 +125,9 @@ program
       await configureButton()
     } else if (lowerTarget === 'ws' || lowerTarget === 'websocket' || options.ws) {
       await configureWebSocket()
-    } else if (lowerTarget === 'api' || options.api || requestedMethods.length > 0) {
+    } else if (lowerTarget === 'api' || options.api || requestedMethods.length > 0 || hasAuthFlag) {
       const methodsToSet = requestedMethods.length > 0 ? requestedMethods : ['get', 'post']
-      await configureApiMethods(methodsToSet)
+      await configureApiMethods(methodsToSet, { auth: hasAuthFlag })
     } else {
       console.error(chalk.red('Error: Please specify what to set (e.g. anshh set api -get -post, anshh set button, or anshh set ws)'))
       process.exit(1)
