@@ -50,3 +50,37 @@ test('form generator helpers parse fields and input types correctly', async () =
   assert.equal(getFieldInputType('phone'), 'tel')
   assert.equal(formatFieldLabel('user_email'), 'User Email')
 })
+
+test('registerAllCommands correctly registers all modular commands', async () => {
+  const { Command } = await import('commander')
+  const { registerAllCommands } = await import('../lib/commands/cli/index.js')
+
+  const program = new Command()
+  program.name('react')
+
+  registerAllCommands(program)
+
+  const commandNames = program.commands.map((cmd) => cmd.name())
+  const expectedCommands = ['zenith', 'watch', 'list', 'doctor', 'audit', 'update', 'run', 'asset', 'env', 'set', 'make', 'push']
+
+  for (const name of expectedCommands) {
+    assert.ok(commandNames.includes(name), `Command ${name} should be registered`)
+  }
+})
+
+test('customMultiselect and customConfirm return default fallback values in non-TTY mode', async () => {
+  const { customMultiselect, customConfirm } = await import('../lib/ui/prompts.js')
+
+  const multiselectResult = await customMultiselect({
+    options: [{ value: 'tailwind', label: 'Tailwind' }],
+    initialValues: ['tailwind'],
+  })
+  assert.deepEqual(multiselectResult, ['tailwind'])
+
+  const confirmResult = await customConfirm({
+    message: 'Test confirm?',
+    initialValue: true,
+  })
+  assert.equal(typeof confirmResult, 'boolean')
+})
+
