@@ -5,7 +5,7 @@ import chalk from 'chalk'
 import { registerAllCommands } from '../lib/commands/cli/index.js'
 
 process.on('SIGINT', () => {
-  console.log(chalk.hex('#94A3B8')('\nOperation cancelled 👋\n'))
+  console.log(chalk.hex('#94A3B8')('\nOperation cancelled\n'))
   process.exit(0)
 })
 

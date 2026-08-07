@@ -58,7 +58,7 @@ const installPackages = async (packageNames, options) => {
     packageNames.forEach((packageName, index) => {
       const resolvedPackage = resolvedPackages[index]
       if (packageName !== resolvedPackage) {
-        console.log(chalk.gray(`${packageName} → ${resolvedPackage}`))
+        console.log(chalk.gray(`${packageName} -> ${resolvedPackage}`))
       }
     })
 
