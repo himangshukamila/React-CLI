@@ -1,6 +1,6 @@
 {
   "name": "zecron-cli",
-  "version": "1.0.4",
+  "version": "1.0.8",
   "description": "Scaffold a Vite + React project with optional packages",
   "type": "module",
   "license": "MIT",
@@ -8,16 +8,18 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "test": "node --test tests/unit.test.js"
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build",
+    "test": "npx tsx --test tests/unit.test.ts"
   },
   "bin": {
-    "zecron": "bin/index.js",
-    "react": "bin/index.js",
-    "pkg": "bin/get.js"
+    "zecron": "dist/bin/index.js",
+    "react": "dist/bin/index.js",
+    "pkg": "dist/bin/get.js"
   },
   "files": [
-    "bin/",
-    "lib/",
+    "dist/",
     "templates/",
     "README.md"
   ],
@@ -34,5 +36,10 @@
     "commander": "^11.1.0",
     "execa": "^8.0.1",
     "ora": "^7.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
   }
 }

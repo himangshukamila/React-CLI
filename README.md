@@ -1,6 +1,6 @@
 <div align="center">
 
-# 4B React (Zecron CLI)
+# Zecron CLI
 
 ### Scaffold, configure, and maintain Vite + React projects from the terminal.
 
