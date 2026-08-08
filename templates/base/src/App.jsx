@@ -178,7 +178,7 @@ const App = () => {
 
         <div className="flex flex-col items-center gap-2 sm:gap-2.5 px-4 text-center">
           <h1 className="font-mono text-3xl sm:text-4xl md:text-5xl font-bold tracking-[-0.03em] m-0 text-[#f7f7f8] leading-none">
-            zenith<span className="text-[#4c4c52]">.cli</span>
+            zecron<span className="text-[#4c4c52]">.cli</span>
           </h1>
           <p className="text-xs sm:text-[0.86rem] text-[#6f6f78] text-center m-0 max-w-[320px] sm:max-w-[380px] leading-relaxed">
             Scaffold, configure, and ship React projects from a single command.

@@ -1,6 +1,6 @@
 <div align="center">
 
-# 4B React (Zenith CLI)
+# 4B React (Zecron CLI)
 
 ### Scaffold, configure, and maintain Vite + React projects from the terminal.
 
@@ -11,18 +11,16 @@
 ![License MIT](https://img.shields.io/badge/license-MIT-7C3AED?style=for-the-badge)
 
 ```bash
-zenith
+zecron
 # or
 react my-app
-# or
-anshh my-app
 ```
 
 </div>
 
 ---
 
-`react-cli` (also accessible globally via the **`zenith`** agent command and **`anshh`** personal alias) is a high-performance CLI for creating, configuring, and maintaining Vite + React applications. It provides one-command component generators, real-time socket printer pages, backdrop blur loaders, automated font/image mapping, git remote workflow tools, and terminal response styling.
+`zecron` (also accessible globally via **`react`**) is a high-performance CLI for creating, configuring, and maintaining Vite + React applications. It provides one-command component generators, real-time socket printer pages, backdrop blur loaders, automated font/image mapping, git remote workflow tools, and terminal response styling.
 
 ---
 
@@ -45,12 +43,12 @@ anshh my-app
 ## Features
 
 ```text
-Zenith CLI (react-cli)
-├─ Zenith Interactive Agent Welcome Hub (zenith)
+Zecron CLI (zecron)
+├─ Zecron Interactive Agent Welcome Hub (zecron)
 ├─ Fast Vite + React project creation (<1s initialization)
 ├─ Native node:fs/promises engine (2x-3x faster file I/O)
 ├─ Fast package manager auto-detection (bun -> pnpm -> yarn -> npm)
-├─ Centered ASCII Zenith banner with aligned column framing
+├─ Centered ASCII Zecron banner with aligned column framing
 ├─ Electric Cyan & Emerald Green vibrant terminal color system
 ├─ Automatic .env Gitignore security protection
 ├─ Component & Page Boilerplate Generators:
@@ -76,22 +74,24 @@ Zenith CLI (react-cli)
 
 ---
 
-## Installation
+## Installation & Quick Start
 
-From the CLI project directory:
-
+**Option 1: Instant run with `npx` (No installation needed & avoids PATH issues):**
 ```bash
-chmod +x bin/index.js bin/get.js
-npm install
-npm link
+npx zecron-cli
 ```
 
-After linking, these commands are available globally:
+**Option 2: Install globally on your system:**
+```bash
+npm install -g zecron-cli
+```
+
+After global installation, these commands become available in your terminal:
 
 | Command | Purpose |
 | --- | --- |
-| `react` | Main public CLI command |
-| `anshh` | Personal alias for `react` |
+| `zecron` | Main interactive CLI command & Agent Welcome Hub |
+| `react` | Scaffold Vite + React project |
 | `pkg` | Package alias installer inside existing React projects |
 
 ---
@@ -102,8 +102,6 @@ Interactive terminal mode:
 
 ```bash
 react my-app
-# or
-anshh my-app
 ```
 
 Create inside the current directory:
@@ -146,8 +144,6 @@ Quick command reference:
 
 ```bash
 react list -c
-# or
-anshh list -c
 ```
 
 | Command | Purpose |
@@ -186,7 +182,7 @@ Generates `src/components/Loader.jsx`:
 - Pure CSS/HTML implementation (zero third-party React dispatcher dependencies).
 
 ```bash
-anshh set loader
+react set loader
 ```
 
 ### 2. Print Queue Page (`react set printer` / `react set print`)
@@ -198,7 +194,7 @@ Generates `src/pages/Printer.jsx`:
 - Auto-scaffolds `src/services/socket.js` connection client if missing.
 
 ```bash
-anshh set printer
+react set printer
 ```
 
 ### 3. Font Asset Configurator (`react set --font`)
@@ -208,7 +204,7 @@ Scans `public/fonts/` for `.ttf`, `.woff`, `.woff2`, and `.otf` files:
 - Appends rules to `src/index.css` and configures Tailwind `@theme` font variables.
 
 ```bash
-anshh set --font
+react set --font
 ```
 
 ### 4. Image Asset Map Generator (`react set --image`)
@@ -236,7 +232,7 @@ const Banner = () => <img src={images.heroBanner} alt="Hero" />
 ## Git & Security Protection
 
 - **Automated `.env` Gitignore Protection**: Whenever a project is created or `.env` is configured, `Spark CLI` automatically generates or updates `.gitignore` to ensure `.env`, `.env.local`, and `.env.*.local` are **never accidentally pushed to Git remotes**.
-- **Formatted Git Stream**: `react push` / `anshh push` outputs colorized git status stream showing branch names (`[main 8152f98]`), insertions (`+`), deletions (`-`), and file modes in real time.
+- **Formatted Git Stream**: `react push` outputs colorized git status stream showing branch names (`[main 8152f98]`), insertions (`+`), deletions (`-`), and file modes in real time.
 
 ---
 

@@ -61,7 +61,7 @@ test('registerAllCommands correctly registers all modular commands', async () =>
   registerAllCommands(program)
 
   const commandNames = program.commands.map((cmd) => cmd.name())
-  const expectedCommands = ['zenith', 'watch', 'list', 'doctor', 'audit', 'update', 'run', 'asset', 'env', 'set', 'make', 'push']
+  const expectedCommands = ['zecron', 'watch', 'list', 'doctor', 'audit', 'update', 'run', 'asset', 'env', 'set', 'make', 'push']
 
   for (const name of expectedCommands) {
     assert.ok(commandNames.includes(name), `Command ${name} should be registered`)
