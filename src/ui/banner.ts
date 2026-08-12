@@ -6,7 +6,7 @@ export const muted = chalk.hex('#679fefff')
 export const strong = chalk.bold.whiteBright
 
 export const defaultFlagFolders: string[] = ['components', 'pages', 'hooks', 'utils']
-export const packageFlags: string[] = ['tailwind', 'axios', 'socket', 'toast', 'icon', 'lucide', 'router', 'qr', 'webcam', 'printer']
+export const packageFlags: string[] = ['tailwind', 'axios', 'zod', 'socket', 'toast', 'icon', 'lucide', 'router', 'qr', 'webcam', 'printer']
 export const featureFlags: string[] = ['env', 'watch']
 export const setupFlags: string[] = [...packageFlags, ...featureFlags]
 export const folderFlags: string[] = featureFlags
@@ -42,13 +42,14 @@ export const commandReference: [string, string][] = [
   ['zecron make printer', 'Generate Printer page (src/pages/Printer.jsx) with socket print queue'],
   ['zecron set button', 'Generate reusable Button component (src/components/Button.jsx) with variants & loading state'],
   ['zecron', 'Launch Zecron Interactive Agent Welcome Hub & Prompt Mode'],
-  ['pkg <name>', 'Install a package or alias in an existing project'],
-  ['pkg --dev <name>', 'Install a package as a dev dependency (-D)'],
+  ['get <name>', 'Install a package or alias in an existing project'],
+  ['get --dev <name>', 'Install a package as a dev dependency (-D)'],
 ]
 
 export const packageOptions: OptionChoice[] = [
   { value: 'tailwind', label: 'Tailwind CSS', hint: 'style engine + Vite plugin' },
   { value: 'axios', label: 'Axios', hint: 'typed API client starter' },
+  { value: 'zod', label: 'Zod', hint: 'TypeScript schema validation' },
   { value: 'socket', label: 'Socket.IO Client', hint: 'realtime websocket layer' },
   { value: 'toast', label: 'React Hot Toast', hint: 'toast notifications + Toaster' },
   { value: 'router', label: 'React Router', hint: 'react-router-dom + src/router' },

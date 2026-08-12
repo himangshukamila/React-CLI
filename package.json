@@ -17,7 +17,7 @@
     "zecron": "dist/bin/index.js",
     "react": "dist/bin/index.js",
     "anshh": "dist/bin/index.js",
-    "pkg": "dist/bin/get.js"
+    "get": "dist/bin/get.js"
   },
   "files": [
     "dist/",
@@ -36,7 +36,8 @@
     "chalk": "^5.3.0",
     "commander": "^11.1.0",
     "execa": "^8.0.1",
-    "ora": "^7.0.1"
+    "ora": "^7.0.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

@@ -92,7 +92,7 @@ After global installation, these commands become available in your terminal:
 | --- | --- |
 | `zecron` | Main interactive CLI command & Agent Welcome Hub |
 | `react` | Scaffold Vite + React project |
-| `pkg` | Package alias installer inside existing React projects |
+| `get` | Package alias installer inside existing React projects |
 
 ---
 
@@ -124,6 +124,7 @@ react my-app --tailwind --axios --router --env
 | --- | --- |
 | `--tailwind` | Installs `tailwindcss` and `@tailwindcss/vite`, writes `vite.config.js`, creates `src/index.css` |
 | `--axios` | Installs `axios` |
+| `--zod` | Installs `zod` schema validation library |
 | `--socket` | Installs `socket.io-client`, scaffolds `src/services/socket.js` |
 | `--toast` | Installs `react-hot-toast`, configures `<Toaster />` in `src/App.jsx` |
 | `--router` | Installs `react-router-dom` |
@@ -238,16 +239,17 @@ const Banner = () => <img src={images.heroBanner} alt="Hero" />
 
 ## Package Installer
 
-Use `pkg` inside an existing project:
+Use `get` inside an existing project:
 
 ```bash
-pkg axios
-pkg router toast
-pkg qr webcam printer
-pkg --dev @types/node
+get zod
+get axios
+get router toast
+get qr webcam printer
+get --dev @types/node
 ```
 
-Short aliases: `tailwind`, `axios`, `socket`, `toast`, `icon`, `lucide`, `router`, `qr`, `webcam`, `printer`.
+Short aliases: `tailwind`, `axios`, `zod`, `socket`, `toast`, `icon`, `lucide`, `router`, `qr`, `webcam`, `printer`.
 
 ---
 

@@ -8,6 +8,7 @@ export const registerCreateCommand = (program: Command): void => {
     .argument('[name]', 'project name or . for current directory')
     .option('--tailwind', 'install tailwindcss + @tailwindcss/vite')
     .option('--axios', 'install axios')
+    .option('--zod', 'install zod schema validation library')
     .option('--socket', 'install socket.io-client')
     .option('--toast', 'install react-hot-toast')
     .option('--icon', 'install react-icons')

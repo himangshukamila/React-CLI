@@ -5,14 +5,14 @@ import { normalizeUiSelections } from '../src/commands/wizard.js'
 test('normalizeUiSelections parses valid project name and options', () => {
   const result = normalizeUiSelections({
     projectName: 'my-custom-app',
-    packages: ['tailwind', 'axios'],
+    packages: ['tailwind', 'axios', 'zod'],
     structure: ['components', 'pages'],
     launch: ['runDevServer'],
     devServerPort: '5173',
   })
 
   assert.equal(result.projectName, 'my-custom-app')
-  assert.deepEqual(result.selectedPackages, ['tailwind', 'axios'])
+  assert.deepEqual(result.selectedPackages, ['tailwind', 'axios', 'zod'])
   assert.deepEqual(result.selectedFolders, ['components', 'pages'])
   assert.equal(result.shouldRunDevServer, true)
   assert.equal(result.devServerPort, 5173)
@@ -35,10 +35,12 @@ test('getBasePackageName and resolvePackageName handle versioned and scoped pack
   assert.equal(getBasePackageName('react@18.3.1'), 'react')
   assert.equal(getBasePackageName('@tailwindcss/vite@latest'), '@tailwindcss/vite')
   assert.equal(getBasePackageName('tailwind@latest'), 'tailwind')
+  assert.equal(getBasePackageName('zod@latest'), 'zod')
 
   assert.equal(resolvePackageName('tailwind@latest'), 'tailwindcss@latest')
   assert.equal(resolvePackageName('react@18.3.1'), 'react@18.3.1')
   assert.equal(resolvePackageName('@tailwindcss/vite'), '@tailwindcss/vite')
+  assert.equal(resolvePackageName('zod'), 'zod')
 })
 
 test('form generator helpers parse fields and input types correctly', async () => {

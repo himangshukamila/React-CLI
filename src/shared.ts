@@ -20,6 +20,7 @@ export const aliasMap: Record<string, string> = {
   qr: 'react-qr-code',
   webcam: 'react-webcam',
   printer: 'react-to-print',
+  zod: 'zod',
 }
 
 export const getBasePackageName = (name: string): string => {
@@ -49,6 +50,7 @@ export const reverseAliasMap: Record<string, string> = {
   'react-qr-code': 'qr',
   'react-webcam': 'webcam',
   'react-to-print': 'printer',
+  zod: 'zod',
 }
 
 export const viteConfigContent = `import { defineConfig } from 'vite'
@@ -600,9 +602,9 @@ export const runPackageInstall = async (
   if (pm === 'bun' || pm === 'yarn' || pm === 'pnpm') {
     args = ['add', ...packages]
   } else {
-    args = ['install', '--prefer-offline', ...packages]
+    args = ['install', ...packages]
   }
-  return runCommand(pm, args, options, message)
+  return runCommand(pm, args, { stdio: 'inherit', ...options }, message)
 }
 
 export const pathExists = async (targetPath: string): Promise<boolean> => {
@@ -1647,6 +1649,11 @@ export const createPackageHandlers = ({ installPackages }: PackageHandlersOption
     }
     await configureSocket(projectPath)
     await configurePrinter(projectPath)
+  },
+  zod: async (projectPath: string) => {
+    if (installPackages) {
+      await runPackageInstall(['zod'], { cwd: projectPath }, 'Failed to install zod')
+    }
   },
 })
 
