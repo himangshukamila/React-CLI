@@ -107,12 +107,16 @@ const installPackages = async (
       } else {
         args = ["install", ...uniqueNormalPackages];
       }
-      await runCommand(
+      const res = await runCommand(
         pm,
         args,
-        { cwd: projectPath, stdio: "inherit" },
+        { cwd: projectPath },
         "Failed to install packages",
       );
+      const out = (res?.stdout || res?.stderr || "").trim();
+      if (out) {
+        await typeText(out, 10);
+      }
     }
 
     if (uniqueDevPackages.length > 0) {
@@ -122,12 +126,16 @@ const installPackages = async (
       } else {
         devArgs = ["install", "-D", ...uniqueDevPackages];
       }
-      await runCommand(
+      const devRes = await runCommand(
         pm,
         devArgs,
-        { cwd: projectPath, stdio: "inherit" },
+        { cwd: projectPath },
         "Failed to install dev packages",
       );
+      const devOut = (devRes?.stdout || devRes?.stderr || "").trim();
+      if (devOut) {
+        await typeText(devOut, 15);
+      }
     }
 
     const handlersToRun = new Set<string>();
@@ -147,7 +155,7 @@ const installPackages = async (
       await postInstallHandlers[handlerName](projectPath);
     }
 
-    await typeText(chalk.green(`Installed ${resolvedPackages.join(", ")} ✓`), 12);
+    await typeText(chalk.green(`Installed ${resolvedPackages.join(", ")} ✓`), 18);
   } catch (error: any) {
     fail(error.message);
   }
