@@ -20,6 +20,9 @@ export const commandReference: [string, string][] = [
   ['zecron run', 'Run npm run dev with --host 0.0.0.0 enabled'],
   ['zecron run --port 3000', 'Run development server on a specific port'],
   ['zecron run -f', 'Run dev server and open in Firefox Developer Edition'],
+  ['zecron build', 'Run production build (npm run build) with completion status'],
+  ['zecron build open', 'Run production build and launch preview server (npm run preview)'],
+  ['zecron open', 'Launch production preview server on existing dist/ build'],
   ['zecron update', 'Show outdated dependencies without upgrading'],
   ['zecron doctor', 'Audit project health, dependencies, and .env configuration'],
   ['zecron audit', 'Security audit dependencies (npm audit) with auto-fix option'],
@@ -45,7 +48,7 @@ export const commandReference: [string, string][] = [
   ['get <name>', 'Install a package or alias in an existing project'],
   ['get --dev <name>', 'Install a package as a dev dependency (-D)'],
 ]
-
+    
 export const packageOptions: OptionChoice[] = [
   { value: 'tailwind', label: 'Tailwind CSS', hint: 'style engine + Vite plugin' },
   { value: 'axios', label: 'Axios', hint: 'typed API client starter' },

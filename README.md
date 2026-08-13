@@ -155,6 +155,9 @@ react list -c
 | `react run` | Run `npm run dev -- --host 0.0.0.0` |
 | `react run --port 3000` | Run dev server on a specific port |
 | `react run -f` | Run dev server and open in Firefox Developer Edition |
+| `react build` | Run production build (`npm run build`) with build time & status logs |
+| `react build open` | Run production build and immediately launch preview server (`npm run preview`) |
+| `react open` | Launch production preview server (`npm run preview`) without rebuilding |
 | `react update` | Check outdated dependencies using `npm outdated` |
 | `react doctor` | Audit project health, setup, dependencies, and environment keys |
 | `react set loader` | Generate a responsive backdrop-blur `Loader.jsx` component |

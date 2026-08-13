@@ -16,8 +16,7 @@
   "bin": {
     "zecron": "dist/bin/index.js",
     "react": "dist/bin/index.js",
-    "get": "dist/bin/get.js",
-    "anshh": "dist/bin/index.js"
+    "get": "dist/bin/get.js"
   },
   "files": [
     "dist/",
