@@ -222,7 +222,7 @@ const Banner = () => <img src={images.heroBanner} alt="Hero" />
 
 ## Performance & Engine Optimizations
 
-`Spark CLI` is optimized for instant execution and minimal I/O overhead:
+`Zecron CLI` is optimized for instant execution and minimal I/O overhead:
 
 1. **Native `node:fs/promises` Engine**: Replaced heavy file wrappers with native `node:fs/promises` (`mkdir`, `access`, `readFile`, `writeFile`, `rm`, `cp`) for **2x-3x faster** file operations.
 2. **Fast Package Manager Auto-Detection (`detectPackageManager`)**: Automatically checks for `bun`, `pnpm`, or `yarn` on the developer's system to install dependencies in **under 1 second** (falling back to `npm install --prefer-offline`).
@@ -232,7 +232,7 @@ const Banner = () => <img src={images.heroBanner} alt="Hero" />
 
 ## Git & Security Protection
 
-- **Automated `.env` Gitignore Protection**: Whenever a project is created or `.env` is configured, `Spark CLI` automatically generates or updates `.gitignore` to ensure `.env`, `.env.local`, and `.env.*.local` are **never accidentally pushed to Git remotes**.
+- **Automated `.env` Gitignore Protection**: Whenever a project is created or `.env` is configured, `Zecron CLI` automatically generates or updates `.gitignore` to ensure `.env`, `.env.local`, and `.env.*.local` are **never accidentally pushed to Git remotes**.
 - **Formatted Git Stream**: `react push` outputs colorized git status stream showing branch names (`[main 8152f98]`), insertions (`+`), deletions (`-`), and file modes in real time.
 
 ---
@@ -255,12 +255,11 @@ Short aliases: `tailwind`, `axios`, `zod`, `socket`, `toast`, `icon`, `lucide`, 
 
 ## Maintenance
 
-Check syntax after making changes to the CLI:
+Build and check unit test suite after making changes to the CLI:
 
 ```bash
-node --check bin/index.js
-node --check bin/get.js
-node --check lib/shared.js
+npm run build
+npm test
 ```
 
 ---

@@ -1,6 +1,6 @@
 {
   "name": "zecron-cli",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Scaffold a Vite + React project with optional packages",
   "type": "module",
   "license": "MIT",
@@ -16,7 +16,6 @@
   "bin": {
     "zecron": "dist/bin/index.js",
     "react": "dist/bin/index.js",
-    "anshh": "dist/bin/index.js",
     "get": "dist/bin/get.js"
   },
   "files": [
