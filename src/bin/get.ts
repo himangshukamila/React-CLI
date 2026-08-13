@@ -37,6 +37,46 @@ const validatePackageName = (packageName: string): void => {
   }
 };
 
+const formatInstallOutput = (rawOut: string): string => {
+  if (!rawOut) return '';
+
+  const lines: string[] = [];
+
+  const auditedMatch = rawOut.match(/audited (\d+ packages) in ([\d\.\w]+)/i) || rawOut.match(/added (\d+ packages?)(?: in ([\d\.\w]+))?/i);
+  const upToDateMatch = rawOut.match(/up to date/i);
+
+  if (auditedMatch) {
+    const pkgs = auditedMatch[1];
+    const time = auditedMatch[2] ? `in ${auditedMatch[2]}` : '';
+    lines.push(`${chalk.hex('#00E5FF')('⚡')} ${chalk.bold.whiteBright('Audited')} ${chalk.hex('#38BDF8')(pkgs)} ${chalk.hex('#94A3B8')(time)}`);
+  } else if (upToDateMatch) {
+    const timeMatch = rawOut.match(/up to date in ([\d\.\w]+)/i);
+    const time = timeMatch ? `in ${timeMatch[1]}` : '';
+    lines.push(`${chalk.hex('#00E5FF')('⚡')} ${chalk.bold.whiteBright('Dependencies')} ${chalk.hex('#10B981')('up to date')} ${chalk.hex('#94A3B8')(time)}`);
+  }
+
+  const fundingMatch = rawOut.match(/(\d+ packages? (?:is|are) looking for funding)/i);
+  if (fundingMatch) {
+    lines.push(`${chalk.hex('#F59E0B')('♥︎')} ${chalk.hex('#F59E0B')(fundingMatch[1])}`);
+  }
+
+  const vulnMatch = rawOut.match(/found (\d+ vulnerabilities(?: \([\s\S]*?\))?)/i);
+  if (vulnMatch) {
+    const vulnsText = vulnMatch[1];
+    if (vulnsText.includes('0 vulnerabilities')) {
+      lines.push(`${chalk.hex('#10B981')('⚔︎')} ${chalk.hex('#10B981').bold('0 vulnerabilities')} ${chalk.hex('#94A3B8')('· security check passed')}`);
+    } else {
+      lines.push(`${chalk.hex('#EF4444')('☮︎')} ${chalk.hex('#EF4444').bold(vulnsText)}`);
+    }
+  }
+
+  if (lines.length === 0) {
+    return rawOut;
+  }
+
+  return lines.join('\n');
+};
+
 const postInstallHandlers: Record<
   string,
   (projectPath: string) => Promise<void>
@@ -71,7 +111,7 @@ const installPackages = async (
       const packageName = packageNames[i];
       const resolvedPackage = resolvedPackages[i];
       if (packageName !== resolvedPackage) {
-        await typeText(chalk.gray(`${packageName} -> ${resolvedPackage}`), 10);
+        await typeText(chalk.blue(`${packageName} -> ${resolvedPackage}`), 10);
       }
     }
 
@@ -115,7 +155,7 @@ const installPackages = async (
       );
       const out = (res?.stdout || res?.stderr || "").trim();
       if (out) {
-        await typeText(out, 10);
+        await typeText(formatInstallOutput(out), 12);
       }
     }
 
@@ -134,7 +174,7 @@ const installPackages = async (
       );
       const devOut = (devRes?.stdout || devRes?.stderr || "").trim();
       if (devOut) {
-        await typeText(devOut, 15);
+        await typeText(formatInstallOutput(devOut), 12);
       }
     }
 
