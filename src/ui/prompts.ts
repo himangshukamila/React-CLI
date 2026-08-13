@@ -119,7 +119,7 @@ export const customMultiselect = async ({
     })
 
     if (isCancel(res)) {
-      console.log(chalk.hex('#94A3B8')('\nOperation cancelled\n'))
+      console.log(chalk.hex("#94A3B8")("\nOperation cancelled ❎\n"));
       process.exit(0)
     }
 
@@ -145,7 +145,7 @@ export const customConfirm = async ({
     })
 
     if (isCancel(res)) {
-      console.log(chalk.hex('#94A3B8')('\nOperation cancelled\n'))
+      console.log(chalk.hex("#94A3B8")("\nOperation cancelled ❎\n"));
       process.exit(0)
     }
 
