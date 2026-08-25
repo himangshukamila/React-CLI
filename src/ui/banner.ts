@@ -192,6 +192,11 @@ export const setupLaunchChoices: OptionChoice[] = [
     label: "Run npm run dev after setup",
     hint: "--host 0.0.0.0",
   },
+  {
+    value: "bonjour",
+    label: "Configure Bonjour Discovery Service",
+    hint: "mDNS/DNS-SD local network scanner",
+  },
 ];
 
 export const sleep = (ms: number): Promise<void> =>

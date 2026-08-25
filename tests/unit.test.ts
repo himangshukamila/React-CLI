@@ -18,6 +18,19 @@ test('normalizeUiSelections parses valid project name and options', () => {
   assert.equal(result.devServerPort, 5173)
 })
 
+test('normalizeUiSelections parses bonjour in launch choices', () => {
+  const result = normalizeUiSelections({
+    projectName: 'my-bonjour-app',
+    packages: ['tailwind'],
+    structure: ['components', 'pages'],
+    launch: ['runDevServer', 'bonjour'],
+    devServerPort: '5173',
+  })
+
+  assert.ok(result.selectedSetup.includes('bonjour'))
+  assert.equal(result.shouldRunDevServer, true)
+})
+
 test('normalizeUiSelections rejects invalid project name format', () => {
   assert.throws(
     () => {

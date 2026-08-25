@@ -55,6 +55,9 @@ export const normalizeUiSelections = (payload: any): UiSelections => {
     setupLaunchChoices.map((option) => option.value),
   )
   const selectedFeatures = selectedStructure.filter((value) => folderFlags.includes(value))
+  if (selectedLaunch.includes('bonjour') && !selectedFeatures.includes('bonjour')) {
+    selectedFeatures.push('bonjour')
+  }
   const selectedFolders = selectedStructure.filter((value) => !folderFlags.includes(value))
 
   const devServerPort = payload.devServerPort ? parseInt(payload.devServerPort, 10) : 5173

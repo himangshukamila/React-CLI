@@ -1,7 +1,7 @@
 import path from 'node:path'
 import chalk from 'chalk'
 import { section, pass, fail, typeText } from '../ui/banner.js'
-import { ensureDir, writeFile, readFile, pathExists } from '../shared.js'
+import { ensureDir, writeFile, readFile, pathExists, runPackageInstall } from '../shared.js'
 
 export const configureBonjourBoilerplate = async (targetPath?: string): Promise<void> => {
   try {
@@ -13,6 +13,25 @@ export const configureBonjourBoilerplate = async (targetPath?: string): Promise<
     }
 
     section('bonjour generator', 'scaffolding mDNS service discovery server and client components')
+
+    // ensure bonjour-service dependency is installed
+    const pkgContent = await readFile(pkgJsonPath)
+    let pkgJson: any = {}
+    try {
+      pkgJson = JSON.parse(pkgContent)
+    } catch {
+      /* ignore parse error */
+    }
+
+    const hasBonjourPkg = Boolean(
+      (pkgJson.dependencies && pkgJson.dependencies['bonjour-service']) ||
+      (pkgJson.devDependencies && pkgJson.devDependencies['bonjour-service'])
+    )
+
+    if (!hasBonjourPkg) {
+      await runPackageInstall(['bonjour-service'], { cwd: projectRoot }, 'Failed to install bonjour-service')
+      pass('installed bonjour-service package')
+    }
 
     // create server directory and files
     const serverDir = path.join(projectRoot, 'server')
@@ -560,13 +579,31 @@ export default useServiceScanner
     const pagesDir = path.join(projectRoot, 'src', 'pages')
     await ensureDir(pagesDir)
 
-    const discoveryPageContent = `import React from 'react'
+    const discoveryPageContent = `import React, { useState, useMemo } from 'react'
 import { useServiceScanner } from '../services/useServiceScanner.js'
 import { setServerIp } from '../services/bonjour.js'
+
+// service type filter options
+const FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'web', label: 'Web' },
+]
+
+// web service types that match the web filter
+const WEB_TYPES = ['http', 'https']
 
 // discovery landing page component that searches for bonjour services before entering main app
 export const DiscoveryPage = ({ onSelectService }) => {
   const { services, scanning } = useServiceScanner()
+  const [activeFilter, setActiveFilter] = useState('all')
+
+  // filter services based on selected filter type
+  const filteredServices = useMemo(() => {
+    if (activeFilter === 'web') {
+      return services.filter((s) => WEB_TYPES.includes(s.type))
+    }
+    return services
+  }, [services, activeFilter])
 
   const handleSelect = async (service) => {
     if (service) {
@@ -604,15 +641,35 @@ export const DiscoveryPage = ({ onSelectService }) => {
           </div>
         </div>
 
-        {services.length === 0 ? (
+        <div className="flex gap-2 mb-5">
+          {FILTERS.map((filter) => (
+            <button
+              key={filter.key}
+              onClick={() => setActiveFilter(filter.key)}
+              className={\`px-4 py-1.5 text-xs font-medium rounded-full transition-all \${
+                activeFilter === filter.key
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+              }\`}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
+        {filteredServices.length === 0 ? (
           <div className="py-12 text-center">
             <div className="w-12 h-12 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-slate-300 font-medium">Looking for Bonjour services nearby...</p>
+            <p className="text-slate-300 font-medium">
+              {activeFilter === 'all'
+                ? 'Looking for Bonjour services nearby...'
+                : 'No web services found yet...'}
+            </p>
             <p className="text-xs text-slate-500 mt-1">Make sure devices are on the same local network.</p>
           </div>
         ) : (
           <div className="space-y-3 mb-6 max-h-80 overflow-y-auto pr-1">
-            {services.map((service) => (
+            {filteredServices.map((service) => (
               <div
                 key={service.id}
                 onClick={() => handleSelect(service)}
@@ -659,23 +716,12 @@ export default DiscoveryPage
     await writeFile(path.join(pagesDir, 'DiscoveryPage.jsx'), discoveryPageContent)
     pass('created src/pages/DiscoveryPage.jsx')
 
-    // update or create App.jsx to embed discovery flow
-    const appJsxPath = path.join(projectRoot, 'src', 'App.jsx')
-    const appTsxPath = path.join(projectRoot, 'src', 'App.tsx')
-    const targetAppPath = (await pathExists(appTsxPath)) ? appTsxPath : appJsxPath
+    // create src/pages/Home.jsx as the post-discovery landing page with embedded discovery gate
+    const homePageContent = `import React, { useState } from 'react'
+import DiscoveryPage from './DiscoveryPage.jsx'
 
-    if (await pathExists(targetAppPath)) {
-      let appContent = await readFile(targetAppPath)
-      if (!appContent.includes('DiscoveryPage')) {
-        const importLine = `import DiscoveryPage from './pages/DiscoveryPage.jsx'\nimport { useState } from 'react'\n`
-        appContent = importLine + appContent
-        pass(`added DiscoveryPage import to ${path.basename(targetAppPath)}`)
-      }
-    } else {
-      const defaultAppContent = `import React, { useState } from 'react'
-import DiscoveryPage from './pages/DiscoveryPage.jsx'
-
-export default function App() {
+// home page component with embedded bonjour discovery gate
+const Home = () => {
   const [selectedService, setSelectedService] = useState(null)
   const [isDiscovered, setIsDiscovered] = useState(false)
 
@@ -692,25 +738,60 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-8">
-      <h1 className="text-3xl font-bold mb-4">Main Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-4">Home</h1>
       {selectedService ? (
-        <p className="text-indigo-300">Connected via Bonjour service: {selectedService.name} ({selectedService.host})</p>
+        <p className="text-indigo-300">
+          Connected via Bonjour service: {selectedService.name} ({selectedService.host})
+        </p>
       ) : (
         <p className="text-slate-400">Proceeded without specific Bonjour device.</p>
       )}
     </div>
   )
 }
+
+export default Home
+`
+
+    await writeFile(path.join(pagesDir, 'Home.jsx'), homePageContent)
+    pass('created src/pages/Home.jsx')
+
+    // update or create App.jsx to render Home
+    const appJsxPath = path.join(projectRoot, 'src', 'App.jsx')
+    const appTsxPath = path.join(projectRoot, 'src', 'App.tsx')
+    const targetAppPath = (await pathExists(appTsxPath))
+      ? appTsxPath
+      : appJsxPath
+
+    if (await pathExists(targetAppPath)) {
+      let appContent = await readFile(targetAppPath)
+      if (!appContent.includes('Home')) {
+        const appContentWithHome = `import React from 'react'
+import Home from './pages/Home.jsx'
+
+export default function App() {
+  return <Home />
+}
+`
+        await writeFile(targetAppPath, appContentWithHome)
+        pass(`updated ${path.basename(targetAppPath)} to render Home component`)
+      }
+    } else {
+      const defaultAppContent = `import React from 'react'
+import Home from './pages/Home.jsx'
+
+export default function App() {
+  return <Home />
+}
 `
       await writeFile(appJsxPath, defaultAppContent)
-      pass('created src/App.jsx with Bonjour discovery root page flow')
+      pass('created src/App.jsx rendering Home component')
     }
 
     await typeText(
       chalk.green.bold(
         '\n✅ Bonjour Discovery Service successfully scaffolded!\n' +
-          '   Created server/mdnsScanner.js, server/vitePluginMdns.js, src/services/useServiceScanner.js, and src/pages/DiscoveryPage.jsx.\n' +
-          '   Note: Run `npm install bonjour-service` to complete package dependencies.'
+          '   Created server/mdnsScanner.js, server/vitePluginMdns.js, src/services/useServiceScanner.js, src/pages/DiscoveryPage.jsx, and src/pages/Home.jsx.'
       )
     )
   } catch (error: any) {

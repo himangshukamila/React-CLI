@@ -328,6 +328,15 @@ export const createSetupSteps = (selectedPackages: string[], selectedSetup: stri
     })
   }
 
+  if (selectedSetup.includes('bonjour')) {
+    steps.push({
+      pending: 'bonjour',
+      active: 'configuring bonjour',
+      done: 'bonjour',
+      meta: 'mDNS discovery',
+    })
+  }
+
   steps.push({
     pending: 'ready',
     active: 'finalizing',
@@ -461,6 +470,10 @@ export const createProject = async (targetName?: string, options: Record<string,
         })
       }
     })
+
+    if (selections.selectedSetup.includes('bonjour') && !batchPackages.includes('bonjour-service')) {
+      batchPackages.push('bonjour-service')
+    }
 
     await progress.step(async () => {
       const pm = await detectPackageManager()

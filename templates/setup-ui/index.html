@@ -142,6 +142,14 @@
             <span class="switch npm" aria-hidden="true"></span>
           </button>
 
+          <button class="launch-panel structure-row" type="button" data-launch="bonjour" aria-pressed="false" style="margin-top: 12px;">
+            <span>
+              <strong>Configure Bonjour Discovery Service</strong>
+              <span>Scaffold mDNS/DNS-SD local network device scanner and landing page.</span>
+            </span>
+            <span class="switch npm" aria-hidden="true"></span>
+          </button>
+
           <div class="port-config-container" id="port-config-container">
             <div class="port-config-row">
               <label for="dev-port">Dev Server Port</label>
@@ -772,6 +780,34 @@
         }
       });
 
+      // If bonjour is selected in launch or structure, include server files and bonjour pages
+      const isBonjour = getSelectedLaunch().includes("bonjour") || selectedStructure.has("bonjour");
+      if (isBonjour) {
+        let pagesFolder = srcFolders.find((f) => f.name === "pages");
+        if (!pagesFolder) {
+          pagesFolder = { name: "pages", children: [] };
+          srcFolders.push(pagesFolder);
+        }
+        if (!pagesFolder.children.some((c) => c.name === "DiscoveryPage.jsx")) {
+          pagesFolder.children.push({ name: "DiscoveryPage.jsx" });
+        }
+        if (!pagesFolder.children.some((c) => c.name === "Home.jsx")) {
+          pagesFolder.children.push({ name: "Home.jsx" });
+        }
+
+        let servicesFolder = srcFolders.find((f) => f.name === "services");
+        if (!servicesFolder) {
+          servicesFolder = { name: "services", children: [] };
+          srcFolders.push(servicesFolder);
+        }
+        if (!servicesFolder.children.some((c) => c.name === "bonjour.js")) {
+          servicesFolder.children.push({ name: "bonjour.js" });
+        }
+        if (!servicesFolder.children.some((c) => c.name === "useServiceScanner.js")) {
+          servicesFolder.children.push({ name: "useServiceScanner.js" });
+        }
+      }
+
 
       const rootFiles = ["index.html", "vite.config.js"];
       if (selectedStructure.has("env")) rootFiles.push(".env");
@@ -783,10 +819,22 @@
         publicChildren.push({ name: "fonts", children: [] });
       }
 
+      const rootFolders = [];
+      if (isBonjour) {
+        rootFolders.push({
+          name: "server",
+          children: [
+            { name: "mdnsScanner.js" },
+            { name: "vitePluginMdns.js" },
+          ],
+        });
+      }
+
       return {
         name: PROJECT_NAME,
         isRoot: true,
         children: [
+          ...rootFolders,
           {
             name: "src",
             children: [
@@ -1086,6 +1134,7 @@
             }, 300);
           }
         }
+        renderTree();
         updateSideDashboard();
       });
     });
