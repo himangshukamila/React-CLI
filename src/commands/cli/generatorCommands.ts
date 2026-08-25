@@ -4,16 +4,18 @@ import { configureFontAssets, configureImageAssets } from '../../generators/asse
 import { configureFormBoilerplate } from '../../generators/form.js'
 import { configureLoaderBoilerplate } from '../../generators/loader.js'
 import { configurePrinterBoilerplate } from '../../generators/printer.js'
+import { configureBonjourBoilerplate } from '../../generators/bonjour.js'
 import { makeFile } from '../../generators/make.js'
 import { configureApiMethods, configureWebSocket, configureButton } from '../../shared.js'
 
 export const registerGeneratorCommands = (program: Command): void => {
   program
     .command('set [target]')
-    .description('Configure font assets, image constants, API client methods, or WebSocket service')
+    .description('Configure font assets, image constants, API client methods, WebSocket service, or Bonjour service')
     .option('--font', 'Scan public/fonts and configure @font-face and Tailwind fonts in src/index.css')
     .option('--image', 'Scan public/images and generate src/utils/images.js constants')
     .option('--ws', 'Generate src/services/webSocket.js with auto-reconnect and message handlers')
+    .option('--bonjour', 'Scaffold mDNS service discovery server and client components')
     .allowUnknownOption()
     .action(async (target: string | undefined, options: Record<string, any>) => {
       const rawArgs = process.argv.slice(3)
@@ -34,6 +36,8 @@ export const registerGeneratorCommands = (program: Command): void => {
         await configureLoaderBoilerplate()
       } else if (lowerTarget === 'printer' || lowerTarget === 'print' || options.printer) {
         await configurePrinterBoilerplate()
+      } else if (lowerTarget === 'bonjour' || options.bonjour) {
+        await configureBonjourBoilerplate()
       } else if (lowerTarget === 'button' || lowerTarget === 'btn' || options.button) {
         await configureButton()
       } else if (lowerTarget === 'ws' || lowerTarget === 'websocket' || options.ws) {
@@ -42,7 +46,7 @@ export const registerGeneratorCommands = (program: Command): void => {
         const methodsToSet = requestedMethods.length > 0 ? requestedMethods : ['get', 'post']
         await configureApiMethods(methodsToSet, { auth: hasAuthFlag })
       } else {
-        console.error(chalk.red('Error: Please specify what to set (e.g. zecron set api -get -post, zecron set button, or zecron set ws)'))
+        console.error(chalk.red('Error: Please specify what to set (e.g. zecron set api -get -post, zecron set button, zecron set ws, or zecron set bonjour)'))
         process.exit(1)
       }
     })

@@ -90,13 +90,25 @@ export const normalizeUiSelections = (payload: any): UiSelections => {
   }
 }
 
+// escape special html characters for safe template interpolation
+export const escapeHtml = (str: string): string =>
+  String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+
 export const createSetupUiHtml = async ({ displayName, token, submitUrl, timeLeftMs }: SetupUiHtmlParams): Promise<string> => {
   const templatePath = path.join(rootDir, 'templates', 'setup-ui', 'index.html')
   const rawHtml = await readFile(templatePath)
 
   const safeName = displayName || ''
+  const escapedHtmlName = escapeHtml(safeName)
+
   return rawHtml
-    .replace(/__PROJECT_NAME__/g, () => safeName)
+    .replace('const TEMPLATE_PROJECT_NAME = "__PROJECT_NAME__";', `const TEMPLATE_PROJECT_NAME = ${JSON.stringify(safeName)};`)
+    .replace(/__PROJECT_NAME__/g, () => escapedHtmlName)
     .replace(/__SESSION_TOKEN__/g, () => token)
     .replace(/__SUBMIT_URL__/g, () => submitUrl)
     .replace(/__TIME_LEFT_MS__/g, () => String(timeLeftMs))

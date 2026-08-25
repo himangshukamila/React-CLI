@@ -15,7 +15,7 @@ import {
   runCommand,
 } from '../shared.js';
 
-const packageNameRegex = /^(@[a-zA-Z0-9_-]+\/)?[a-zA-Z0-9_.-]+$/;
+const packageNameRegex = /^(@[a-zA-Z0-9_][a-zA-Z0-9_-]*\/)?[a-zA-Z0-9_][a-zA-Z0-9_.-]*$/;
 
 const fail = (message: string): never => {
   console.error(chalk.red(message));
@@ -30,6 +30,7 @@ const validatePackageName = (packageName: string): void => {
   if (
     !baseName ||
     !packageNameRegex.test(baseName) ||
+    packageName.startsWith("-") ||
     packageName.includes("..") ||
     (baseName.includes("/") && !isScopedPackage)
   ) {
@@ -143,9 +144,9 @@ const installPackages = async (
     if (uniqueNormalPackages.length > 0) {
       let args: string[] = [];
       if (pm === "bun" || pm === "pnpm" || pm === "yarn") {
-        args = ["add", ...uniqueNormalPackages];
+        args = ["add", "--", ...uniqueNormalPackages];
       } else {
-        args = ["install", ...uniqueNormalPackages];
+        args = ["install", "--", ...uniqueNormalPackages];
       }
       const res = await runCommand(
         pm,
@@ -162,9 +163,9 @@ const installPackages = async (
     if (uniqueDevPackages.length > 0) {
       let devArgs: string[] = [];
       if (pm === "bun" || pm === "pnpm" || pm === "yarn") {
-        devArgs = ["add", "-D", ...uniqueDevPackages];
+        devArgs = ["add", "-D", "--", ...uniqueDevPackages];
       } else {
-        devArgs = ["install", "-D", ...uniqueDevPackages];
+        devArgs = ["install", "-D", "--", ...uniqueDevPackages];
       }
       const devRes = await runCommand(
         pm,

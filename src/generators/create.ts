@@ -23,6 +23,7 @@ import {
 } from '../shared.js'
 import { startSetupWizardServer } from '../commands/wizard.js'
 import { CustomCreatedFile, UiSelections } from '../types/index.js'
+import { configureBonjourBoilerplate } from './bonjour.js'
 
 export const validateProjectName = (name: string): void => {
   if (!projectNameRegex.test(name) || name.includes('..') || name.includes('/')) {
@@ -57,12 +58,22 @@ export const runInteractivePrompts = async (): Promise<InteractivePromptsResult>
     initialValues: ['env', 'components', 'pages'],
   })
 
+  section('bonjour service', 'configure mDNS local network service discovery')
+  const shouldConfigureBonjour = await customConfirm({
+    message: 'Configure Bonjour Discovery Service? (mDNS/DNS-SD local network scanner)',
+    initialValue: false,
+  })
+
   const shouldRunDevServer = await askToRunDevServer()
   const selectedFolderNames = selectedFolders.filter((value) => !folderFlags.includes(value))
   const selectedSetup = [
     ...selectedPackages,
     ...selectedFolders.filter((value) => folderFlags.includes(value)),
   ]
+
+  if (shouldConfigureBonjour && !selectedSetup.includes('bonjour')) {
+    selectedSetup.push('bonjour')
+  }
 
   return {
     selectedPackages: selectedPackages.filter((value) => packageFlags.includes(value)),
@@ -477,6 +488,12 @@ export const createProject = async (targetName?: string, options: Record<string,
       })
     } else {
       await ensureGitignoreWithEnv(projectPath)
+    }
+
+    if (selections.selectedSetup.includes('bonjour')) {
+      await progress.step(async () => {
+        await configureBonjourBoilerplate(projectPath)
+      })
     }
 
     await progress.step(async () => {})

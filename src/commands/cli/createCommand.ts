@@ -17,6 +17,7 @@ export const registerCreateCommand = (program: Command): void => {
     .option('--qr', 'install react-qr-code')
     .option('--webcam', 'install react-webcam')
     .option('--printer', 'install react-to-print')
+    .option('--bonjour', 'scaffold bonjour mDNS service discovery')
     .option('--env', 'create a .env file with Vite environment variables')
     .option('--watch', 'add frontend API watch client for react watch')
     .option('--ui', 'configure setup in a local browser wizard')

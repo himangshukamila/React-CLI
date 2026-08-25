@@ -24,7 +24,7 @@ export const packageFlags: string[] = [
   "webcam",
   "printer",
 ];
-export const featureFlags: string[] = ["env", "watch"];
+export const featureFlags: string[] = ["env", "watch", "bonjour"];
 export const setupFlags: string[] = [...packageFlags, ...featureFlags];
 export const folderFlags: string[] = featureFlags;
 

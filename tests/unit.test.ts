@@ -85,3 +85,31 @@ test('customMultiselect and customConfirm return default fallback values in non-
   })
   assert.equal(typeof confirmResult, 'boolean')
 })
+
+test('configureBonjourBoilerplate is exported as a function', async () => {
+  const { configureBonjourBoilerplate } = await import('../src/generators/bonjour.js')
+  assert.equal(typeof configureBonjourBoilerplate, 'function')
+})
+
+test('escapeHtml safely encodes special markup characters', async () => {
+  const { escapeHtml } = await import('../src/commands/wizard.js')
+
+  assert.equal(escapeHtml('my-app'), 'my-app')
+  assert.equal(escapeHtml('<script>alert("xss")</script>'), '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;')
+  assert.equal(escapeHtml("project's \"name\" & more"), 'project&#039;s &quot;name&quot; &amp; more')
+})
+
+test('createSetupUiHtml safely embeds project names with quotes and special characters', async () => {
+  const { createSetupUiHtml } = await import('../src/commands/wizard.js')
+
+  const html = await createSetupUiHtml({
+    displayName: 'my-"custom"-app',
+    token: 'testtoken123',
+    submitUrl: 'http://127.0.0.1:4317/api/setup',
+    timeLeftMs: 600000,
+  })
+
+  assert.ok(html.includes('const TEMPLATE_PROJECT_NAME = "my-\\"custom\\"-app";'))
+  assert.ok(html.includes('&quot;custom&quot;'))
+})
+
