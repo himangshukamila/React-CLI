@@ -118,6 +118,26 @@ test('parseGitOutputChunk carries a split line into the next chunk', async () =>
   assert.equal(second.rest, '')
 })
 
+test('formatGitProgressFrame draws a bar for progress and leaves other lines alone', async () => {
+  const { formatGitProgressFrame } = await import('../src/commands/git.js')
+  const plain = (value: string) => value.replace(/\x1B\[[0-9;]*[A-Za-z]/g, '')
+
+  const half = plain(formatGitProgressFrame('Writing objects:  50% (307/614)', 0))
+  assert.match(half, /Writing objects/)
+  assert.match(half, /50% \(307\/614\)/)
+  assert.equal((half.match(/█/g) || []).length, 11)
+  assert.equal((half.match(/·/g) || []).length, 11)
+
+  // a finished phase swaps the spinner for a tick and fills the bar
+  const done = plain(formatGitProgressFrame('Counting objects: 100% (615/615), done.', 0))
+  assert.match(done, /^✓/)
+  assert.equal((done.match(/·/g) || []).length, 0)
+
+  // lines without a percentage are passed through untouched
+  const other = plain(formatGitProgressFrame('Delta compression using up to 8 threads', 0))
+  assert.equal(other, 'Delta compression using up to 8 threads')
+})
+
 test('registerAllCommands correctly registers all modular commands', async () => {
   const { Command } = await import('commander')
   const { registerAllCommands } = await import('../src/commands/cli/index.js')

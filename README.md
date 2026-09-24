@@ -360,16 +360,24 @@ const Banner = () => <img src={images.heroBanner} alt="Hero" />
 
 - **Automated `.env` Gitignore Protection**: Whenever a project is created or `.env` is configured, `Zecron CLI` automatically generates or updates `.gitignore` to ensure `.env`, `.env.local`, and `.env.*.local` are **never accidentally pushed to Git remotes**.
 - **Formatted Git Stream**: `react push` outputs colorized git status stream showing branch names (`[main 8152f98]`), insertions (`+`), deletions (`-`), and file modes in real time.
-- **Live Push Progress**: the push step mirrors git's own counters while it runs, so a large push reports what it is doing instead of sitting silent:
+- **Live Push Progress**: the push step mirrors git's own counters while it runs, rendered as an animated bar in the same style as the install pipeline, so a large push reports what it is doing instead of sitting silent:
 
 ```text
 ⚡ running  Push changes (git push --progress)...
-  │ Enumerating objects: 615, done.
-  │ Counting objects: 100% (615/615), done.
-  │ Compressing objects:  68% (418/614)
+  │ ◓ Writing objects     ███████████···········  51% (314/614)
 ```
 
-  Percentage lines redraw in place exactly as they do in git; only the lines git marks as final are kept. Long file listings from a big commit are truncated to a `… N more lines` summary rather than scrolling hundreds of `create mode` entries off screen.
+  The bar redraws in place and the spinner turns into a green `✓` as each phase completes. Once the push finishes, the lines git marks as final are typed out like the rest of the push output:
+
+```text
+  │ Enumerating objects: 615, done.
+  │ Counting objects: 100% (615/615), done.
+  │ Writing objects: 100% (614/614), 6.95 MiB | 40.44 MiB/s, done.
+  │ To github.com:user/repo.git
+✅ success  Push changes (git push --progress)
+```
+
+  Long file listings from a big commit are truncated to a `… N more lines` summary rather than scrolling hundreds of `create mode` entries off screen.
 
 ---
 

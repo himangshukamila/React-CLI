@@ -2,7 +2,7 @@ import path from 'node:path'
 import readline from 'node:readline'
 import chalk from 'chalk'
 import { execa } from 'execa'
-import { section, fail, typeText } from '../ui/banner.js'
+import { section, fail, typeText, accent, muted } from '../ui/banner.js'
 import { pathExists } from '../shared.js'
 
 export const isSafeRemoteUrl = (url: any): boolean => {
@@ -150,6 +150,36 @@ export const styleGitProgressLine = (line: string): string => {
   return chalk.hex('#CBD5E1')(highlighted)
 }
 
+const spinnerFrames = ['◐', '◓', '◑', '◒']
+const progressBarWidth = 22
+
+/**
+ * Draw a live progress frame in the same bar style the install pipeline uses.
+ * These redraw many times a second, so they are written instantly — the typing
+ * effect is reserved for the summary lines that stay on screen.
+ */
+export const formatGitProgressFrame = (line: string, tick: number = Date.now()): string => {
+  const match = line.match(/^(.*?):\s*(\d+)%\s*\((\d+)\/(\d+)\)(.*)$/)
+  if (!match) return styleGitProgressLine(line)
+
+  const [, label, percentText, completed, total, trailing] = match
+  const percent = Math.min(100, Math.max(0, Number(percentText)))
+  const filled = Math.round((percent / 100) * progressBarWidth)
+
+  const spinner = percent >= 100
+    ? chalk.hex('#10B981')('✓')
+    : accent(spinnerFrames[Math.floor(tick / 120) % spinnerFrames.length])
+  const bar = `${accent('█'.repeat(filled))}${muted('·'.repeat(progressBarWidth - filled))}`
+  const pct = chalk.hex('#38BDF8').bold(`${String(percent).padStart(3)}%`)
+  const counts = chalk.hex('#F59E0B')(`(${completed}/${total})`)
+
+  // the trailing "1.2 MiB | 800 KiB/s" only fits on a roomy terminal
+  const extra = trailing.replace(/^[,\s]+/, '').replace(/,\s*done\.$/, '').trim()
+  const tail = extra && (process.stdout.columns || 80) >= 100 ? chalk.hex('#94A3B8')(`  ${extra}`) : ''
+
+  return `${spinner} ${chalk.bold.whiteBright(label.padEnd(19))} ${bar} ${pct} ${counts}${tail}`
+}
+
 interface GitStepOutput {
   persistentLines: string[]
   progressActive: boolean
@@ -173,10 +203,16 @@ const attachGitOutput = (
     buffer = rest
 
     for (const { text, persistent } of lines) {
-      if (persistent) state.persistentLines.push(text)
+      // lines git wants kept are replayed with the typing effect once the step
+      // finishes; only the live counter is drawn while it runs
+      if (persistent) {
+        state.persistentLines.push(text)
+        continue
+      }
+
       if (!canRender) continue
 
-      // the first update closes the "running" status line and opens one below it
+      // the first frame closes the "running" status line and opens one below it
       if (!state.progressActive) {
         process.stdout.write('\n')
         state.progressActive = true
@@ -184,11 +220,7 @@ const attachGitOutput = (
 
       readline.clearLine(process.stdout, 0)
       readline.cursorTo(process.stdout, 0)
-
-      // a final line is committed to the scrollback; a transient one is left
-      // unterminated so the next frame redraws over it
-      const terminator = persistent ? '\n' : ''
-      process.stdout.write(`${chalk.hex('#8B5CF6')('  │')} ${styleGitProgressLine(text)}${terminator}`)
+      process.stdout.write(`${chalk.hex('#8B5CF6')('  │')} ${formatGitProgressFrame(text)}`)
     }
   })
 
@@ -388,9 +420,8 @@ export const gitPushWrapper = async (options: GitPushOptions): Promise<void> => 
         }
       }
 
-      // on a TTY the summary was already printed live; without one nothing has
-      // been shown yet, so replay the lines git meant to keep
-      if (isPushStep && !process.stdout.isTTY && output.persistentLines.length > 0) {
+      // type out the lines git wanted kept, matching the rest of the push output
+      if (isPushStep && output.persistentLines.length > 0) {
         const shown = output.persistentLines.slice(0, maxGitSummaryLines)
         for (const line of shown) {
           await typeText(`${chalk.hex('#8B5CF6')('  │')} ${styleGitProgressLine(line)}`, 4)
@@ -411,12 +442,14 @@ export const gitPushWrapper = async (options: GitPushOptions): Promise<void> => 
       await typeText(`${chalk.hex('#EF4444').bold('❌ failed')}   ${displayLabel}`)
       console.error(chalk.hex('#FCA5A5')(`\nError: Command failed: ${cmdStr}`))
 
-      // stderr was already mirrored above while the step ran, so only repeat it
-      // when nothing was streamed (no TTY, or the step failed before output)
-      if (!output.progressActive) {
-        console.error(chalk.hex('#FCA5A5')(`${error.stderr || error.message}\n`))
-      } else {
+      // git's own message was buffered, so type it out rather than dumping it
+      if (output.persistentLines.length > 0) {
+        for (const line of output.persistentLines.slice(0, maxGitSummaryLines)) {
+          await typeText(`${chalk.hex('#8B5CF6')('  │')} ${chalk.hex('#FCA5A5')(line)}`, 4)
+        }
         console.error('')
+      } else {
+        console.error(chalk.hex('#FCA5A5')(`${error.stderr || error.message}\n`))
       }
 
       if (step.args.includes('remote') && step.args.includes('add')) {
