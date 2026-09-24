@@ -66,6 +66,58 @@ test('form generator helpers parse fields and input types correctly', async () =
   assert.equal(formatFieldLabel('user_email'), 'User Email')
 })
 
+test('validateDevServerPort accepts usable ports and rejects the rest', async () => {
+  const { validateDevServerPort } = await import('../src/shared.js')
+
+  for (const port of ['5173', '3000', '8080', '1024', '65535']) {
+    assert.equal(validateDevServerPort(port), undefined, `${port} should be accepted`)
+  }
+
+  assert.match(String(validateDevServerPort('')), /Enter a port number/)
+  assert.match(String(validateDevServerPort('abc')), /digits only/)
+  assert.match(String(validateDevServerPort('51.73')), /digits only/)
+  assert.match(String(validateDevServerPort('0')), /between 1 and 65535/)
+  assert.match(String(validateDevServerPort('70000')), /between 1 and 65535/)
+  assert.match(String(validateDevServerPort('80')), /reserved for system services/)
+  assert.match(String(validateDevServerPort('1023')), /reserved for system services/)
+  assert.match(String(validateDevServerPort('6000')), /Browsers block/)
+})
+
+test('normalizeUiSelections rejects a browser-blocked dev server port', async () => {
+  assert.throws(
+    () => normalizeUiSelections({ projectName: 'app', devServerPort: '6000' }),
+    /Browsers block port 6000/,
+  )
+})
+
+test('parseGitOutputChunk separates transient progress from final lines', async () => {
+  const { parseGitOutputChunk } = await import('../src/commands/git.js')
+
+  // git ends progress updates with \r and messages it wants kept with \n
+  const { lines, rest } = parseGitOutputChunk(
+    'Counting objects:   1% (1/87)\rCounting objects: 100% (87/87), done.\nWriting objects:  45% (39/87)\r',
+  )
+
+  assert.deepEqual(lines, [
+    { text: 'Counting objects:   1% (1/87)', persistent: false },
+    { text: 'Counting objects: 100% (87/87), done.', persistent: true },
+    { text: 'Writing objects:  45% (39/87)', persistent: false },
+  ])
+  assert.equal(rest, '')
+})
+
+test('parseGitOutputChunk carries a split line into the next chunk', async () => {
+  const { parseGitOutputChunk } = await import('../src/commands/git.js')
+
+  const first = parseGitOutputChunk('Writing objects:  45% (39/')
+  assert.deepEqual(first.lines, [])
+  assert.equal(first.rest, 'Writing objects:  45% (39/')
+
+  const second = parseGitOutputChunk(`${first.rest}87)\r`)
+  assert.deepEqual(second.lines, [{ text: 'Writing objects:  45% (39/87)', persistent: false }])
+  assert.equal(second.rest, '')
+})
+
 test('registerAllCommands correctly registers all modular commands', async () => {
   const { Command } = await import('commander')
   const { registerAllCommands } = await import('../src/commands/cli/index.js')

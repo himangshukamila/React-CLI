@@ -54,6 +54,8 @@ Zecron CLI (zecron)
 ├─ Component & Page Boilerplate Generators:
 │  ├─ react set loader   (pure Tailwind CSS backdrop-blur loader)
 │  ├─ react set printer  (socket print-image queue + react-to-print)
+│  ├─ react set bonjour  (4b-react-mdns network discovery + themed picker)
+│  ├─ Custom Log View    (logscan in-app console panel, dev-only)
 │  ├─ react set form     (styled React form component with state)
 │  ├─ react set --font   (scan public/fonts & auto-configure @font-face)
 │  └─ react set --image  (scan public/images & generate src/utils/images.js)
@@ -133,6 +135,9 @@ react my-app --tailwind --axios --router --env
 | `--printer` | Installs `react-to-print`, `socket.io-client`, and scaffolds `src/pages/Printer.jsx` |
 | `--icon` | Installs `react-icons` |
 | `--lucide` | Installs `lucide-react` |
+| `--bonjour` | Installs `4b-react-mdns`, wires `mdnsPlugin()` + `<MdnsProvider>`, scaffolds `src/pages/DiscoveryPage.jsx` |
+| `--logscan` | Installs `logscan` and mounts the Custom Log View console panel at the entry point (dev only) |
+| `-p, --port <number>` | Dev server port to pin in `vite.config.js` (default `5173`, validated) |
 | `--env` | Creates `.env` with `VITE_SERVER_URL` and ensures `.env` is listed in `.gitignore` |
 | `--watch` | Configures frontend API response logger |
 | `--ui` | Launches local browser setup wizard |
@@ -162,7 +167,9 @@ react list -c
 | `react doctor` | Audit project health, setup, dependencies, and environment keys |
 | `react set loader` | Generate a responsive backdrop-blur `Loader.jsx` component |
 | `react set printer` | Generate `Printer.jsx` page with socket queue & `react-to-print` |
+| `react set bonjour` | Wire `4b-react-mdns` discovery and generate the themed `DiscoveryPage.jsx` |
 | `react set form -name -email` | Generate a styled React Form component with state & field icons |
+| `react set form -bio:textarea` | Override a field's guessed input type with `key:type` |
 | `react set --font` | Scan `public/fonts` and register `@font-face` rules in `src/index.css` |
 | `react set --image` | Scan `public/images` and generate `src/utils/images.js` asset map |
 | `react env list` | List Vite environment variables from `.env` |
@@ -180,28 +187,144 @@ react list -c
 
 ### 1. Backdrop Blur Loader (`react set loader`)
 
-Generates `src/components/Loader.jsx`:
-- Pure Tailwind CSS overlay (`absolute inset-0 z-30 bg-[#060818]/80 backdrop-blur-sm`).
-- Built-in spinning indicator with custom `text` prop support (defaults to `'Please wait...'`).
-- Pure CSS/HTML implementation (zero third-party React dispatcher dependencies).
+Generates `src/components/Loader.jsx` — every part is a prop, so you restyle it at the call site instead of editing the file:
+
+| Prop | Default | |
+| --- | --- | --- |
+| `variant` | `spinner` | also `dots`, `bars`, `pulse` |
+| `color` | `#1059DD` | indicator color |
+| `background` / `opacity` | `#060818` / `0.8` | overlay tint |
+| `size` | `56` | indicator size in px; spacing scales with it |
+| `blur` | `sm` | `none`, `sm`, `md`, `lg`, `xl` |
+| `overlay` | `true` | `false` renders inline instead of `absolute inset-0` |
+| `text` | `Please wait...` | empty string hides it |
+| `className` / `textClassName` | `''` | escape hatches |
 
 ```bash
 react set loader
 ```
 
+```jsx
+<Loader variant="dots" color="#e8935a" size={40} blur="md" />
+<Loader overlay={false} variant="pulse" text="" />
+```
+
+Colors and sizes are applied inline because Tailwind cannot compile class names built from props at runtime.
+
 ### 2. Print Queue Page (`react set printer` / `react set print`)
 
-Generates `src/pages/Printer.jsx`:
-- Listens to Socket.IO `"print-image"` events from `VITE_SERVER_URL`.
-- Maintains an in-memory print image preview queue.
-- Automatically triggers native browser print dialogs using `react-to-print` (`useReactToPrint`).
-- Auto-scaffolds `src/services/socket.js` connection client if missing.
+Generates `src/pages/Printer.jsx`, which keeps an in-memory preview queue, triggers the native print dialog with `react-to-print`, and scaffolds `src/services/socket.js` if missing. The event name, payload shape and paper size are props rather than hardcoded values:
+
+| Prop | Default | |
+| --- | --- | --- |
+| `event` | `print-image` | Socket.IO event to listen on |
+| `serverUrl` | `VITE_SERVER_URL` | base for relative image paths (absolute URLs pass through) |
+| `getImagePath` | `(d) => d?.generatedImageName` | read the path out of your own payload shape |
+| `autoPrint` | `true` | `false` shows the preview and waits for a click |
+| `previewSize` / `paperSize` | A4 | `{ width, height }` |
+| `objectFit` | `cover` | |
+| `onPrinted` / `onError` | — | callbacks |
 
 ```bash
 react set printer
 ```
 
-### 3. Font Asset Configurator (`react set --font`)
+```jsx
+<Printer event="job-ready" getImagePath={(d) => d?.file}
+         paperSize={{ width: '148mm', height: '210mm' }} autoPrint={false} />
+```
+
+### 3. Form Generator (`react make form` / `react set form`)
+
+Field names are typed as bare tokens, and the input type is guessed from the name. Append `:type` when the guess is wrong:
+
+```bash
+react make form -name -email          # text, email
+react make form -bio:textarea -age:number
+react make form -phone                # adds to the existing form, keeps the rest
+```
+
+Supported types: `text`, `email`, `password`, `tel`, `number`, `date`, `url`, `search`, `textarea`. The resolved list is recorded in a `// zecron:fields` comment at the top of `Form.jsx`, so re-running to add one field preserves the explicit types of the others.
+
+### 4. Dev Server Port
+
+`react my-app` asks which port the app should run on (default `5173`), or pass `--port` to skip the prompt. The answer is written into `server.port` in `vite.config.js`, so `npm run dev` keeps using it — it isn't just applied to the first launch.
+
+The value is rejected unless it passes every check:
+
+| Rule | Example |
+| --- | --- |
+| Digits only — no letters, spaces or decimals | `abc`, `51.73`, `-1` |
+| Between 1 and 65535 | `0`, `70000` |
+| 1024 or higher — lower ports need root | `80`, `443`, `1023` |
+| Not blocked by browsers (`ERR_UNSAFE_PORT`) | `6000`, `6667`, `2049`, `10080` |
+
+That last rule is the one that saves real debugging time: a dev server on port 6000 starts normally but Chrome and Firefox refuse to open it, so the failure looks like a broken app rather than a bad port.
+
+If the port is already in use the CLI warns but continues, since Vite falls back to the next free port. An invalid `--port` fails before anything is created. The browser setup wizard (`--ui`) validates against the same rules.
+
+### 5. Safe Regeneration
+
+Every generated file starts with a `// zecron:generated <hash>` stamp:
+
+- Re-running with no changes reports **already up to date** and writes nothing.
+- Re-running after you changed the inputs regenerates the file silently, as long as you haven't edited it.
+- If the file has hand edits (or predates the stamp), the generator asks before replacing it, and keeps your version if you decline or there's no TTY.
+
+### 6. Custom Log View (`--logscan`)
+
+Offered as a yes/no step during `react my-app`, **defaulting to yes**, and available non-interactively as `react my-app --logscan`. It installs [`logscan`](https://www.npmjs.com/package/logscan) and mounts the panel beside your app in the entry point, so no component or route needs to change:
+
+```jsx
+import { Suspense, lazy } from 'react'
+
+const LogScanner = import.meta.env.DEV
+  ? lazy(() => import('logscan').then((module) => ({ default: module.LogScanner })))
+  : null
+
+createRoot(document.getElementById('root')).render(
+  <>
+    <StrictMode>
+      <App />
+    </StrictMode>
+    {LogScanner && (
+      <Suspense fallback={null}>
+        <LogScanner visible />
+      </Suspense>
+    )}
+  </>,
+)
+```
+
+Keep writing `console.log()` / `warn()` / `error()` — the floating, draggable panel mirrors them inside the app, with search, severity filters and per-entry inspection. Terminal and DevTools output is unaffected.
+
+The import is lazy and guarded by `import.meta.env.DEV`, which Vite replaces at build time, so the bundler drops the panel **and its ~930KB logo asset** from production entirely. A plain static import would have added ~45KB of JS plus that image to every production build.
+
+This wires the **browser** half only. Streaming logs from a Node backend needs `logscan/node` installed in your server process plus a Vite proxy — see the package README.
+
+### 7. Bonjour Discovery (`react set bonjour`)
+
+Delegates the mDNS/DNS-SD work to the [`4b-react-mdns`](https://www.npmjs.com/package/4b-react-mdns) package instead of scaffolding a scanner by hand:
+
+- Installs `4b-react-mdns` and runs its `4bmdns config` codemod, which adds `mdnsPlugin({ httpOnly: true })` to the Vite config and wraps the entry point in `<MdnsProvider launcher={false} httpOnly={true}>`.
+- Generates `src/pages/DiscoveryPage.jsx` — a themed full-screen picker (live scan status, search, **HTTP only** toggle, rescan) built on `useMdns()`.
+- Generates `src/pages/Home.jsx`, which gates the app behind the discovery page until a server is picked or skipped.
+- Generates `src/services/bonjour.js` with `getApiBaseUrl()` / `getWsBaseUrl()` helpers that read the picked server and fall back to `VITE_SERVER_URL` from `.env`.
+- Removes the old hand-written `server/mdnsScanner.js`, `server/vitePluginMdns.js`, and `src/services/useServiceScanner.js` scaffold and unhooks it from the Vite config.
+
+```bash
+react set bonjour
+```
+
+The pick is remembered by the package in `localStorage` and in `~/.scan-net/selection.json`, so `.env` only supplies the default until a server is chosen.
+
+```javascript
+import { getApiBaseUrl } from '../services/bonjour'
+
+const response = await fetch(`${getApiBaseUrl()}/health`)
+```
+
+### 8. Font Asset Configurator (`react set --font`)
 
 Scans `public/fonts/` for `.ttf`, `.woff`, `.woff2`, and `.otf` files:
 - Generates `@font-face` declarations pointing to asset paths.
@@ -211,7 +334,7 @@ Scans `public/fonts/` for `.ttf`, `.woff`, `.woff2`, and `.otf` files:
 react set --font
 ```
 
-### 4. Image Asset Map Generator (`react set --image`)
+### 9. Image Asset Map Generator (`react set --image`)
 
 Scans `public/images/` and outputs a camelCased asset map in `src/utils/images.js`:
 
@@ -237,6 +360,16 @@ const Banner = () => <img src={images.heroBanner} alt="Hero" />
 
 - **Automated `.env` Gitignore Protection**: Whenever a project is created or `.env` is configured, `Zecron CLI` automatically generates or updates `.gitignore` to ensure `.env`, `.env.local`, and `.env.*.local` are **never accidentally pushed to Git remotes**.
 - **Formatted Git Stream**: `react push` outputs colorized git status stream showing branch names (`[main 8152f98]`), insertions (`+`), deletions (`-`), and file modes in real time.
+- **Live Push Progress**: the push step mirrors git's own counters while it runs, so a large push reports what it is doing instead of sitting silent:
+
+```text
+⚡ running  Push changes (git push --progress)...
+  │ Enumerating objects: 615, done.
+  │ Counting objects: 100% (615/615), done.
+  │ Compressing objects:  68% (418/614)
+```
+
+  Percentage lines redraw in place exactly as they do in git; only the lines git marks as final are kept. Long file listings from a big commit are truncated to a `… N more lines` summary rather than scrolling hundreds of `create mode` entries off screen.
 
 ---
 

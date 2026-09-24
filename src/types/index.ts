@@ -38,6 +38,13 @@ export interface PromptConfirmOptions {
   initialValue?: boolean
 }
 
+export interface PromptTextOptions {
+  message?: string
+  placeholder?: string
+  defaultValue?: string
+  validate?: (value: unknown) => string | undefined
+}
+
 export interface PromptSelectOptions {
   message?: string
   options: OptionChoice[]

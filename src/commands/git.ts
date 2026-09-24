@@ -106,6 +106,103 @@ export const generateAutoCommitMessage = async (): Promise<string> => {
   }
 }
 
+// cap the replayed push summary so a noisy remote cannot flood the terminal
+const maxGitSummaryLines = 15
+
+export interface GitOutputLine {
+  text: string
+  persistent: boolean
+}
+
+/**
+ * Split raw git output into lines.
+ *
+ * Git terminates transient progress updates with \r ("Writing objects: 45%
+ * (39/87)") and final messages with \n ("Writing objects: 100% (87/87), done.").
+ * The terminator is what tells us whether a line should be redrawn in place or
+ * kept on screen, so the parser preserves it.
+ *
+ * Returns the parsed lines plus any trailing partial chunk, which the caller
+ * must carry into the next read.
+ */
+export const parseGitOutputChunk = (chunk: string): { lines: GitOutputLine[]; rest: string } => {
+  const lines: GitOutputLine[] = []
+  const pattern = /([^\r\n]*)(\r\n|\n|\r)/g
+  let consumed = 0
+  let match: RegExpExecArray | null
+
+  while ((match = pattern.exec(chunk)) !== null) {
+    consumed = pattern.lastIndex
+    const text = match[1].trim()
+    if (text) lines.push({ text, persistent: match[2] !== '\r' })
+  }
+
+  return { lines, rest: chunk.slice(consumed) }
+}
+
+export const styleGitProgressLine = (line: string): string => {
+  const highlighted = line
+    .replace(/(\d+%)/g, chalk.hex('#38BDF8').bold('$1'))
+    .replace(/(\(\d+\/\d+\))/g, chalk.hex('#F59E0B')('$1'))
+
+  if (/^remote:/i.test(line)) return chalk.hex('#A855F7')(highlighted)
+  if (/\bdone\.?$/.test(line)) return chalk.hex('#10B981')(highlighted)
+  return chalk.hex('#CBD5E1')(highlighted)
+}
+
+interface GitStepOutput {
+  persistentLines: string[]
+  progressActive: boolean
+}
+
+/**
+ * Mirror git's stderr onto the status line while the step runs, so a long push
+ * reports "Writing objects: 45% (39/87)" instead of sitting silent.
+ */
+const attachGitOutput = (
+  child: { stderr?: NodeJS.ReadableStream | null },
+  canRender: boolean
+): GitStepOutput => {
+  const state: GitStepOutput = { persistentLines: [], progressActive: false }
+  if (!child.stderr) return state
+
+  let buffer = ''
+  child.stderr.setEncoding('utf8')
+  child.stderr.on('data', (chunk: string) => {
+    const { lines, rest } = parseGitOutputChunk(buffer + chunk)
+    buffer = rest
+
+    for (const { text, persistent } of lines) {
+      if (persistent) state.persistentLines.push(text)
+      if (!canRender) continue
+
+      // the first update closes the "running" status line and opens one below it
+      if (!state.progressActive) {
+        process.stdout.write('\n')
+        state.progressActive = true
+      }
+
+      readline.clearLine(process.stdout, 0)
+      readline.cursorTo(process.stdout, 0)
+
+      // a final line is committed to the scrollback; a transient one is left
+      // unterminated so the next frame redraws over it
+      const terminator = persistent ? '\n' : ''
+      process.stdout.write(`${chalk.hex('#8B5CF6')('  │')} ${styleGitProgressLine(text)}${terminator}`)
+    }
+  })
+
+  return state
+}
+
+// drop whatever is on the current line so the result can be written over it
+const clearStatusLine = (): void => {
+  if (!process.stdout.isTTY) return
+
+  readline.clearLine(process.stdout, 0)
+  readline.cursorTo(process.stdout, 0)
+}
+
 export interface GitPushOptions {
   github?: string | boolean
   git?: string
@@ -154,7 +251,7 @@ export const gitPushWrapper = async (options: GitPushOptions): Promise<void> => 
         {
           label: 'Push branch main to origin',
           cmd: 'git',
-          args: ['push', '-u', 'origin', 'main'],
+          args: ['push', '--progress', '-u', 'origin', 'main'],
         },
       )
     } else {
@@ -176,7 +273,7 @@ export const gitPushWrapper = async (options: GitPushOptions): Promise<void> => 
         {
           label: 'Push changes',
           cmd: 'git',
-          args: ['push'],
+          args: ['push', '--progress'],
         },
       )
     }
@@ -222,7 +319,7 @@ export const gitPushWrapper = async (options: GitPushOptions): Promise<void> => 
         {
           label: 'Push branch main to origin',
           cmd: 'git',
-          args: ['push', '-u', 'origin', 'main'],
+          args: ['push', '--progress', '-u', 'origin', 'main'],
         },
       )
     } else {
@@ -240,7 +337,7 @@ export const gitPushWrapper = async (options: GitPushOptions): Promise<void> => 
         {
           label: 'Push branch main to origin',
           cmd: 'git',
-          args: ['push', '-u', 'origin', 'main'],
+          args: ['push', '--progress', '-u', 'origin', 'main'],
         },
       )
     }
@@ -252,16 +349,24 @@ export const gitPushWrapper = async (options: GitPushOptions): Promise<void> => 
     const cmdStr = `${step.cmd} ${step.args.join(' ')}`
     const displayLabel = `${chalk.bold.whiteBright(step.label)} ${chalk.hex('#38BDF8')(`(${cmdStr})`)}`
 
-    process.stdout.write(`${chalk.hex('#EC4899')('⚡ running')}  ${displayLabel}...`)
-    try {
-      const result = await execa(step.cmd, step.args, { cwd: process.cwd() })
+    const isPushStep = step.args.includes('push')
+    let output: GitStepOutput = { persistentLines: [], progressActive: false }
 
-      readline.clearLine(process.stdout, 0)
-      readline.cursorTo(process.stdout, 0)
+    // without a TTY the status line cannot be overwritten, so end it properly
+    const statusEnd = process.stdout.isTTY ? '' : '\n'
+    process.stdout.write(`${chalk.hex('#EC4899')('⚡ running')}  ${displayLabel}...${statusEnd}`)
+    try {
+      const child = execa(step.cmd, step.args, { cwd: process.cwd() })
+      output = attachGitOutput(child, Boolean(process.stdout.isTTY))
+      const result = await child
+
+      clearStatusLine()
       await typeText(`${chalk.hex('#10B981').bold('✅ success')}  ${displayLabel}`)
 
       if (result.stdout && result.stdout.trim()) {
-        const outputLines = result.stdout.trim().split('\n')
+        const allLines = result.stdout.trim().split('\n')
+        // a large commit lists every file; keep the summary, drop the tail
+        const outputLines = allLines.slice(0, maxGitSummaryLines)
         for (const line of outputLines) {
           let styledLine = chalk.hex('#CBD5E1')(line)
           if (line.includes('files changed') || line.includes('insertions(+)')) {
@@ -276,10 +381,27 @@ export const gitPushWrapper = async (options: GitPushOptions): Promise<void> => 
           }
           await typeText(`${chalk.hex('#8B5CF6')('  │')} ${styledLine}`, 4)
         }
+
+        const hiddenStdout = allLines.length - outputLines.length
+        if (hiddenStdout > 0) {
+          await typeText(`${chalk.hex('#8B5CF6')('  │')} ${chalk.hex('#94A3B8')(`… ${hiddenStdout} more line${hiddenStdout === 1 ? '' : 's'}`)}`, 4)
+        }
+      }
+
+      // on a TTY the summary was already printed live; without one nothing has
+      // been shown yet, so replay the lines git meant to keep
+      if (isPushStep && !process.stdout.isTTY && output.persistentLines.length > 0) {
+        const shown = output.persistentLines.slice(0, maxGitSummaryLines)
+        for (const line of shown) {
+          await typeText(`${chalk.hex('#8B5CF6')('  │')} ${styleGitProgressLine(line)}`, 4)
+        }
+        const hidden = output.persistentLines.length - shown.length
+        if (hidden > 0) {
+          await typeText(`${chalk.hex('#8B5CF6')('  │')} ${chalk.hex('#94A3B8')(`… ${hidden} more line${hidden === 1 ? '' : 's'}`)}`, 4)
+        }
       }
     } catch (error: any) {
-      readline.clearLine(process.stdout, 0)
-      readline.cursorTo(process.stdout, 0)
+      clearStatusLine()
 
       if (step.args.includes('commit') && (error.stdout || error.message || '').includes('nothing to commit')) {
         await typeText(`${chalk.hex('#F59E0B').bold('⚠️ skipped')}  ${displayLabel} ${chalk.hex('#94A3B8')('(nothing to commit, working tree clean)')}`)
@@ -288,7 +410,14 @@ export const gitPushWrapper = async (options: GitPushOptions): Promise<void> => 
 
       await typeText(`${chalk.hex('#EF4444').bold('❌ failed')}   ${displayLabel}`)
       console.error(chalk.hex('#FCA5A5')(`\nError: Command failed: ${cmdStr}`))
-      console.error(chalk.hex('#FCA5A5')(`${error.stderr || error.message}\n`))
+
+      // stderr was already mirrored above while the step ran, so only repeat it
+      // when nothing was streamed (no TTY, or the step failed before output)
+      if (!output.progressActive) {
+        console.error(chalk.hex('#FCA5A5')(`${error.stderr || error.message}\n`))
+      } else {
+        console.error('')
+      }
 
       if (step.args.includes('remote') && step.args.includes('add')) {
         console.error(chalk.hex('#F59E0B')(`Tip: If remote "origin" already exists, run 'git remote remove origin' first.`))

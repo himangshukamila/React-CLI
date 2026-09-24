@@ -2,6 +2,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import fsPromises from 'node:fs/promises'
 import fs from 'node:fs'
+import net from 'node:net'
 import { execa, Options as ExecaOptions } from 'execa'
 import chalk from 'chalk'
 
@@ -656,6 +657,34 @@ export const writeFile = async (targetPath: string, content: string): Promise<vo
   }
 }
 
+// read a project package.json, failing with a readable message instead of a raw parser error
+export const readProjectPackageJson = async (projectPath: string): Promise<any> => {
+  const pkgJsonPath = path.join(projectPath, 'package.json')
+  if (!(await pathExists(pkgJsonPath))) {
+    throw new Error('Not inside a React project. Run this from your app folder.')
+  }
+  try {
+    return JSON.parse(await readFile(pkgJsonPath))
+  } catch {
+    throw new Error(`${pkgJsonPath} is not valid JSON. Fix it and run the command again.`)
+  }
+}
+
+// install only what the project is missing, with the package manager it already uses
+export const ensureDeps = async (projectPath: string, packages: string[]): Promise<string[]> => {
+  const pkgJson = await readProjectPackageJson(projectPath)
+  const allDeps: Record<string, string> = {
+    ...(pkgJson.dependencies || {}),
+    ...(pkgJson.devDependencies || {}),
+  }
+
+  const missing = packages.filter((name) => !allDeps[name])
+  if (missing.length === 0) return []
+
+  await runPackageInstall(missing, { cwd: projectPath }, `Failed to install ${missing.join(', ')}`)
+  return missing
+}
+
 export const copyFile = async (sourcePath: string, targetPath: string): Promise<void> => {
   try {
     await fsPromises.cp(sourcePath, targetPath, { recursive: true })
@@ -744,9 +773,25 @@ export const printerContent = `import { useCallback, useEffect, useRef, useState
 import { socket } from "../services/socket.js";
 import { useReactToPrint } from "react-to-print";
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
+const DEFAULT_SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
 
-const Printer = () => {
+const Printer = ({
+  // socket event carrying the image to print
+  event = "print-image",
+  // where relative image paths are resolved from
+  serverUrl = DEFAULT_SERVER_URL,
+  // read the path out of whatever shape your server sends
+  getImagePath = (data) => data?.generatedImageName,
+  // false shows the preview and waits for a click instead of printing on load
+  autoPrint = true,
+  // preview / print sheet dimensions
+  previewSize = { width: "8.27in", height: "11.69in" },
+  paperSize = { width: "210mm", height: "297mm" },
+  objectFit = "cover",
+  className = "",
+  onPrinted,
+  onError,
+}) => {
   const [currentImage, setCurrentImage] = useState(null);
   const queueRef = useRef([]);
   const isPrintingRef = useRef(false);
@@ -780,23 +825,25 @@ const Printer = () => {
     onAfterPrint: () => {
       console.log("Print complete");
       isPrintingRef.current = false;
+      onPrinted?.(currentImage);
 
       processNext();
     },
   });
 
   const handleImageLoaded = useCallback(() => {
-    if (printRef.current) {
+    if (autoPrint && printRef.current) {
       handlePrint();
     }
-  }, [handlePrint]);
+  }, [autoPrint, handlePrint]);
 
   const handleImageError = useCallback(() => {
     console.error("Failed to load print image:", currentImage);
+    onError?.(currentImage);
     isPrintingRef.current = false;
     setCurrentImage(null);
     processNext();
-  }, [currentImage, processNext]);
+  }, [currentImage, onError, processNext]);
 
   useEffect(() => {
     return () => {
@@ -809,13 +856,16 @@ const Printer = () => {
   useEffect(() => {
     const handleServerImage = (data) => {
       console.log("Raw socket data:", data);
-      const imagePath = data?.generatedImageName;
+      const imagePath = getImagePath(data);
 
       if (!imagePath) {
         console.error("Invalid payload:", data);
+        onError?.(data);
         return;
       }
-      const fullUrl = \`\${SERVER_URL}/\${imagePath}\`;
+      const fullUrl = /^https?:\\/\\//.test(imagePath)
+        ? imagePath
+        : \`\${serverUrl}/\${imagePath}\`;
       console.log(
         \`Image queued: \${fullUrl} | queue size: \${queueRef.current.length + 1}\`,
       );
@@ -824,12 +874,12 @@ const Printer = () => {
       processNext();
     };
 
-    socket.on("print-image", handleServerImage);
-    return () => socket.off("print-image", handleServerImage);
-  }, [processNext]);
+    socket.on(event, handleServerImage);
+    return () => socket.off(event, handleServerImage);
+  }, [event, getImagePath, onError, processNext, serverUrl]);
 
   return (
-    <div className="h-screen bg-black flex justify-center items-center">
+    <div className={\`h-screen bg-black flex justify-center items-center \${className}\`}>
       {currentImage && (
         <div className="flex">
           <img
@@ -838,8 +888,7 @@ const Printer = () => {
             alt="preview-1"
             onLoad={handleImageLoaded}
             onError={handleImageError}
-            className="object-cover"
-            style={{ height: "11.69in", width: "8.27in" }}
+            style={{ ...previewSize, objectFit }}
           />
         </div>
       )}
@@ -849,8 +898,7 @@ const Printer = () => {
           ref={printRef}
           onClick={() => handlePrint()}
           style={{
-            width: "210mm",
-            height: "297mm",
+            ...paperSize,
             overflow: "hidden",
           }}
         >
@@ -864,7 +912,7 @@ const Printer = () => {
                 width: "100%",
                 height: "100%",
                 display: "block",
-                objectFit: "cover",
+                objectFit,
               }}
             />
           )}
@@ -1508,6 +1556,11 @@ const Button = ({
   className = '',
   style = {},
   type = 'button',
+  // extend or replace the built-in class maps without editing this file
+  variants = {},
+  sizes = {},
+  // swap the loading indicator for your own node
+  spinner,
   ...props
 }) => {
   const baseClasses = 'relative inline-flex items-center justify-center font-semibold transition-all duration-200 outline-none select-none'
@@ -1516,6 +1569,7 @@ const Button = ({
     sm: 'px-3 py-1.5 text-xs rounded-lg gap-1.5',
     md: 'px-4 py-2.5 text-sm rounded-xl gap-2',
     lg: 'px-6 py-3.5 text-base rounded-2xl gap-2.5',
+    ...sizes,
   }
 
   const variantClasses = {
@@ -1524,6 +1578,7 @@ const Button = ({
     outline: 'bg-transparent border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-400',
     ghost: 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60',
     danger: 'bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white shadow-lg shadow-rose-500/20 hover:shadow-rose-500/35 border border-rose-400/30',
+    ...variants,
   }
 
   const hoverClasses = hoverEffect && !disabled && !loading ? 'hover:scale-[1.02] active:scale-[0.98]' : ''
@@ -1555,7 +1610,7 @@ const Button = ({
     >
       {loading ? (
         <>
-          <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+          {spinner || <Loader2 className="w-4 h-4 animate-spin shrink-0" />}
           <span>{children}</span>
         </>
       ) : (
@@ -1575,20 +1630,6 @@ const Button = ({
 
 export default Button
 `
-
-export const configureButton = async (projectPath: string = process.cwd()): Promise<void> => {
-  const pkgJsonPath = path.join(projectPath, 'package.json')
-  if (await pathExists(pkgJsonPath)) {
-    const pkgJson = JSON.parse(await readFile(pkgJsonPath))
-    const allDeps = { ...(pkgJson.dependencies || {}), ...(pkgJson.devDependencies || {}) }
-    if (!allDeps['lucide-react']) {
-      await runPackageInstall(['lucide-react'], { cwd: projectPath }, 'Failed to install lucide-react')
-    }
-  }
-  await ensureDir(path.join(projectPath, 'src', 'components'))
-  await writeFile(path.join(projectPath, 'src', 'components', 'Button.jsx'), buttonContent)
-  console.log(chalk.green('\n✅ Created src/components/Button.jsx with variants, props customization & loading state!'))
-}
 
 export interface PackageHandlersOptions {
   installPackages?: boolean
@@ -1696,6 +1737,79 @@ export const assertDevScript = async (packageJson: any): Promise<void> => {
     packageJson.scripts.preview = packageJson.scripts.preview || 'vite preview'
     await writeFile(pkgPath, JSON.stringify(packageJson, null, 2) + '\n')
   }
+}
+
+/**
+ * Ports Chrome and Firefox refuse to open (ERR_UNSAFE_PORT). A dev server bound
+ * to one of these starts fine but is unreachable from the browser, which is a
+ * confusing failure to debug — so reject them up front.
+ */
+export const unsafeBrowserPorts: number[] = [
+  1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77, 79,
+  87, 95, 101, 102, 103, 104, 109, 110, 111, 113, 115, 117, 119, 123, 135, 137,
+  138, 139, 143, 161, 179, 389, 427, 465, 512, 513, 514, 515, 526, 530, 531,
+  532, 540, 548, 554, 556, 563, 587, 601, 636, 989, 990, 993, 995, 1719, 1720,
+  1723, 2049, 3659, 4045, 4190, 5060, 5061, 6000, 6566, 6665, 6666, 6667, 6668,
+  6669, 6679, 6697, 10080,
+]
+
+/**
+ * Validate a dev server port. Returns an error message, or undefined when the
+ * value is usable — the shape @clack/prompts expects from a `validate` handler.
+ */
+export const validateDevServerPort = (value: unknown): string | undefined => {
+  const raw = String(value ?? '').trim()
+
+  if (!raw) return 'Enter a port number (e.g. 5173)'
+  if (!/^\d+$/.test(raw)) return 'Port must be digits only — no letters, spaces or decimals'
+
+  const port = Number(raw)
+  if (port < 1 || port > 65535) return 'Port must be between 1 and 65535'
+  if (port < 1024) return `Port ${port} is reserved for system services — pick 1024 or higher`
+  if (unsafeBrowserPorts.includes(port)) return `Browsers block port ${port} — pick another one`
+
+  return undefined
+}
+
+// true when nothing is listening on the port yet
+export const isPortAvailable = (port: number): Promise<boolean> =>
+  new Promise((resolve) => {
+    const probe = net.createServer()
+    probe.once('error', () => resolve(false))
+    probe.once('listening', () => probe.close(() => resolve(true)))
+    probe.listen(port, '127.0.0.1')
+  })
+
+const viteConfigNames = ['vite.config.ts', 'vite.config.js', 'vite.config.mjs']
+
+// pin the dev server port in the project's vite config so `npm run dev` keeps using it
+export const setViteServerPort = async (projectPath: string, port: number): Promise<boolean> => {
+  let configPath = ''
+  for (const name of viteConfigNames) {
+    const candidate = path.join(projectPath, name)
+    if (await pathExists(candidate)) {
+      configPath = candidate
+      break
+    }
+  }
+  if (!configPath) return false
+
+  const before = await readFile(configPath)
+  let after = before
+
+  if (/\bserver\s*:\s*\{/.test(before)) {
+    after = /\bport\s*:\s*\d+/.test(before)
+      ? before.replace(/\bport\s*:\s*\d+/, `port: ${port}`)
+      : before.replace(/(\bserver\s*:\s*\{)/, `$1\n    port: ${port},`)
+  } else if (/defineConfig\(\{/.test(before)) {
+    after = before.replace(/defineConfig\(\{/, `defineConfig({\n  server: {\n    port: ${port},\n    host: true,\n  },`)
+  } else {
+    return false
+  }
+
+  if (after === before) return false
+  await writeFile(configPath, after)
+  return true
 }
 
 export const validatePort = (port: any): string | undefined => {

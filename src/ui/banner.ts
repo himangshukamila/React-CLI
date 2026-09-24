@@ -24,7 +24,7 @@ export const packageFlags: string[] = [
   "webcam",
   "printer",
 ];
-export const featureFlags: string[] = ["env", "watch", "bonjour"];
+export const featureFlags: string[] = ["env", "watch", "bonjour", "logscan"];
 export const setupFlags: string[] = [...packageFlags, ...featureFlags];
 export const folderFlags: string[] = featureFlags;
 
@@ -195,7 +195,12 @@ export const setupLaunchChoices: OptionChoice[] = [
   {
     value: "bonjour",
     label: "Configure Bonjour Discovery Service",
-    hint: "mDNS/DNS-SD local network scanner",
+    hint: "4b-react-mdns network scanner",
+  },
+  {
+    value: "logscan",
+    label: "Custom Log View",
+    hint: "logscan in-app console panel",
   },
 ];
 

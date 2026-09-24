@@ -1,8 +1,8 @@
 import path from 'node:path'
 import chalk from 'chalk'
-import { execa } from 'execa'
 import { section, pass, fail, typeText } from '../ui/banner.js'
-import { ensureDir, writeFile, pathExists, readFile } from '../shared.js'
+import { ensureDir, ensureDeps, pathExists, readFile } from '../shared.js'
+import { writeGenerated } from './safeWrite.js'
 
 export const extractRawFormFields = (rawArgs: string[] = []): string[] => {
   const fields: string[] = []
@@ -20,6 +20,59 @@ export const extractRawFormFields = (rawArgs: string[] = []): string[] => {
   })
   return fields
 }
+
+export const inputTypes = [
+  'text',
+  'email',
+  'password',
+  'tel',
+  'number',
+  'date',
+  'url',
+  'search',
+  'textarea',
+]
+
+export interface FormField {
+  key: string
+  type: string
+}
+
+/**
+ * Split a `name` or `bio:textarea` token. An explicit type wins over the
+ * heuristic; an unknown one is ignored so a stray colon cannot break the file.
+ */
+export const parseFieldToken = (token: string): FormField => {
+  const [rawKey, rawType] = String(token).split(':')
+  const key = (rawKey || '').trim()
+  const type = (rawType || '').trim().toLowerCase()
+  return {
+    key,
+    type: inputTypes.includes(type) ? type : getFieldInputType(key),
+  }
+}
+
+const FIELD_MARKER = '// zecron:fields '
+
+// the resolved fields are recorded in the file so a re-run keeps explicit types
+export const readFieldMarker = async (formJsxPath: string): Promise<FormField[]> => {
+  try {
+    if (!(await pathExists(formJsxPath))) return []
+    const content = await readFile(formJsxPath)
+    const line = content.split('\n').find((l) => l.startsWith(FIELD_MARKER))
+    if (!line) return []
+    return line
+      .slice(FIELD_MARKER.length)
+      .split(',')
+      .map((token) => parseFieldToken(token.trim()))
+      .filter((field) => field.key)
+  } catch {
+    return []
+  }
+}
+
+export const buildFieldMarker = (fields: FormField[]): string =>
+  `${FIELD_MARKER}${fields.map((f) => `${f.key}:${f.type}`).join(',')}`
 
 export const getExistingFormFields = async (formJsxPath: string): Promise<string[]> => {
   try {
@@ -73,55 +126,49 @@ export const formatFieldLabel = (fieldName: string): string => {
   return clean.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
 
-export const configureFormBoilerplate = async (rawArgs: string[] = []): Promise<void> => {
+export const configureFormBoilerplate = async (
+  rawArgs: string[] = [],
+  projectPath: string = process.cwd()
+): Promise<void> => {
   try {
-    const pkgJsonPath = path.join(process.cwd(), 'package.json')
-    if (!(await pathExists(pkgJsonPath))) {
-      throw new Error('Not inside a React project. Run this from your app folder.')
-    }
-    const pkgJson = JSON.parse(await readFile(pkgJsonPath))
-
-    const allDeps: Record<string, string> = {
-      ...(pkgJson.dependencies || {}),
-      ...(pkgJson.devDependencies || {}),
-    }
-
-    const missingDeps: string[] = []
-    if (!allDeps['react-hot-toast']) missingDeps.push('react-hot-toast')
-    if (!allDeps['lucide-react']) missingDeps.push('lucide-react')
-
-    if (missingDeps.length > 0) {
-      console.log(chalk.yellow(`Installing missing dependencies: ${missingDeps.join(', ')}...`))
-      await execa('npm', ['install', ...missingDeps], { cwd: process.cwd() })
-      pass(`installed ${missingDeps.join(', ')}`)
-    }
-
-    const componentsDir = path.join(process.cwd(), 'src', 'components')
-    const formJsxPath = path.join(componentsDir, 'Form.jsx')
-
     section('form generator', 'building styled form & react-hot-toast system')
+
+    const installed = await ensureDeps(projectPath, ['react-hot-toast', 'lucide-react'])
+    if (installed.length > 0) pass(`installed ${installed.join(', ')}`)
+
+    const componentsDir = path.join(projectPath, 'src', 'components')
+    const formJsxPath = path.join(componentsDir, 'Form.jsx')
 
     await ensureDir(componentsDir)
 
-    const newRequestedFields = extractRawFormFields(rawArgs)
-    const existingFields = await getExistingFormFields(formJsxPath)
+    const requested = extractRawFormFields(rawArgs).map(parseFieldToken).filter((f) => f.key)
 
-    let fields: string[] = []
-    if (existingFields.length > 0) {
-      fields = [...existingFields]
-      newRequestedFields.forEach((f) => {
-        if (!fields.includes(f)) {
-          fields.push(f)
-        }
+    // prefer the recorded field list, fall back to reading the useState keys
+    // out of a Form.jsx generated before the marker existed
+    const recorded = await readFieldMarker(formJsxPath)
+    const existing = recorded.length > 0
+      ? recorded
+      : (await getExistingFormFields(formJsxPath)).map(parseFieldToken)
+
+    let fields: FormField[] = []
+    if (existing.length > 0) {
+      fields = [...existing]
+      requested.forEach((field) => {
+        const at = fields.findIndex((f) => f.key === field.key)
+        // a re-run with an explicit type updates the field in place
+        if (at === -1) fields.push(field)
+        else fields[at] = field
       })
     } else {
-      fields = newRequestedFields.length > 0 ? newRequestedFields : ['name', 'email', 'phone']
+      fields = requested.length > 0
+        ? requested
+        : ['name', 'email', 'phone'].map(parseFieldToken)
     }
 
-    const stateInit = fields.map((f) => `    ${f}: ''`).join(',\n')
-    const stateReset = fields.map((f) => `        ${f}: ''`).join(',\n')
+    const stateInit = fields.map((f) => `    ${f.key}: ''`).join(',\n')
+    const stateReset = fields.map((f) => `        ${f.key}: ''`).join(',\n')
 
-    const hasPasswordField = fields.some((f) => getFieldInputType(f) === 'password')
+    const hasPasswordField = fields.some((f) => f.type === 'password')
 
     const lucideIconsUsed = ['Send', 'CheckCircle2', 'XCircle', 'Loader2']
     if (hasPasswordField) {
@@ -132,10 +179,10 @@ export const configureFormBoilerplate = async (rawArgs: string[] = []): Promise<
     const isGrid = fields.length >= 4
     const formLayoutClass = isGrid ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'space-y-4'
 
-    const fieldBlocks = fields.map((f) => {
-      const inputType = getFieldInputType(f)
+    const fieldBlocks = fields.map(({ key: f, type: inputType }) => {
       const labelText = formatFieldLabel(f)
       const isPassword = inputType === 'password'
+      const isTextarea = inputType === 'textarea'
       const lowerF = f.toLowerCase()
 
       let maxLenProp = 'maxLength={50}'
@@ -157,7 +204,18 @@ export const configureFormBoilerplate = async (rawArgs: string[] = []): Promise<
             ${labelText}
           </label>
           <div className="relative flex items-center">
-            <input
+${isTextarea ? `            <textarea
+              id="${f}"
+              name="${f}"
+              rows={4}
+              value={formData.${f}}
+              onChange={handleChange}
+              placeholder="Enter ${labelText.toLowerCase()}..."
+              disabled={isSubmitting}
+              ${maxLenProp}
+              style={inputStyle}
+              className={\`w-full bg-zinc-900/90 text-zinc-100 ${inputSizeClass} rounded-xl px-4 py-2.5 border border-zinc-800 focus:border-cyan-500/80 focus:ring-4 focus:ring-cyan-500/15 outline-none transition-all duration-200 resize-y placeholder:text-zinc-600 disabled:opacity-60 disabled:cursor-not-allowed\`}
+            />` : `            <input
               id="${f}"
               name="${f}"
               type=${isPassword ? `{showPassword ? 'text' : 'password'}` : `"${inputType}"`}
@@ -168,7 +226,7 @@ export const configureFormBoilerplate = async (rawArgs: string[] = []): Promise<
               ${maxLenProp}
               style={inputStyle}
               className={\`w-full bg-zinc-900/90 text-zinc-100 ${inputSizeClass} rounded-xl pl-4 ${isPassword ? 'pr-10' : 'pr-4'} py-2.5 border border-zinc-800 focus:border-cyan-500/80 focus:ring-4 focus:ring-cyan-500/15 outline-none transition-all duration-200 placeholder:text-zinc-600 disabled:opacity-60 disabled:cursor-not-allowed\`}
-            />
+            />`}
 ${isPassword ? `            <button
               type="button"
               disabled={isSubmitting}
@@ -182,7 +240,8 @@ ${isPassword ? `            <button
         </div>`
     }).join('\n\n')
 
-    const formJsxContent = `import { useState } from 'react'
+    const formJsxContent = `${buildFieldMarker(fields)}
+import { useState } from 'react'
 import { Toaster, toast } from 'react-hot-toast'
 import { ${lucideImportStr} } from 'lucide-react'
 
@@ -448,10 +507,17 @@ ${fieldBlocks}
 export default Form
 `
 
-    await writeFile(formJsxPath, formJsxContent)
+    const fieldSummary = fields.map((f) => `${f.key}:${f.type}`).join(', ')
 
-    pass(`updated ${path.relative(process.cwd(), formJsxPath)}`)
-    await typeText(chalk.green.bold(`\n✅ src/components/Form.jsx generated with fields: ${fields.join(', ')} and react-hot-toast integration!`))
+    const written = await writeGenerated(formJsxPath, formJsxContent, {
+      projectRoot: projectPath,
+      message: `Regenerate src/components/Form.jsx with fields ${fieldSummary}? (edits to the markup will be lost)`,
+    })
+
+    if (!written) return
+
+    pass(`updated ${path.relative(projectPath, formJsxPath)}`)
+    await typeText(chalk.green.bold(`\n✅ src/components/Form.jsx generated with fields: ${fieldSummary} and react-hot-toast integration!`))
   } catch (error: any) {
     fail(error.message)
   }

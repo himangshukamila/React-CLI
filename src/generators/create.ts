@@ -1,9 +1,9 @@
 import path from 'node:path'
 import chalk from 'chalk'
 import { execa } from 'execa'
-import { section, pass, fail, accent, muted, strong } from '../ui/banner.js'
+import { section, pass, warn, fail, accent, muted, strong } from '../ui/banner.js'
 import { packageFlags, setupFlags, defaultFlagFolders, folderFlags, packageOptions, folderOptions } from '../ui/banner.js'
-import { createProgress, customMultiselect, customConfirm } from '../ui/prompts.js'
+import { createProgress, customMultiselect, customConfirm, customText } from '../ui/prompts.js'
 import {
   rootDir,
   pathExists,
@@ -20,10 +20,14 @@ import {
   runCommand,
   cliIconContent,
   projectNameRegex,
+  validateDevServerPort,
+  isPortAvailable,
+  setViteServerPort,
 } from '../shared.js'
 import { startSetupWizardServer } from '../commands/wizard.js'
 import { CustomCreatedFile, UiSelections } from '../types/index.js'
-import { configureBonjourBoilerplate } from './bonjour.js'
+import { configureBonjourBoilerplate, mdnsPackageName } from './bonjour.js'
+import { configureLogscan, logscanPackageName } from './logscan.js'
 
 export const validateProjectName = (name: string): void => {
   if (!projectNameRegex.test(name) || name.includes('..') || name.includes('/')) {
@@ -31,19 +35,34 @@ export const validateProjectName = (name: string): void => {
   }
 }
 
+export const defaultDevServerPort = 5173
+
+// --port on the non-interactive path gets the same rules as the prompt
+export const resolveFlagPort = (value: unknown): number => {
+  if (value === undefined || value === null || value === '') return defaultDevServerPort
+  const error = validateDevServerPort(value)
+  if (error) fail(error)
+  return Number(value)
+}
+
 export const hasSelectedFlags = (options: Record<string, any>): boolean => setupFlags.some((flag) => options[flag])
 export const getSelectedFlagPackages = (options: Record<string, any>): string[] => packageFlags.filter((flag) => options[flag])
 export const getSelectedFlagSetup = (options: Record<string, any>): string[] => setupFlags.filter((flag) => options[flag])
-export const getSelectedFlagFolders = (options: Record<string, any>): string[] => [...defaultFlagFolders, ...folderFlags.filter((flag) => options[flag])]
+// feature flags (env, watch, bonjour, logscan) travel in selectedSetup, not here —
+// listing them as folders made the preview promise src/ dirs that never exist
+export const getSelectedFlagFolders = (_options: Record<string, any>): string[] => [...defaultFlagFolders]
 
 export interface InteractivePromptsResult {
   selectedPackages: string[]
   selectedSetup: string[]
   selectedFolders: string[]
   shouldRunDevServer: boolean
+  devServerPort: number
 }
 
-export const runInteractivePrompts = async (): Promise<InteractivePromptsResult> => {
+export const runInteractivePrompts = async (
+  defaultPort: number = defaultDevServerPort
+): Promise<InteractivePromptsResult> => {
   section('modules', 'select packages and project features')
   const selectedPackages = await customMultiselect({
     message: 'Select packages and modules to install:',
@@ -60,9 +79,28 @@ export const runInteractivePrompts = async (): Promise<InteractivePromptsResult>
 
   section('bonjour service', 'configure mDNS local network service discovery')
   const shouldConfigureBonjour = await customConfirm({
-    message: 'Configure Bonjour Discovery Service? (mDNS/DNS-SD local network scanner)',
+    message: 'Configure Bonjour Discovery Service? (4b-react-mdns local network scanner)',
     initialValue: false,
   })
+
+  section('custom log view', 'in-app console panel for browser logs')
+  const shouldConfigureLogscan = await customConfirm({
+    message: 'Add Custom Log View? (logscan floating in-app console panel)',
+    initialValue: true,
+  })
+
+  section('dev server', 'choose the port the app runs on')
+  const portAnswer = await customText({
+    message: 'Which port should the dev server run on?',
+    placeholder: String(defaultPort),
+    defaultValue: String(defaultPort),
+    validate: validateDevServerPort,
+  })
+  const devServerPort = Number(portAnswer)
+
+  if (!(await isPortAvailable(devServerPort))) {
+    warn(`port ${devServerPort} is already in use`, 'Vite will fall back to the next free port')
+  }
 
   const shouldRunDevServer = await askToRunDevServer()
   const selectedFolderNames = selectedFolders.filter((value) => !folderFlags.includes(value))
@@ -75,16 +113,25 @@ export const runInteractivePrompts = async (): Promise<InteractivePromptsResult>
     selectedSetup.push('bonjour')
   }
 
+  if (shouldConfigureLogscan && !selectedSetup.includes('logscan')) {
+    selectedSetup.push('logscan')
+  }
+
   return {
     selectedPackages: selectedPackages.filter((value) => packageFlags.includes(value)),
     selectedSetup,
     selectedFolders: selectedFolderNames,
     shouldRunDevServer,
+    devServerPort,
   }
 }
 
 export const createSelectedFolders = async (projectPath: string, selectedFolders: string[]): Promise<void> => {
   for (const folder of selectedFolders) {
+    // env / watch / bonjour / logscan are features, not folders — the flag path
+    // passes them through here, so skip them instead of making empty src/ dirs
+    if (folderFlags.includes(folder)) continue
+
     if (folder === 'assets') {
       await ensureDir(path.join(projectPath, 'public', 'images'))
       await ensureDir(path.join(projectPath, 'public', 'fonts'))
@@ -337,6 +384,15 @@ export const createSetupSteps = (selectedPackages: string[], selectedSetup: stri
     })
   }
 
+  if (selectedSetup.includes('logscan')) {
+    steps.push({
+      pending: 'log view',
+      active: 'configuring log view',
+      done: 'log view',
+      meta: 'in-app console',
+    })
+  }
+
   steps.push({
     pending: 'ready',
     active: 'finalizing',
@@ -387,6 +443,9 @@ export const createProject = async (targetName?: string, options: Record<string,
       validateProjectName(rawTargetName)
     }
 
+    // validated on every path, so a bad --port fails before anything is created
+    const requestedPort = resolveFlagPort(options.port)
+
     let selections: UiSelections
     if (options.ui) {
       selections = await startSetupWizardServer({ displayName: isCurrentDir ? '.' : displayName })
@@ -411,7 +470,7 @@ export const createProject = async (targetName?: string, options: Record<string,
         selectedSetup: getSelectedFlagSetup(options),
         selectedFolders: getSelectedFlagFolders(options),
         shouldRunDevServer: false,
-        devServerPort: 5173,
+        devServerPort: requestedPort,
         createdFiles: [],
       }
     } else {
@@ -422,10 +481,9 @@ export const createProject = async (targetName?: string, options: Record<string,
         displayName = currentDirName
         projectPath = process.cwd()
       }
-      const interactiveRes = await runInteractivePrompts()
+      const interactiveRes = await runInteractivePrompts(requestedPort)
       selections = {
         ...interactiveRes,
-        devServerPort: 5173,
         createdFiles: [],
       }
     }
@@ -471,8 +529,12 @@ export const createProject = async (targetName?: string, options: Record<string,
       }
     })
 
-    if (selections.selectedSetup.includes('bonjour') && !batchPackages.includes('bonjour-service')) {
-      batchPackages.push('bonjour-service')
+    if (selections.selectedSetup.includes('bonjour') && !batchPackages.includes(mdnsPackageName)) {
+      batchPackages.push(mdnsPackageName)
+    }
+
+    if (selections.selectedSetup.includes('logscan') && !batchPackages.includes(logscanPackageName)) {
+      batchPackages.push(logscanPackageName)
     }
 
     await progress.step(async () => {
@@ -509,7 +571,15 @@ export const createProject = async (targetName?: string, options: Record<string,
       })
     }
 
-    await progress.step(async () => {})
+    if (selections.selectedSetup.includes('logscan')) {
+      await progress.step(async () => {
+        await configureLogscan(projectPath)
+      })
+    }
+
+    await progress.step(async () => {
+      await setViteServerPort(projectPath, selections.devServerPort)
+    })
     progress.done()
 
     printProjectPreview({
@@ -528,7 +598,7 @@ export const createProject = async (targetName?: string, options: Record<string,
     if (selections.shouldRunDevServer) {
       await runCommand(
         'npm',
-        ['run', 'dev', '--', '--host', '0.0.0.0'],
+        ['run', 'dev', '--', '--host', '0.0.0.0', '--port', String(selections.devServerPort)],
         { cwd: projectPath, stdio: 'inherit' },
         'Failed to run development server',
       )

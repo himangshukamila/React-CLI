@@ -1,35 +1,24 @@
 import path from 'node:path'
 import chalk from 'chalk'
-import { execa } from 'execa'
 import { section, pass, fail, typeText } from '../ui/banner.js'
-import { ensureDir, writeFile, pathExists, readFile, socketContent, printerContent } from '../shared.js'
+import {
+  ensureDir,
+  ensureDeps,
+  writeFile,
+  pathExists,
+  socketContent,
+  printerContent,
+} from '../shared.js'
+import { writeGenerated } from './safeWrite.js'
 
-export const configurePrinterBoilerplate = async (): Promise<void> => {
+export const configurePrinterBoilerplate = async (projectPath: string = process.cwd()): Promise<void> => {
   try {
-    const pkgJsonPath = path.join(process.cwd(), 'package.json')
-    if (!(await pathExists(pkgJsonPath))) {
-      throw new Error('Not inside a React project. Run this from your app folder.')
-    }
-    const pkgJson = JSON.parse(await readFile(pkgJsonPath))
+    section('printer generator', 'building Printer.jsx page component')
 
-    const allDeps: Record<string, string> = {
-      ...(pkgJson.dependencies || {}),
-      ...(pkgJson.devDependencies || {}),
-    }
+    const installed = await ensureDeps(projectPath, ['react-to-print', 'socket.io-client'])
+    if (installed.length > 0) pass(`installed ${installed.join(', ')}`)
 
-    if (!allDeps['react-to-print']) {
-      console.log(chalk.yellow('Installing missing dependency: react-to-print...'))
-      await execa('npm', ['install', 'react-to-print'], { cwd: process.cwd() })
-      pass('installed react-to-print')
-    }
-
-    if (!allDeps['socket.io-client']) {
-      console.log(chalk.yellow('Installing missing dependency: socket.io-client...'))
-      await execa('npm', ['install', 'socket.io-client'], { cwd: process.cwd() })
-      pass('installed socket.io-client')
-    }
-
-    const servicesDir = path.join(process.cwd(), 'src', 'services')
+    const servicesDir = path.join(projectPath, 'src', 'services')
     const socketPath = path.join(servicesDir, 'socket.js')
     if (!(await pathExists(socketPath))) {
       await ensureDir(servicesDir)
@@ -37,16 +26,25 @@ export const configurePrinterBoilerplate = async (): Promise<void> => {
       pass('created src/services/socket.js')
     }
 
-    const pagesDir = path.join(process.cwd(), 'src', 'pages')
-    const printerJsxPath = path.join(pagesDir, 'Printer.jsx')
-
-    section('printer generator', 'building Printer.jsx page component')
-
+    const pagesDir = path.join(projectPath, 'src', 'pages')
     await ensureDir(pagesDir)
-    await writeFile(printerJsxPath, printerContent)
+
+    const written = await writeGenerated(
+      path.join(pagesDir, 'Printer.jsx'),
+      printerContent,
+      { projectRoot: projectPath }
+    )
+
+    if (!written) return
 
     pass('created src/pages/Printer.jsx')
-    await typeText(chalk.green.bold('\n✅ src/pages/Printer.jsx successfully created with socket print-image queue listener & react-to-print setup!'))
+    await typeText(
+      chalk.green.bold(
+        '\n✅ src/pages/Printer.jsx created with the socket print queue and react-to-print!\n' +
+          '   Props: event, serverUrl, getImagePath, autoPrint, previewSize, paperSize,\n' +
+          '   objectFit, className, onPrinted, onError.'
+      )
+    )
   } catch (error: any) {
     fail(error.message)
   }

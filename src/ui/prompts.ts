@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import { accent, muted, strong, section } from './banner.js'
-import { OptionChoice, PromptMultiselectOptions, PromptConfirmOptions } from '../types/index.js'
+import { OptionChoice, PromptMultiselectOptions, PromptConfirmOptions, PromptTextOptions } from '../types/index.js'
 
 export const printControls = (): void => {
   const rule = chalk.hex('#6FA8DC')('═'.repeat(42))
@@ -126,6 +126,37 @@ export const customMultiselect = async ({
     return res as string[]
   } catch (_err) {
     return initialValues
+  }
+}
+
+export const customText = async ({
+  message = 'Enter a value',
+  placeholder,
+  defaultValue = '',
+  validate,
+}: PromptTextOptions): Promise<string> => {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    return defaultValue
+  }
+
+  try {
+    const { text, isCancel } = await import('@clack/prompts')
+    const res = await text({
+      message,
+      placeholder,
+      defaultValue,
+      validate: validate ? (value: string) => validate(value) : undefined,
+    })
+
+    if (isCancel(res)) {
+      console.log(chalk.hex("#94A3B8")("\nOperation cancelled ❎\n"));
+      process.exit(0)
+    }
+
+    const answer = typeof res === 'string' ? res.trim() : ''
+    return answer || defaultValue
+  } catch (_err) {
+    return defaultValue
   }
 }
 

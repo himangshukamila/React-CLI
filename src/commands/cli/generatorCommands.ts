@@ -6,7 +6,8 @@ import { configureLoaderBoilerplate } from '../../generators/loader.js'
 import { configurePrinterBoilerplate } from '../../generators/printer.js'
 import { configureBonjourBoilerplate } from '../../generators/bonjour.js'
 import { makeFile } from '../../generators/make.js'
-import { configureApiMethods, configureWebSocket, configureButton } from '../../shared.js'
+import { configureButton } from '../../generators/button.js'
+import { configureApiMethods, configureWebSocket } from '../../shared.js'
 
 export const registerGeneratorCommands = (program: Command): void => {
   program
@@ -15,7 +16,12 @@ export const registerGeneratorCommands = (program: Command): void => {
     .option('--font', 'Scan public/fonts and configure @font-face and Tailwind fonts in src/index.css')
     .option('--image', 'Scan public/images and generate src/utils/images.js constants')
     .option('--ws', 'Generate src/services/webSocket.js with auto-reconnect and message handlers')
-    .option('--bonjour', 'Scaffold mDNS service discovery server and client components')
+    .option('--bonjour', 'Wire 4b-react-mdns network discovery and scaffold the discovery page')
+    .option('--api', 'Generate src/services/api.js with the requested request methods')
+    .option('--form', 'Generate src/components/Form.jsx from the requested fields')
+    .option('--loader', 'Generate src/components/Loader.jsx backdrop loader')
+    .option('--printer', 'Generate src/pages/Printer.jsx socket print queue')
+    .option('--button', 'Generate src/components/Button.jsx with variants and sizes')
     .allowUnknownOption()
     .action(async (target: string | undefined, options: Record<string, any>) => {
       const rawArgs = process.argv.slice(3)
@@ -26,23 +32,48 @@ export const registerGeneratorCommands = (program: Command): void => {
         .filter((a) => validApiMethods.includes(a))
       const hasAuthFlag = rawArgs.some((a) => a.toLowerCase().replace(/^--?/, '') === 'auth')
 
-      if (lowerTarget === 'font' || options.font) {
+      const targets: Record<string, string> = {
+        font: 'font',
+        image: 'image',
+        form: 'form',
+        loader: 'loader',
+        printer: 'printer',
+        print: 'printer',
+        bonjour: 'bonjour',
+        button: 'button',
+        btn: 'button',
+        ws: 'ws',
+        websocket: 'ws',
+        api: 'api',
+      }
+
+      // the root command declares some of the same flags (--printer, --bonjour …)
+      // and commander hands those to the root, so fall back to reading argv.
+      // An explicit target always wins, so `set form -image` stays a form field.
+      const flagged = Object.keys(targets).find(
+        (name) =>
+          Boolean(options[name]) ||
+          rawArgs.some((a) => a.toLowerCase().replace(/^--?/, '') === name)
+      )
+      const kind = targets[lowerTarget] || (flagged ? targets[flagged] : '')
+
+      if (kind === 'font') {
         await configureFontAssets()
-      } else if (lowerTarget === 'image' || options.image) {
+      } else if (kind === 'image') {
         await configureImageAssets()
-      } else if (lowerTarget === 'form' || options.form) {
+      } else if (kind === 'form') {
         await configureFormBoilerplate(rawArgs)
-      } else if (lowerTarget === 'loader' || options.loader) {
+      } else if (kind === 'loader') {
         await configureLoaderBoilerplate()
-      } else if (lowerTarget === 'printer' || lowerTarget === 'print' || options.printer) {
+      } else if (kind === 'printer') {
         await configurePrinterBoilerplate()
-      } else if (lowerTarget === 'bonjour' || options.bonjour) {
+      } else if (kind === 'bonjour') {
         await configureBonjourBoilerplate()
-      } else if (lowerTarget === 'button' || lowerTarget === 'btn' || options.button) {
+      } else if (kind === 'button') {
         await configureButton()
-      } else if (lowerTarget === 'ws' || lowerTarget === 'websocket' || options.ws) {
+      } else if (kind === 'ws') {
         await configureWebSocket()
-      } else if (lowerTarget === 'api' || options.api || requestedMethods.length > 0 || hasAuthFlag) {
+      } else if (kind === 'api' || requestedMethods.length > 0 || hasAuthFlag) {
         const methodsToSet = requestedMethods.length > 0 ? requestedMethods : ['get', 'post']
         await configureApiMethods(methodsToSet, { auth: hasAuthFlag })
       } else {

@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto'
 import chalk from 'chalk'
 import { section, muted, strong } from '../ui/banner.js'
 import { folderOptions, packageOptions, setupLaunchChoices, folderFlags } from '../ui/banner.js'
-import { pathExists, readFile, rootDir, setupUiPortStart, projectNameRegex } from '../shared.js'
+import { pathExists, readFile, rootDir, setupUiPortStart, projectNameRegex, validateDevServerPort } from '../shared.js'
 import { isAllowedHost, collectRequestBody, sendJson, findLocalPort } from './watch.js'
 import { SetupUiHtmlParams, SetupWizardOptions, UiSelections } from '../types/index.js'
 
@@ -58,12 +58,17 @@ export const normalizeUiSelections = (payload: any): UiSelections => {
   if (selectedLaunch.includes('bonjour') && !selectedFeatures.includes('bonjour')) {
     selectedFeatures.push('bonjour')
   }
+  if (selectedLaunch.includes('logscan') && !selectedFeatures.includes('logscan')) {
+    selectedFeatures.push('logscan')
+  }
   const selectedFolders = selectedStructure.filter((value) => !folderFlags.includes(value))
 
-  const devServerPort = payload.devServerPort ? parseInt(payload.devServerPort, 10) : 5173
-  if (isNaN(devServerPort) || devServerPort < 1 || devServerPort > 65535) {
-    throw new Error('Invalid development server port (must be between 1 and 65535)')
+  const rawPort = payload.devServerPort ? String(payload.devServerPort).trim() : '5173'
+  const portError = validateDevServerPort(rawPort)
+  if (portError) {
+    throw new Error(portError)
   }
+  const devServerPort = Number(rawPort)
 
   const createdFiles = Array.isArray(payload.createdFiles) ? payload.createdFiles : []
   const validFolders = folderOptions.filter((o) => !folderFlags.includes(o.value)).map((o) => o.value)
