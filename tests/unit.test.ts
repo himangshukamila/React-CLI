@@ -280,6 +280,7 @@ test('customMultiselect handles arrow navigation, space toggle, and enter confir
   process.stdin.isTTY = originalStdinIsTTY
   process.stdout.isTTY = originalStdoutIsTTY
   process.stdin.setRawMode = originalSetRawMode
+  process.stdin.pause()
 
   assert.deepEqual(result.sort(), ['pkg1', 'pkg2'])
 })
@@ -311,4 +312,62 @@ test('createSetupUiHtml safely embeds project names with quotes and special char
   assert.ok(html.includes('const TEMPLATE_PROJECT_NAME = "my-\\"custom\\"-app";'))
   assert.ok(html.includes('&quot;custom&quot;'))
 })
+
+test('configureWrapper is exported and wrapperContent includes dynamic bg and children props', async () => {
+  const { configureWrapper } = await import('../src/generators/wrapper.js')
+  const { wrapperContent } = await import('../src/shared.js')
+
+  assert.equal(typeof configureWrapper, 'function')
+  assert.ok(wrapperContent.includes('const Wrapper = ({'))
+  assert.ok(wrapperContent.includes('children'))
+  assert.ok(wrapperContent.includes("bg = '/images/bg.webp'"))
+  assert.ok(wrapperContent.includes('export default Wrapper'))
+})
+
+test('configureButton is exported and buttonContent provides simple styling, icon, and click props', async () => {
+  const { configureButton } = await import('../src/generators/button.js')
+  const { buttonContent } = await import('../src/shared.js')
+
+  assert.equal(typeof configureButton, 'function')
+  assert.ok(!buttonContent.includes('lucide-react'), 'button should not depend on lucide-react')
+  assert.ok(buttonContent.includes('height'))
+  assert.ok(buttonContent.includes('width'))
+  assert.ok(buttonContent.includes('font'))
+  assert.ok(buttonContent.includes('textSize'))
+  assert.ok(buttonContent.includes('bgColor'))
+  assert.ok(buttonContent.includes('textColor'))
+  assert.ok(buttonContent.includes('border'))
+  assert.ok(buttonContent.includes('borderColor'))
+  assert.ok(buttonContent.includes('icon'))
+  assert.ok(buttonContent.includes('position'))
+  assert.ok(buttonContent.includes('onClick'))
+  assert.ok(buttonContent.includes('disabled'))
+  assert.ok(!buttonContent.includes('textsize'))
+  assert.ok(!buttonContent.includes('textcolor'))
+  assert.ok(!buttonContent.includes('bordercolor'))
+  assert.ok(buttonContent.includes('fontFamily: font'))
+  assert.ok(buttonContent.includes('fontSize: textSize'))
+  assert.ok(buttonContent.includes('backgroundColor: bgColor'))
+  assert.ok(buttonContent.includes('color: textColor'))
+})
+
+test('readBinaryFontMeta and parseFontInfo accurately extract font weights and families', async () => {
+  const { readBinaryFontMeta, parseFontInfo } = await import('../src/generators/assets.js')
+
+  // test standard filename parsing fallback
+  const parsed = parseFontInfo('public/fonts/Custom-Bold.ttf')
+  assert.equal(parsed.weight, 700)
+  assert.equal(parsed.fontFamily, 'Custom-b')
+
+  // test binary metadata reader if system font exists
+  const systemFont = '/System/Library/Fonts/Geneva.ttf'
+  const exists = await (await import('node:fs')).promises.access(systemFont).then(() => true).catch(() => false)
+  if (exists) {
+    const meta = readBinaryFontMeta(systemFont)
+    assert.ok(meta)
+    assert.equal(meta.family, 'Geneva')
+    assert.equal(meta.weight, 400)
+  }
+})
+
 

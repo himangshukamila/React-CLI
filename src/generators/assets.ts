@@ -1,4 +1,6 @@
 import path from 'node:path'
+import fs from 'node:fs'
+import zlib from 'node:zlib'
 import chalk from 'chalk'
 import { section, pass, warn, fail, typeText } from '../ui/banner.js'
 import { ensureDir, writeFile, pathExists, readFile, readDir, stat } from '../shared.js'
@@ -97,56 +99,211 @@ export interface ParsedFontInfo {
   format: string
 }
 
+export interface BinaryFontMeta {
+  family?: string
+  subfamily?: string
+  weight?: number | string
+  style?: string
+}
+
+// read internal true type and open type font tables
+export const readBinaryFontMeta = (filePath: string): BinaryFontMeta | null => {
+  try {
+    const buf = fs.readFileSync(filePath)
+    if (buf.length < 12) return null
+
+    const magic = buf.toString('ascii', 0, 4)
+    let numTables = 0
+    let tableRecordsOffset = 12
+    let isWoff = false
+
+    if (magic === 'wOFF') {
+      if (buf.length < 44) return null
+      numTables = buf.readUInt16BE(12)
+      tableRecordsOffset = 44
+      isWoff = true
+    } else if (magic === 'OTTO' || magic === '\x00\x01\x00\x00' || magic === 'true') {
+      numTables = buf.readUInt16BE(4)
+      tableRecordsOffset = 12
+    } else {
+      return null
+    }
+
+    let os2Data: Buffer | null = null
+    let nameData: Buffer | null = null
+    let hasFvar = false
+
+    for (let i = 0; i < numTables; i++) {
+      if (isWoff) {
+        const recOffset = tableRecordsOffset + i * 20
+        if (recOffset + 20 > buf.length) break
+        const tag = buf.toString('ascii', recOffset, recOffset + 4)
+        const offset = buf.readUInt32BE(recOffset + 4)
+        const compLength = buf.readUInt32BE(recOffset + 8)
+        const origLength = buf.readUInt32BE(recOffset + 12)
+        if (tag === 'fvar') hasFvar = true
+        if (tag === 'OS/2' || tag === 'name') {
+          const rawSlice = buf.subarray(offset, offset + compLength)
+          const decompressed = compLength < origLength ? zlib.inflateSync(rawSlice) : rawSlice
+          if (tag === 'OS/2') os2Data = decompressed
+          if (tag === 'name') nameData = decompressed
+        }
+      } else {
+        const recOffset = tableRecordsOffset + i * 16
+        if (recOffset + 16 > buf.length) break
+        const tag = buf.toString('ascii', recOffset, recOffset + 4)
+        const offset = buf.readUInt32BE(recOffset + 8)
+        const length = buf.readUInt32BE(recOffset + 12)
+        if (tag === 'fvar') hasFvar = true
+        if (tag === 'OS/2') os2Data = buf.subarray(offset, offset + length)
+        if (tag === 'name') nameData = buf.subarray(offset, offset + length)
+      }
+    }
+
+    let weight: number | string | undefined
+    let style: string | undefined
+
+    if (hasFvar) {
+      weight = '100 900'
+    } else if (os2Data && os2Data.length >= 6) {
+      const os2Weight = os2Data.readUInt16BE(4)
+      if (os2Weight >= 100 && os2Weight <= 950) {
+        weight = os2Weight
+      }
+      if (os2Data.length >= 64) {
+        const fsSelection = os2Data.readUInt16BE(62)
+        if ((fsSelection & 1) !== 0) {
+          style = 'italic'
+        }
+      }
+    }
+
+    let family: string | undefined
+    let subfamily: string | undefined
+
+    if (nameData && nameData.length >= 6) {
+      const count = nameData.readUInt16BE(2)
+      const stringOffset = nameData.readUInt16BE(4)
+      const nameEntries: Record<number, string> = {}
+
+      for (let i = 0; i < count; i++) {
+        const rec = 6 + i * 12
+        if (rec + 12 > nameData.length) break
+        const platformID = nameData.readUInt16BE(rec)
+        const nameID = nameData.readUInt16BE(rec + 6)
+        const length = nameData.readUInt16BE(rec + 8)
+        const offset = stringOffset + nameData.readUInt16BE(rec + 10)
+        if (offset + length > nameData.length) continue
+
+        const strBuf = nameData.subarray(offset, offset + length)
+        let decoded = ''
+        if (platformID === 3 || platformID === 0) {
+          decoded = strBuf.swap16().toString('utf16le')
+        } else {
+          decoded = strBuf.toString('utf8')
+        }
+        decoded = decoded.replace(/\0/g, '').trim()
+        if (decoded && !nameEntries[nameID]) {
+          nameEntries[nameID] = decoded
+        }
+      }
+
+      family = nameEntries[16] || nameEntries[1]
+      subfamily = nameEntries[17] || nameEntries[2]
+      if (subfamily && subfamily.toLowerCase().includes('italic')) {
+        style = 'italic'
+      }
+    }
+
+    return { family, subfamily, weight, style }
+  } catch {
+    return null
+  }
+}
+
 export const parseFontInfo = (filePath: string): ParsedFontInfo => {
   const ext = path.extname(filePath)
   const filename = path.basename(filePath, ext)
   const lowerName = filename.toLowerCase()
 
-  const style = lowerName.includes('italic') ? 'italic' : 'normal'
+  const meta = readBinaryFontMeta(filePath)
+
+  let style = meta?.style || (lowerName.includes('italic') ? 'italic' : 'normal')
 
   let weight: number | string = 400
   let suffix = ''
 
-  if (lowerName.includes('variable')) {
-    weight = '100 900'
-    suffix = ''
-  } else if (lowerName.includes('black') || lowerName.includes('heavy')) {
-    weight = 900
-    suffix = ''
-  } else if (lowerName.includes('extrabold') || lowerName.includes('ultrabold')) {
-    weight = 800
-    suffix = '-xb'
-  } else if (lowerName.includes('semibold') || lowerName.includes('demibold')) {
-    weight = 600
-    suffix = '-s'
-  } else if (lowerName.includes('bold')) {
-    weight = 700
-    suffix = '-b'
-  } else if (lowerName.includes('medium')) {
-    weight = 500
-    suffix = '-m'
-  } else if (lowerName.includes('regular') || lowerName.includes('book')) {
-    weight = 400
-    suffix = ''
-  } else if (lowerName.includes('extralight') || lowerName.includes('ultralight')) {
-    weight = 200
-    suffix = '-xl'
-  } else if (lowerName.includes('light')) {
-    weight = 300
-    suffix = '-l'
-  } else if (lowerName.includes('thin') || lowerName.includes('hairline')) {
-    weight = 100
-    suffix = '-t'
+  if (meta?.weight !== undefined) {
+    weight = meta.weight
+    if (typeof weight === 'number') {
+      if (weight >= 900) {
+        suffix = ''
+      } else if (weight >= 800) {
+        suffix = '-xb'
+      } else if (weight >= 700) {
+        suffix = '-b'
+      } else if (weight >= 600) {
+        suffix = '-s'
+      } else if (weight >= 500) {
+        suffix = '-m'
+      } else if (weight >= 400) {
+        suffix = ''
+      } else if (weight >= 300) {
+        suffix = '-l'
+      } else if (weight >= 200) {
+        suffix = '-xl'
+      } else if (weight >= 100) {
+        suffix = '-t'
+      }
+    } else {
+      suffix = ''
+    }
+  } else {
+    // fallback to filename heuristics if binary read is unavailable
+    if (lowerName.includes('variable')) {
+      weight = '100 900'
+      suffix = ''
+    } else if (lowerName.includes('black') || lowerName.includes('heavy')) {
+      weight = 900
+      suffix = ''
+    } else if (lowerName.includes('extrabold') || lowerName.includes('ultrabold')) {
+      weight = 800
+      suffix = '-xb'
+    } else if (lowerName.includes('semibold') || lowerName.includes('demibold')) {
+      weight = 600
+      suffix = '-s'
+    } else if (lowerName.includes('bold')) {
+      weight = 700
+      suffix = '-b'
+    } else if (lowerName.includes('medium')) {
+      weight = 500
+      suffix = '-m'
+    } else if (lowerName.includes('regular') || lowerName.includes('book')) {
+      weight = 400
+      suffix = ''
+    } else if (lowerName.includes('extralight') || lowerName.includes('ultralight')) {
+      weight = 200
+      suffix = '-xl'
+    } else if (lowerName.includes('light')) {
+      weight = 300
+      suffix = '-l'
+    } else if (lowerName.includes('thin') || lowerName.includes('hairline')) {
+      weight = 100
+      suffix = '-t'
+    }
   }
 
-  let cleanName = filename
-    .replace(/[-_]/g, ' ')
-    .replace(/\b(ExtraBold|UltraBold|SemiBold|DemiBold|ExtraLight|UltraLight|Regular|Bold|Italic|VariableFont|Variable|Medium|Light|Thin|Black|Heavy|Book|Hairline)\b/gi, '')
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/([A-Za-z])([0-9])/g, '$1 $2')
-    .replace(/([0-9])([A-Za-z])/g, '$1 $2')
-    .replace(/\s+/g, ' ')
-    .trim()
+  let cleanName = meta?.family || filename
+  if (!meta?.family) {
+    cleanName = cleanName
+      .replace(/[-_]/g, ' ')
+      .replace(/\b(ExtraBold|UltraBold|SemiBold|DemiBold|ExtraLight|UltraLight|Regular|Bold|Italic|VariableFont|Variable|Medium|Light|Thin|Black|Heavy|Book|Hairline)\b/gi, '')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/([A-Za-z])([0-9])/g, '$1 $2')
+      .replace(/([0-9])([A-Za-z])/g, '$1 $2')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
 
   if (!cleanName) {
     cleanName = filename.replace(/[-_]/g, ' ').trim()

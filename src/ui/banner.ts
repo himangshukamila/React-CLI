@@ -119,7 +119,11 @@ export const commandReference: [string, string][] = [
   ],
   [
     "zecron set button",
-    "Generate reusable Button component (src/components/Button.jsx) with variants & loading state",
+    "Generate simple Button component (src/components/Button.jsx) with custom styling & icon props",
+  ],
+  [
+    "zecron set wrapper",
+    "Generate fullscreen Wrapper component (src/components/Wrapper.jsx) with dynamic bg prop",
   ],
   ["zecron", "Launch Zecron Interactive Agent Welcome Hub & Prompt Mode"],
   ["get <name>", "Install a package or alias in an existing project"],

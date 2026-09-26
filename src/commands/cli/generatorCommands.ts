@@ -7,6 +7,7 @@ import { configurePrinterBoilerplate } from '../../generators/printer.js'
 import { configureBonjourBoilerplate } from '../../generators/bonjour.js'
 import { makeFile } from '../../generators/make.js'
 import { configureButton } from '../../generators/button.js'
+import { configureWrapper } from '../../generators/wrapper.js'
 import { configureApiMethods, configureWebSocket } from '../../shared.js'
 
 export const registerGeneratorCommands = (program: Command): void => {
@@ -22,6 +23,7 @@ export const registerGeneratorCommands = (program: Command): void => {
     .option('--loader', 'Generate src/components/Loader.jsx backdrop loader')
     .option('--printer', 'Generate src/pages/Printer.jsx socket print queue')
     .option('--button', 'Generate src/components/Button.jsx with variants and sizes')
+    .option('--wrapper', 'Generate src/components/Wrapper.jsx fullscreen background wrapper')
     .allowUnknownOption()
     .action(async (target: string | undefined, options: Record<string, any>) => {
       const rawArgs = process.argv.slice(3)
@@ -42,6 +44,7 @@ export const registerGeneratorCommands = (program: Command): void => {
         bonjour: 'bonjour',
         button: 'button',
         btn: 'button',
+        wrapper: 'wrapper',
         ws: 'ws',
         websocket: 'ws',
         api: 'api',
@@ -71,13 +74,15 @@ export const registerGeneratorCommands = (program: Command): void => {
         await configureBonjourBoilerplate()
       } else if (kind === 'button') {
         await configureButton()
+      } else if (kind === 'wrapper') {
+        await configureWrapper()
       } else if (kind === 'ws') {
         await configureWebSocket()
       } else if (kind === 'api' || requestedMethods.length > 0 || hasAuthFlag) {
         const methodsToSet = requestedMethods.length > 0 ? requestedMethods : ['get', 'post']
         await configureApiMethods(methodsToSet, { auth: hasAuthFlag })
       } else {
-        console.error(chalk.red('Error: Please specify what to set (e.g. zecron set api -get -post, zecron set button, zecron set ws, or zecron set bonjour)'))
+        console.error(chalk.red('Error: Please specify what to set (e.g. zecron set api -get -post, zecron set button, zecron set wrapper, zecron set ws, or zecron set bonjour)'))
         process.exit(1)
       }
     })
@@ -97,10 +102,12 @@ export const registerGeneratorCommands = (program: Command): void => {
         await configurePrinterBoilerplate()
       } else if (lowerFolder === 'button' || lowerFolder === 'btn') {
         await configureButton()
+      } else if (lowerFolder === 'wrapper') {
+        await configureWrapper()
       } else if (folder) {
         await makeFile(folder, name, subfolder)
       } else {
-        console.error(chalk.red('Error: Please specify what to make (e.g. zecron make form, zecron make loader, zecron make printer, or zecron make components Button)'))
+        console.error(chalk.red('Error: Please specify what to make (e.g. zecron make form, zecron make loader, zecron make wrapper, or zecron make components Button)'))
         process.exit(1)
       }
     })

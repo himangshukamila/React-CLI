@@ -4,6 +4,8 @@ import { doctor } from '../commands/doctor.js'
 import { configureLoaderBoilerplate } from '../generators/loader.js'
 import { configurePrinterBoilerplate } from '../generators/printer.js'
 import { configureFormBoilerplate } from '../generators/form.js'
+import { configureButton } from '../generators/button.js'
+import { configureWrapper } from '../generators/wrapper.js'
 import { gitPushWrapper } from '../commands/git.js'
 
 export interface AgentIntroResult {
@@ -25,6 +27,8 @@ export const runZecronAgentIntro = async (): Promise<AgentIntroResult | void> =>
     `     ${chalk.hex('#00E5FF').bold('• /set loader')}      ${chalk.white('Generate responsive backdrop-blur Loader.jsx')}`,
     `     ${chalk.hex('#00E5FF').bold('• /set printer')}     ${chalk.white('Generate Printer.jsx page with socket print queue')}`,
     `     ${chalk.hex('#00E5FF').bold('• /set form')}        ${chalk.white('Generate styled Form.jsx component')}`,
+    `     ${chalk.hex('#00E5FF').bold('• /set button')}      ${chalk.white('Generate reusable Button.jsx component')}`,
+    `     ${chalk.hex('#00E5FF').bold('• /set wrapper')}     ${chalk.white('Generate fullscreen Wrapper.jsx component')}`,
     `     ${chalk.hex('#00E5FF').bold('• /push')}            ${chalk.white('Stage, commit, and push updates to Git remote')}`,
     `     ${chalk.hex('#00E5FF').bold('• /exit')}            ${chalk.white('Exit Zecron CLI (or press Ctrl+C)')}`,
   ].join('\n'))
@@ -55,6 +59,10 @@ export const runZecronAgentIntro = async (): Promise<AgentIntroResult | void> =>
     } else if (lower.startsWith('/set form') || lower.startsWith('set form') || lower === 'form') {
       const parts = trimmed.split(' ').slice(2)
       await configureFormBoilerplate(parts)
+    } else if (lower === '/set button' || lower === 'set button' || lower === 'button') {
+      await configureButton()
+    } else if (lower === '/set wrapper' || lower === 'set wrapper' || lower === 'wrapper') {
+      await configureWrapper()
     } else if (lower.startsWith('/push') || lower === 'push') {
       const gitMsg = await text({
         message: 'Enter commit message or remote repository URL:',
