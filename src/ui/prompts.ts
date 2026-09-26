@@ -110,38 +110,21 @@ export const customMultiselect = async ({
     let cursorIndex = 0
     const selected = new Set<string>(initialValues)
     let renderedLines = 0
-    const maxVisible = 6
 
     const render = () => {
       if (renderedLines > 0) {
         clearLines(renderedLines)
       }
 
-      let startIndex = 0
-      if (options.length > maxVisible) {
-        startIndex = Math.max(
-          0,
-          Math.min(cursorIndex - Math.floor(maxVisible / 2), options.length - maxVisible),
-        )
-      }
-      const endIndex = Math.min(options.length, startIndex + maxVisible)
       const lines: string[] = []
 
       lines.push(`${accent('◆')} ${strong(message || 'Select options:')}`)
 
-      if (startIndex > 0) {
-        lines.push(muted('  ▲ ...'))
-      }
-
-      for (let i = startIndex; i < endIndex; i++) {
+      for (let i = 0; i < options.length; i++) {
         const option = options[i]
         const isSelected = selected.has(option.value)
         const isActive = i === cursorIndex
         lines.push(renderSelectOption({ option, selected: isSelected, active: isActive }))
-      }
-
-      if (endIndex < options.length) {
-        lines.push(muted('  ▼ ...'))
       }
 
       lines.push(muted('  (space to toggle, a to toggle all, enter to confirm)'))
@@ -155,26 +138,25 @@ export const customMultiselect = async ({
       if (process.stdin.isTTY) {
         process.stdin.setRawMode(false)
       }
-      process.stdin.pause()
       process.stdout.write('\x1b[?25h')
     }
 
     const onKeyPress = (_str: string | undefined, key: any) => {
-      if (!key) return
+      if (!key && !_str) return
 
-      if ((key.ctrl && key.name === 'c') || key.name === 'escape') {
+      if ((key && key.ctrl && key.name === 'c') || (key && key.name === 'escape') || _str === '\u0003') {
         cleanup()
         console.log(chalk.hex('#94A3B8')('\nOperation cancelled ❎\n'))
         process.exit(0)
       }
 
-      if (key.name === 'up' || key.name === 'k') {
+      if (key && (key.name === 'up' || key.name === 'k')) {
         cursorIndex = cursorIndex === 0 ? options.length - 1 : cursorIndex - 1
         render()
-      } else if (key.name === 'down' || key.name === 'j') {
+      } else if (key && (key.name === 'down' || key.name === 'j')) {
         cursorIndex = cursorIndex === options.length - 1 ? 0 : cursorIndex + 1
         render()
-      } else if (key.name === 'space') {
+      } else if ((key && key.name === 'space') || _str === ' ') {
         const val = options[cursorIndex].value
         if (selected.has(val)) {
           selected.delete(val)
@@ -182,14 +164,14 @@ export const customMultiselect = async ({
           selected.add(val)
         }
         render()
-      } else if (key.name === 'a' || _str === 'a' || _str === 'A') {
+      } else if ((key && key.name === 'a') || _str === 'a' || _str === 'A') {
         if (selected.size === options.length) {
           selected.clear()
         } else {
           options.forEach((opt) => selected.add(opt.value))
         }
         render()
-      } else if (key.name === 'return' || key.name === 'enter') {
+      } else if (key && (key.name === 'return' || key.name === 'enter') || _str === '\r' || _str === '\n') {
         cleanup()
         if (renderedLines > 0) {
           clearLines(renderedLines)
@@ -209,6 +191,7 @@ export const customMultiselect = async ({
       process.stdin.setRawMode(true)
     }
     process.stdin.resume()
+    process.stdin.on('keypress', onKeyPress)
     process.stdout.write('\x1b[?25l')
     render()
   })

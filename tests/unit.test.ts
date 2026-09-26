@@ -250,6 +250,40 @@ test('customMultiselect and customConfirm return default fallback values in non-
   assert.equal(typeof confirmResult, 'boolean')
 })
 
+test('customMultiselect handles arrow navigation, space toggle, and enter confirmation', async () => {
+  const { customMultiselect } = await import('../src/ui/prompts.js')
+  const originalStdinIsTTY = process.stdin.isTTY
+  const originalStdoutIsTTY = process.stdout.isTTY
+  const originalSetRawMode = process.stdin.setRawMode
+
+  process.stdin.isTTY = true
+  process.stdout.isTTY = true
+  process.stdin.setRawMode = () => (process.stdin as any)
+
+  const multiselectPromise = customMultiselect({
+    options: [
+      { value: 'pkg1', label: 'Package 1' },
+      { value: 'pkg2', label: 'Package 2' },
+    ],
+    initialValues: ['pkg1'],
+  })
+
+  // simulate user pressing down arrow then space then enter
+  process.nextTick(() => {
+    process.stdin.emit('keypress', undefined, { name: 'down' })
+    process.stdin.emit('keypress', ' ', { name: 'space' })
+    process.stdin.emit('keypress', '\r', { name: 'return' })
+  })
+
+  const result = await multiselectPromise
+
+  process.stdin.isTTY = originalStdinIsTTY
+  process.stdout.isTTY = originalStdoutIsTTY
+  process.stdin.setRawMode = originalSetRawMode
+
+  assert.deepEqual(result.sort(), ['pkg1', 'pkg2'])
+})
+
 test('configureBonjourBoilerplate is exported as a function', async () => {
   const { configureBonjourBoilerplate, mdnsPackageName } = await import('../src/generators/bonjour.js')
   assert.equal(typeof configureBonjourBoilerplate, 'function')
