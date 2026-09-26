@@ -196,25 +196,21 @@ interface GitStepOutput {
 class SmoothGitProgressTracker {
   private currentPercent = 0
   private targetPercent = 0
-  private label = 'Writing objects'
-  private counts = ''
-  private tail = ''
   private timer: NodeJS.Timeout | null = null
   private active = false
-  private tick = 0
+  private label = 'Push changes'
+
+  setLabel(label: string) {
+    this.label = label
+  }
 
   handleLine(text: string) {
-    const match = text.match(/^(.*?):\s*(\d+)%\s*\((\d+)\/(\d+)\)(.*)$/)
+    const match = text.match(/(\d+)%\s*\(\d+\/\d+\)/)
     if (match) {
-      const [, label, percentText, completed, total, trailing] = match
-      this.label = label
-      this.targetPercent = Math.min(100, Math.max(0, Number(percentText)))
-      this.counts = `(${completed}/${total})`
-      this.tail = trailing
+      this.targetPercent = Math.min(100, Math.max(0, Number(match[1])))
     }
 
     if (!this.active) {
-      process.stdout.write('\n')
       this.active = true
       this.startLoop()
     }
@@ -223,7 +219,6 @@ class SmoothGitProgressTracker {
   private startLoop() {
     if (this.timer) return
     this.timer = setInterval(() => {
-      this.tick += 30
       if (this.currentPercent < this.targetPercent) {
         const diff = this.targetPercent - this.currentPercent
         const step = Math.max(1, Math.ceil(diff * 0.25))
@@ -235,16 +230,17 @@ class SmoothGitProgressTracker {
 
   private draw() {
     if (!process.stdout.isTTY) return
-    readline.clearLine(process.stdout, 0)
     readline.cursorTo(process.stdout, 0)
+    readline.clearLine(process.stdout, 0)
+
+    const barWidth = 14
+    const clamped = Math.min(100, Math.max(0, Math.round(this.currentPercent)))
+    const filled = Math.round((clamped / 100) * barWidth)
+    const bar = `${chalk.hex('#00E5FF')('█'.repeat(filled))}${chalk.hex('#475569')('·'.repeat(barWidth - filled))}`
+    const pct = chalk.hex('#38BDF8').bold(`${String(clamped).padStart(3)}%`)
+
     process.stdout.write(
-      `${chalk.hex('#8B5CF6')('  │')} ${formatGitProgressBar(
-        this.label,
-        this.currentPercent,
-        this.counts,
-        this.tail,
-        this.tick,
-      )}`
+      `${chalk.hex('#EC4899')('⚡ running')}  ${chalk.bold.whiteBright(this.label)} [${bar}] ${pct}`
     )
   }
 
@@ -261,7 +257,7 @@ class SmoothGitProgressTracker {
     }
     this.draw()
     // hold complete frame for a brief visible beat
-    await new Promise((resolve) => setTimeout(resolve, 140))
+    await new Promise((resolve) => setTimeout(resolve, 100))
     this.stop()
   }
 
@@ -279,9 +275,11 @@ class SmoothGitProgressTracker {
 
 const attachGitOutput = (
   child: { stderr?: NodeJS.ReadableStream | null },
-  canRender: boolean
+  canRender: boolean,
+  label: string = 'Push changes'
 ): GitStepOutput => {
   const tracker = new SmoothGitProgressTracker()
+  tracker.setLabel(label)
   const state: GitStepOutput = {
     persistentLines: [],
     get progressActive() {
@@ -475,7 +473,7 @@ export const gitPushWrapper = async (options: GitPushOptions): Promise<void> => 
     process.stdout.write(`${chalk.hex('#EC4899')('⚡ running')}  ${displayLabel}...${statusEnd}`)
     try {
       const child = execa(step.cmd, step.args, { cwd: process.cwd() })
-      output = attachGitOutput(child, Boolean(process.stdout.isTTY))
+      output = attachGitOutput(child, Boolean(process.stdout.isTTY), step.label)
       const result = await child
 
       if (output.finishProgress) {
@@ -512,11 +510,15 @@ export const gitPushWrapper = async (options: GitPushOptions): Promise<void> => 
 
       // type out the lines git wanted kept, matching the rest of the push output
       if (isPushStep && output.persistentLines.length > 0) {
-        const shown = output.persistentLines.slice(0, maxGitSummaryLines)
+        // filter out raw object counting and writing lines so they do not duplicate the progress bar
+        const filteredLines = output.persistentLines.filter(
+          (line) => !/^(Counting|Compressing|Writing)\s+objects/i.test(line.trim())
+        )
+        const shown = filteredLines.slice(0, maxGitSummaryLines)
         for (const line of shown) {
           await typeText(`${chalk.hex('#8B5CF6')('  │')} ${styleGitProgressLine(line)}`, 4)
         }
-        const hidden = output.persistentLines.length - shown.length
+        const hidden = filteredLines.length - shown.length
         if (hidden > 0) {
           await typeText(`${chalk.hex('#8B5CF6')('  │')} ${chalk.hex('#94A3B8')(`… ${hidden} more line${hidden === 1 ? '' : 's'}`)}`, 4)
         }
