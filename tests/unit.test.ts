@@ -54,6 +54,8 @@ test('getBasePackageName and resolvePackageName handle versioned and scoped pack
   assert.equal(resolvePackageName('react@18.3.1'), 'react@18.3.1')
   assert.equal(resolvePackageName('@tailwindcss/vite'), '@tailwindcss/vite')
   assert.equal(resolvePackageName('zod'), 'zod')
+  assert.equal(resolvePackageName('toast'), 'ztoast')
+  assert.equal(resolvePackageName('toast@latest'), 'ztoast@latest')
 })
 
 test('form generator helpers parse fields and input types correctly', async () => {
@@ -138,6 +140,83 @@ test('formatGitProgressFrame draws a bar for progress and leaves other lines alo
   assert.equal(other, 'Delta compression using up to 8 threads')
 })
 
+test('buildSectionHeader keeps every header on one line', async () => {
+  const { buildSectionHeader } = await import('../src/ui/banner.js')
+
+  const headers: [string, string][] = [
+    ['MODULES', 'select packages and project features'],
+    ['BONJOUR SERVICE', 'configure mDNS local network service discovery'],
+    ['CUSTOM LOG VIEW', 'in-app console panel for browser logs'],
+    ['GIT SETUP & PUSH', 'pushing updates'],
+    ['PROJECT', ''],
+  ]
+
+  for (const columns of [40, 60, 80, 100, 200]) {
+    for (const [label, meta] of headers) {
+      const { head, rule, tail } = buildSectionHeader(label, meta, columns)
+      const rendered = `${head} ${rule}${tail ? ` ${tail}` : ''}`
+      assert.ok(
+        rendered.length <= Math.min(100, Math.max(40, columns)),
+        `"${label}" is ${rendered.length} wide at ${columns} columns`,
+      )
+      assert.ok(rule.length >= 3, `"${label}" lost its rule at ${columns} columns`)
+    }
+  }
+
+  // an over-long meta is trimmed rather than pushed onto a second line
+  const narrow = buildSectionHeader('BONJOUR SERVICE', 'configure mDNS local network service discovery', 60)
+  assert.ok(narrow.tail.endsWith('…'))
+})
+
+const viteEntry = `import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+)
+`
+
+test('addLogscanBootstrap starts logscan before render without touching the render call', async () => {
+  const { addLogscanBootstrap } = await import('../src/generators/logscan.js')
+
+  const { source, status } = addLogscanBootstrap(viteEntry)
+  assert.equal(status, 'added')
+  assert.match(source, /mountLogScanner\(\{ visible: true \}\)/)
+  assert.ok(source.indexOf('mountLogScanner') < source.indexOf('createRoot(document'), 'bootstrap runs before render')
+  assert.ok(source.includes(viteEntry.slice(viteEntry.indexOf('createRoot('))), 'render call left intact')
+
+  assert.equal(addLogscanBootstrap(source).status, 'present')
+  // logscan says not to mount both integrations in one app
+  assert.equal(addLogscanBootstrap(viteEntry.replace('<App />', '<App /><LogScanner visible />')).status, 'legacy')
+})
+
+test('mountAdminTrigger renders the trigger once, inside MdnsProvider', async () => {
+  const { mountAdminTrigger } = await import('../src/generators/bonjour.js')
+
+  const wrapped = `import { MdnsProvider } from '4b-react-mdns/react'
+createRoot(el).render(
+  <MdnsProvider launcher={false}>
+    <App />
+  </MdnsProvider>
+)
+`
+  const { source, status } = mountAdminTrigger(wrapped)
+  assert.equal(status, 'added')
+  assert.ok(source.indexOf('<BonjourAdminTrigger />') < source.indexOf('</MdnsProvider>'))
+  assert.ok(source.indexOf('<BonjourAdminTrigger />') > source.indexOf('<MdnsProvider'))
+  assert.match(source, /from '4b-react-mdns\/react'\nimport BonjourAdminTrigger from/)
+  assert.equal(mountAdminTrigger(source).status, 'present')
+
+  // a one-line provider gets the trigger inline rather than outside the tag
+  const inline = mountAdminTrigger('render(<MdnsProvider><App /></MdnsProvider>)').source
+  assert.match(inline, /<App \/><BonjourAdminTrigger \/><\/MdnsProvider>/)
+
+  assert.equal(mountAdminTrigger(viteEntry).status, 'no-provider')
+})
+
 test('registerAllCommands correctly registers all modular commands', async () => {
   const { Command } = await import('commander')
   const { registerAllCommands } = await import('../src/commands/cli/index.js')
@@ -172,8 +251,9 @@ test('customMultiselect and customConfirm return default fallback values in non-
 })
 
 test('configureBonjourBoilerplate is exported as a function', async () => {
-  const { configureBonjourBoilerplate } = await import('../src/generators/bonjour.js')
+  const { configureBonjourBoilerplate, mdnsPackageName } = await import('../src/generators/bonjour.js')
   assert.equal(typeof configureBonjourBoilerplate, 'function')
+  assert.equal(mdnsPackageName, '4b-react-mdns')
 })
 
 test('escapeHtml safely encodes special markup characters', async () => {

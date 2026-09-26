@@ -107,7 +107,7 @@ export const commandReference: [string, string][] = [
   ],
   [
     "zecron make form -name -email",
-    "Generate styled Form component with state, icons & react-hot-toast",
+    "Generate styled Form component with state, icons & ztoast",
   ],
   [
     "zecron make loader",
@@ -141,7 +141,7 @@ export const packageOptions: OptionChoice[] = [
   },
   {
     value: "toast",
-    label: "React Hot Toast",
+    label: "ztoast",
     hint: "toast notifications + Toaster",
   },
   {
@@ -233,11 +233,33 @@ export const typeText = async (
   process.stdout.write("\n");
 };
 
+export const sectionRuleWidth = 100;
+export const minSectionRule = 3;
+
+// build a section header sized to the terminal so it fits without wrapping
+export const buildSectionHeader = (
+  label: string,
+  meta: string = "",
+  columns: number = process.stdout.columns || 80,
+): { head: string; rule: string; tail: string } => {
+  const width = Math.min(sectionRuleWidth, Math.max(40, columns));
+  const head = label.toUpperCase();
+
+  let tail = meta.trim();
+  const room = width - head.length - 2 - minSectionRule;
+  if (tail.length > room) tail = room > 1 ? `${tail.slice(0, room - 1)}…` : "";
+
+  const gaps = tail ? 2 : 1;
+  const ruleLength = Math.max(minSectionRule, width - head.length - tail.length - gaps);
+
+  return { head, rule: "·".repeat(ruleLength), tail };
+};
+
 export const section = (label: string, meta: string = ""): void => {
-  const rule = chalk.hex("#6366F1")("·".repeat(54));
-  console.log(
-    `\n${accent(label.toUpperCase())} ${rule} ${chalk.hex("#94A3B8")(meta)}`,
-  );
+  const { head, rule, tail } = buildSectionHeader(label, meta);
+  const styledTail = tail ? ` ${chalk.hex("#94A3B8")(tail)}` : "";
+
+  console.log(`\n${accent(head)} ${chalk.hex("#6366F1")(rule)}${styledTail}`);
 };
 
 export const row = (label: string, value: string, hint: string = ""): void => {

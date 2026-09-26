@@ -10,7 +10,7 @@ export const registerCreateCommand = (program: Command): void => {
     .option('--axios', 'install axios')
     .option('--zod', 'install zod schema validation library')
     .option('--socket', 'install socket.io-client')
-    .option('--toast', 'install react-hot-toast')
+    .option('--toast', 'install ztoast')
     .option('--icon', 'install react-icons')
     .option('--lucide', 'install lucide-react')
     .option('--router', 'install react-router-dom and create src/router')

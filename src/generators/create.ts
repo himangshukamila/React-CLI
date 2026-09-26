@@ -27,7 +27,7 @@ import {
 import { startSetupWizardServer } from '../commands/wizard.js'
 import { CustomCreatedFile, UiSelections } from '../types/index.js'
 import { configureBonjourBoilerplate, mdnsPackageName } from './bonjour.js'
-import { configureLogscan, logscanPackageName } from './logscan.js'
+import { configureLogscan, logscanPackageSpec } from './logscan.js'
 
 export const validateProjectName = (name: string): void => {
   if (!projectNameRegex.test(name) || name.includes('..') || name.includes('/')) {
@@ -195,7 +195,7 @@ export default ${file.name};
       await writeFile(filePath, jsxContent)
     } else if (file.ext === '.js') {
       const jsContent = `const ${file.name} = () => {
-  // Logic goes here
+  // logic goes here
 }
 
 export default ${file.name}
@@ -510,7 +510,7 @@ export const createProject = async (targetName?: string, options: Record<string,
       tailwind: ['tailwindcss', '@tailwindcss/vite'],
       axios: ['axios'],
       socket: ['socket.io-client'],
-      toast: ['react-hot-toast'],
+      toast: ['ztoast'],
       icon: ['react-icons'],
       lucide: ['lucide-react'],
       router: ['react-router-dom'],
@@ -533,8 +533,8 @@ export const createProject = async (targetName?: string, options: Record<string,
       batchPackages.push(mdnsPackageName)
     }
 
-    if (selections.selectedSetup.includes('logscan') && !batchPackages.includes(logscanPackageName)) {
-      batchPackages.push(logscanPackageName)
+    if (selections.selectedSetup.includes('logscan') && !batchPackages.includes(logscanPackageSpec)) {
+      batchPackages.push(logscanPackageSpec)
     }
 
     await progress.step(async () => {

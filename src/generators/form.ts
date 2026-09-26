@@ -131,9 +131,9 @@ export const configureFormBoilerplate = async (
   projectPath: string = process.cwd()
 ): Promise<void> => {
   try {
-    section('form generator', 'building styled form & react-hot-toast system')
+    section('form generator', 'building styled form & ztoast system')
 
-    const installed = await ensureDeps(projectPath, ['react-hot-toast', 'lucide-react'])
+    const installed = await ensureDeps(projectPath, ['ztoast', 'lucide-react'])
     if (installed.length > 0) pass(`installed ${installed.join(', ')}`)
 
     const componentsDir = path.join(projectPath, 'src', 'components')
@@ -242,7 +242,7 @@ ${isPassword ? `            <button
 
     const formJsxContent = `${buildFieldMarker(fields)}
 import { useState } from 'react'
-import { Toaster, toast } from 'react-hot-toast'
+import { Toaster, toast } from 'ztoast'
 import { ${lucideImportStr} } from 'lucide-react'
 
 const formatUnit = (val, defaultUnit) => {
@@ -517,7 +517,7 @@ export default Form
     if (!written) return
 
     pass(`updated ${path.relative(projectPath, formJsxPath)}`)
-    await typeText(chalk.green.bold(`\n✅ src/components/Form.jsx generated with fields: ${fieldSummary} and react-hot-toast integration!`))
+    await typeText(chalk.green.bold(`\n✅ src/components/Form.jsx generated with fields: ${fieldSummary} and ztoast integration!`))
   } catch (error: any) {
     fail(error.message)
   }

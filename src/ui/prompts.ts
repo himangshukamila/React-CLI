@@ -19,12 +19,11 @@ export interface RenderOptionParams {
 
 export const renderSelectOption = ({ option, selected, active }: RenderOptionParams): string => {
   const cursor = active ? accent('› ') : '  '
-  const box = selected ? accent('■') : muted('□')
-  const diamond = selected ? strong('◆') : muted('◇')
-  const label = selected ? strong(option.label) : muted(option.label)
-  const hint = option.hint ? muted(`  (${option.hint})`) : ''
+  const box = selected ? chalk.hex('#10B981')('■') : muted('□')
+  const label = active || selected ? strong(option.label) : muted(option.label)
+  const hint = option.hint ? chalk.hex('#94A3B8')(` (${option.hint})`) : ''
 
-  return `${cursor}${box} ${diamond} ${label}${hint}`
+  return `${cursor}${box} ${label}${hint}`
 }
 
 export const clearLines = (count: number): void => {
@@ -105,28 +104,114 @@ export const customMultiselect = async ({
     return initialValues
   }
 
-  try {
-    const { multiselect, isCancel } = await import('@clack/prompts')
-    const res = await multiselect({
-      message: message || 'Select options:',
-      options: options.map((opt) => ({
-        value: opt.value,
-        label: opt.label,
-        hint: opt.hint,
-      })),
-      initialValues,
-      required: false,
-    })
+  const readlineModule = await import('node:readline')
 
-    if (isCancel(res)) {
-      console.log(chalk.hex("#94A3B8")("\nOperation cancelled ❎\n"));
-      process.exit(0)
+  return new Promise((resolve) => {
+    let cursorIndex = 0
+    const selected = new Set<string>(initialValues)
+    let renderedLines = 0
+    const maxVisible = 6
+
+    const render = () => {
+      if (renderedLines > 0) {
+        clearLines(renderedLines)
+      }
+
+      let startIndex = 0
+      if (options.length > maxVisible) {
+        startIndex = Math.max(
+          0,
+          Math.min(cursorIndex - Math.floor(maxVisible / 2), options.length - maxVisible),
+        )
+      }
+      const endIndex = Math.min(options.length, startIndex + maxVisible)
+      const lines: string[] = []
+
+      lines.push(`${accent('◆')} ${strong(message || 'Select options:')}`)
+
+      if (startIndex > 0) {
+        lines.push(muted('  ▲ ...'))
+      }
+
+      for (let i = startIndex; i < endIndex; i++) {
+        const option = options[i]
+        const isSelected = selected.has(option.value)
+        const isActive = i === cursorIndex
+        lines.push(renderSelectOption({ option, selected: isSelected, active: isActive }))
+      }
+
+      if (endIndex < options.length) {
+        lines.push(muted('  ▼ ...'))
+      }
+
+      lines.push(muted('  (space to toggle, a to toggle all, enter to confirm)'))
+
+      process.stdout.write(lines.join('\n') + '\n')
+      renderedLines = lines.length
     }
 
-    return res as string[]
-  } catch (_err) {
-    return initialValues
-  }
+    const cleanup = () => {
+      process.stdin.removeListener('keypress', onKeyPress)
+      if (process.stdin.isTTY) {
+        process.stdin.setRawMode(false)
+      }
+      process.stdin.pause()
+      process.stdout.write('\x1b[?25h')
+    }
+
+    const onKeyPress = (_str: string | undefined, key: any) => {
+      if (!key) return
+
+      if ((key.ctrl && key.name === 'c') || key.name === 'escape') {
+        cleanup()
+        console.log(chalk.hex('#94A3B8')('\nOperation cancelled ❎\n'))
+        process.exit(0)
+      }
+
+      if (key.name === 'up' || key.name === 'k') {
+        cursorIndex = cursorIndex === 0 ? options.length - 1 : cursorIndex - 1
+        render()
+      } else if (key.name === 'down' || key.name === 'j') {
+        cursorIndex = cursorIndex === options.length - 1 ? 0 : cursorIndex + 1
+        render()
+      } else if (key.name === 'space') {
+        const val = options[cursorIndex].value
+        if (selected.has(val)) {
+          selected.delete(val)
+        } else {
+          selected.add(val)
+        }
+        render()
+      } else if (key.name === 'a' || _str === 'a' || _str === 'A') {
+        if (selected.size === options.length) {
+          selected.clear()
+        } else {
+          options.forEach((opt) => selected.add(opt.value))
+        }
+        render()
+      } else if (key.name === 'return' || key.name === 'enter') {
+        cleanup()
+        if (renderedLines > 0) {
+          clearLines(renderedLines)
+        }
+        const selectedList = Array.from(selected)
+        const selectedLabels = options
+          .filter((opt) => selected.has(opt.value))
+          .map((opt) => opt.label)
+        const summary = selectedLabels.length > 0 ? selectedLabels.join(', ') : 'none'
+        console.log(`${chalk.green('✓')} ${strong(message || 'Select options:')} ${muted(summary)}`)
+        resolve(selectedList)
+      }
+    }
+
+    readlineModule.emitKeypressEvents(process.stdin)
+    if (process.stdin.isTTY) {
+      process.stdin.setRawMode(true)
+    }
+    process.stdin.resume()
+    process.stdout.write('\x1b[?25l')
+    render()
+  })
 }
 
 export const customText = async ({

@@ -128,7 +128,7 @@ react my-app --tailwind --axios --router --env
 | `--axios` | Installs `axios` |
 | `--zod` | Installs `zod` schema validation library |
 | `--socket` | Installs `socket.io-client`, scaffolds `src/services/socket.js` |
-| `--toast` | Installs `react-hot-toast`, configures `<Toaster />` in `src/App.jsx` |
+| `--toast` | Installs `ztoast`, configures `<Toaster />` in `src/App.jsx` |
 | `--router` | Installs `react-router-dom` |
 | `--qr` | Installs `react-qr-code` |
 | `--webcam` | Installs `react-webcam` |

@@ -14,7 +14,7 @@ export const aliasMap: Record<string, string> = {
   tailwind: 'tailwindcss',
   axios: 'axios',
   socket: 'socket.io-client',
-  toast: 'react-hot-toast',
+  toast: 'ztoast',
   icon: 'react-icons',
   lucide: 'lucide-react',
   router: 'react-router-dom',
@@ -44,7 +44,7 @@ export const reverseAliasMap: Record<string, string> = {
   tailwindcss: 'tailwind',
   axios: 'axios',
   'socket.io-client': 'socket',
-  'react-hot-toast': 'toast',
+  ztoast: 'toast',
   'react-icons': 'icon',
   'lucide-react': 'lucide',
   'react-router-dom': 'router',
@@ -526,8 +526,8 @@ export const cliIconContent = `<svg width="512" height="512" viewBox="0 0 512 51
 </svg>
 `
 
-const toastContainerImport = "import { Toaster, toast } from 'react-hot-toast'"
-const toastContainerImportRegex = /import\s*{\s*(?:Toaster|toast|Toaster\s*,\s*toast|toast\s*,\s*Toaster)\s*}\s*from\s*['"]react-hot-toast['"]/
+const toastContainerImport = "import { Toaster, toast } from 'ztoast'"
+const toastContainerImportRegex = /import\s*{\s*(?:Toaster|toast|Toaster\s*,\s*toast|toast\s*,\s*Toaster)\s*}\s*from\s*['"]ztoast['"]/
 
 export const runCommand = async (
   command: string,
@@ -678,7 +678,8 @@ export const ensureDeps = async (projectPath: string, packages: string[]): Promi
     ...(pkgJson.devDependencies || {}),
   }
 
-  const missing = packages.filter((name) => !allDeps[name])
+  // a spec like "logscan@^0.5.0" is looked up by its bare name
+  const missing = packages.filter((spec) => !allDeps[getBasePackageName(spec)])
   if (missing.length === 0) return []
 
   await runPackageInstall(missing, { cwd: projectPath }, `Failed to install ${missing.join(', ')}`)
@@ -744,7 +745,7 @@ ${returnedJsx}
     return
   }
 
-  throw new Error('Could not safely update App.jsx for react-hot-toast')
+  throw new Error('Could not safely update App.jsx for ztoast')
 }
 
 export const installTailwind = async (projectPath: string): Promise<void> => {
@@ -1062,7 +1063,7 @@ export const setUnauthorizedHandler = (fn) => { onUnauthorized = fn }
     : ''
 
   return `import axios from 'axios'
-import { toast } from 'react-hot-toast'
+import { toast } from 'ztoast'
 
 const BASE_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
 const DEFAULT_TIMEOUT = 15000
@@ -1175,8 +1176,8 @@ export const configureAxios = async (projectPath: string = process.cwd(), option
   if (await pathExists(pkgJsonPath)) {
     const pkgJson = JSON.parse(await readFile(pkgJsonPath))
     const allDeps = { ...(pkgJson.dependencies || {}), ...(pkgJson.devDependencies || {}) }
-    if (!allDeps['react-hot-toast']) {
-      await runPackageInstall(['react-hot-toast'], { cwd: projectPath }, 'Failed to install react-hot-toast')
+    if (!allDeps['ztoast']) {
+      await runPackageInstall(['ztoast'], { cwd: projectPath }, 'Failed to install ztoast')
     }
   }
   await ensureDir(path.join(projectPath, 'src', 'services'))
@@ -1195,8 +1196,8 @@ export const configureApiMethods = async (
   if (await pathExists(pkgJsonPath)) {
     const pkgJson = JSON.parse(await readFile(pkgJsonPath))
     const allDeps = { ...(pkgJson.dependencies || {}), ...(pkgJson.devDependencies || {}) }
-    if (!allDeps['react-hot-toast']) {
-      await runPackageInstall(['react-hot-toast'], { cwd: projPath }, 'Failed to install react-hot-toast')
+    if (!allDeps['ztoast']) {
+      await runPackageInstall(['ztoast'], { cwd: projPath }, 'Failed to install ztoast')
     }
   }
 
@@ -1654,7 +1655,7 @@ export const createPackageHandlers = ({ installPackages }: PackageHandlersOption
   },
   toast: async (projectPath: string) => {
     if (installPackages) {
-      await runPackageInstall(['react-hot-toast'], { cwd: projectPath }, 'Failed to install react-hot-toast')
+      await runPackageInstall(['ztoast'], { cwd: projectPath }, 'Failed to install ztoast')
     }
     await configureToast(projectPath)
   },
