@@ -227,11 +227,15 @@ test('registerAllCommands correctly registers all modular commands', async () =>
   registerAllCommands(program)
 
   const commandNames = program.commands.map((cmd) => cmd.name())
-  const expectedCommands = ['zecron', 'watch', 'list', 'doctor', 'audit', 'update', 'run', 'build', 'open', 'asset', 'env', 'set', 'make', 'push']
+  const expectedCommands = ['zecron', 'list', 'audit', 'update', 'run', 'build', 'open', 'set', 'make', 'push']
 
   for (const name of expectedCommands) {
     assert.ok(commandNames.includes(name), `Command ${name} should be registered`)
   }
+  assert.ok(!commandNames.includes('doctor'), 'doctor command should not be registered')
+  assert.ok(!commandNames.includes('env'), 'env command should not be registered')
+  assert.ok(!commandNames.includes('watch'), 'watch command should not be registered')
+  assert.ok(!commandNames.includes('asset'), 'asset command should not be registered')
 })
 
 test('customMultiselect and customConfirm return default fallback values in non-TTY mode', async () => {
@@ -370,4 +374,63 @@ test('readBinaryFontMeta and parseFontInfo accurately extract font weights and f
   }
 })
 
+test('generateApiFileContent creates clean axios wrapper with requested methods', async () => {
+  const { generateApiFileContent } = await import('../src/shared.js')
+
+  // test generation with get, post, del, and put
+  const content = generateApiFileContent(['get', 'post', 'del', 'put'])
+
+  assert.ok(content.includes("import axios from 'axios'"))
+  assert.ok(content.includes('const API = axios.create'))
+  assert.ok(content.includes('get: (url, config = {}) => API.get(url, config)'))
+  assert.ok(content.includes('post: (url, data, config = {}) => API.post(url, data, config)'))
+  assert.ok(content.includes('put: (url, data, config = {}) => API.put(url, data, config)'))
+  assert.ok(content.includes('del: (url, config = {}) => API.delete(url, config)'))
+  assert.ok(content.includes('delete: (url, config = {}) => API.delete(url, config)'))
+  assert.ok(!content.includes('patch:'))
+  assert.ok(!content.includes('ztoast'))
+  assert.ok(!content.includes('getHumanReadableError'))
+  assert.ok(!content.includes('unwrap('))
+})
+
+test('socketContent configures reconnection options, connect/disconnect logs, and reconnect handler', async () => {
+  const { socketContent } = await import('../src/shared.js')
+
+  // verify socket.io-client import, options, and exports
+  assert.ok(socketContent.includes("import { io } from 'socket.io-client'"))
+  assert.ok(socketContent.includes('export const socket = io(serverUrl,'))
+  assert.ok(socketContent.includes('reconnection: true'))
+  assert.ok(socketContent.includes('reconnectionAttempts: 5'))
+  assert.ok(socketContent.includes('reconnectionDelay: 1000'))
+  assert.ok(socketContent.includes('timeout: 10000'))
+  assert.ok(socketContent.includes('io server disconnect'))
+  assert.ok(socketContent.includes('socket.connect()'))
+  assert.ok(socketContent.includes('export default socket'))
+  assert.ok(socketContent.includes("console.log('socket connected:', socket.id)"))
+  assert.ok(socketContent.includes("console.log('socket disconnected:', reason)"))
+})
+
+test('generateSocketFileContent with bonjour enables dynamic bonjour ip synchronization and logs', async () => {
+  const { generateSocketFileContent } = await import('../src/shared.js')
+
+  // test bonjour dynamic socket synchronization
+  const content = generateSocketFileContent({ bonjour: true })
+  assert.ok(content.includes("import { getWsBaseUrl } from './bonjour.js'"))
+  assert.ok(content.includes('syncSocketWithBonjour()'))
+  assert.ok(content.includes('socket.io.uri = nextUrl'))
+  assert.ok(content.includes("window.addEventListener('storage'"))
+  assert.ok(content.includes("console.log('socket connected:', socket.id)"))
+  assert.ok(content.includes("console.log('socket disconnected:', reason)"))
+})
+
+test('generateApiFileContent with bonjour enables dynamic bonjour ip request interceptor', async () => {
+  const { generateApiFileContent } = await import('../src/shared.js')
+
+  // test bonjour dynamic api request interceptor
+  const content = generateApiFileContent(['get', 'post'], { bonjour: true })
+  assert.ok(content.includes("import { getApiBaseUrl } from './bonjour.js'"))
+  assert.ok(content.includes('getApiBaseUrl()'))
+  assert.ok(content.includes('API.interceptors.request.use'))
+  assert.ok(content.includes('config.baseURL = dynamicUrl'))
+})
 

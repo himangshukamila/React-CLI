@@ -2,6 +2,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import fsPromises from 'node:fs/promises'
 import fs from 'node:fs'
+import http from 'node:http'
 import net from 'node:net'
 import { execa, Options as ExecaOptions } from 'execa'
 import chalk from 'chalk'
@@ -70,34 +71,82 @@ export default defineConfig({
 })
 `
 
-export const socketContent = `import { io } from "socket.io-client";
+export const generateSocketFileContent = (options: { bonjour?: boolean } = {}): string => {
+  const isBonjour = Boolean(options.bonjour)
 
-const URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
+  if (isBonjour) {
+    return `import { io } from 'socket.io-client'
+import { getWsBaseUrl } from './bonjour.js'
 
-export const socket = io(URL, {
-  autoConnect: true,
-});
+const serverUrl = getWsBaseUrl() || (import.meta.env.DEV ? 'http://localhost:3000' : (typeof window !== 'undefined' ? window.location.origin : ''))
 
-socket.on("connect", () => {
-  console.log("Socket connected:", socket.id);
-});
+export const socket = io(serverUrl, {
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  timeout: 10000,
+})
 
-socket.on("disconnect", (reason) => {
-  console.log("Socket disconnected:", reason);
-});
+socket.on('connect', () => {
+  console.log('socket connected:', socket.id)
+})
 
-socket.on("connect_error", (error) => {
-  console.error("Socket connection error:", error.message);
-});
+socket.on('disconnect', (reason) => {
+  console.log('socket disconnected:', reason)
+  if (reason === 'io server disconnect') {
+    // server disconnected the socket, reconnect manually
+    socket.connect()
+  }
+})
 
-socket.on("reconnect", (attempt) => {
-  console.log(\`Reconnected after \${attempt} attempts\`);
-});
+// reconnect to updated bonjour server ip if selection changes
+export function syncSocketWithBonjour() {
+  const nextUrl = getWsBaseUrl()
+  if (nextUrl && socket.io.uri !== nextUrl) {
+    socket.io.uri = nextUrl
+    socket.disconnect().connect()
+  }
+}
 
-socket.on("reconnect_attempt", (attempt) => {
-  console.log(\`Reconnect attempt \${attempt}\`);
-});
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', () => {
+    syncSocketWithBonjour()
+  })
+}
+
+export default socket
 `
+  }
+
+  return `import { io } from 'socket.io-client'
+
+const serverUrl = import.meta.env.VITE_SERVER_URL || (import.meta.env.DEV ? 'http://localhost:3000' : (typeof window !== 'undefined' ? window.location.origin : ''))
+
+export const socket = io(serverUrl, {
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  timeout: 10000,
+})
+
+socket.on('connect', () => {
+  console.log('socket connected:', socket.id)
+})
+
+socket.on('disconnect', (reason) => {
+  console.log('socket disconnected:', reason)
+  if (reason === 'io server disconnect') {
+    // server disconnected the socket, reconnect manually
+    socket.connect()
+  }
+})
+
+export default socket
+`
+}
+
+export const socketContent = generateSocketFileContent()
+
 
 export const cameraContent = `import { useEffect, useRef, useState } from "react";
 import Webcam from "react-webcam";
@@ -765,9 +814,15 @@ export const configureTailwind = async (projectPath: string): Promise<void> => {
   ])
 }
 
-export const configureSocket = async (projectPath: string): Promise<void> => {
-  await ensureDir(path.join(projectPath, 'src', 'services'))
-  await writeFile(path.join(projectPath, 'src', 'services', 'socket.js'), socketContent)
+export const configureSocket = async (
+  projectPath: string,
+  options: { bonjour?: boolean } = {}
+): Promise<void> => {
+  const servicesDir = path.join(projectPath, 'src', 'services')
+  await ensureDir(servicesDir)
+  const hasBonjour = options.bonjour ?? (await pathExists(path.join(servicesDir, 'bonjour.js')))
+  const content = generateSocketFileContent({ bonjour: hasBonjour })
+  await writeFile(path.join(servicesDir, 'socket.js'), content)
 }
 
 export const printerContent = `import { useCallback, useEffect, useRef, useState } from "react";
@@ -995,174 +1050,83 @@ export const configureEnv = async (projectPath: string): Promise<void> => {
 }
 
 export const methodTemplates: Record<string, string> = {
-  get: `  get: (url, config = {}) => unwrap(axiosInstance.get(url, config)),`,
-  post: `  post: (url, body, config = {}) => unwrap(axiosInstance.post(url, body, config)),`,
-  put: `  put: (url, body, config = {}) => unwrap(axiosInstance.put(url, body, config)),`,
-  patch: `  patch: (url, body, config = {}) => unwrap(axiosInstance.patch(url, body, config)),`,
-  delete: `  delete: (url, config = {}) => unwrap(axiosInstance.delete(url, config)),`,
+  get: `  get: (url, config = {}) => API.get(url, config),`,
+  post: `  post: (url, data, config = {}) => API.post(url, data, config),`,
+  put: `  put: (url, data, config = {}) => API.put(url, data, config),`,
+  del: `  del: (url, config = {}) => API.delete(url, config),`,
+  delete: `  delete: (url, config = {}) => API.delete(url, config),`,
+  patch: `  patch: (url, data, config = {}) => API.patch(url, data, config),`,
 }
 
-export const generateApiFileContent = (methods: string[] = ['get', 'post'], options: { auth?: boolean } = {}): string => {
+export const generateApiFileContent = (
+  methods: string[] = ['get', 'post'],
+  options: { auth?: boolean; bonjour?: boolean } = {}
+): string => {
   const requestedLower = methods.map((m) => m.toLowerCase())
-  const selectedTemplates: string[] = []
+  const selectedMethods: string[] = []
+  const seen = new Set<string>()
 
   for (const m of requestedLower) {
-    if (methodTemplates[m]) {
-      selectedTemplates.push(methodTemplates[m])
+    if (m === 'del' || m === 'delete') {
+      if (!seen.has('del')) {
+        seen.add('del')
+        selectedMethods.push(methodTemplates.del)
+      }
+      if (!seen.has('delete')) {
+        seen.add('delete')
+        selectedMethods.push(methodTemplates.delete)
+      }
+    } else if (methodTemplates[m] && !seen.has(m)) {
+      seen.add(m)
+      selectedMethods.push(methodTemplates[m])
     }
   }
 
-  const methodCodes = selectedTemplates.join('\n')
-  const isAuthEnabled = Boolean(options.auth)
+  // default to get and post if no valid methods selected
+  if (selectedMethods.length === 0) {
+    selectedMethods.push(methodTemplates.get)
+    selectedMethods.push(methodTemplates.post)
+  }
 
-  const tokenHelpers = isAuthEnabled
-    ? `const getToken = () => {
-  if (typeof localStorage === 'undefined') return null
-  return localStorage.getItem('token') || sessionStorage.getItem('token')
-}
+  const methodCodes = selectedMethods.join('\n')
 
-const clearToken = () => {
-  if (typeof localStorage === 'undefined') return
-  localStorage.removeItem('token')
-  sessionStorage.removeItem('token')
-}
-`
+  const bonjourImport = options.bonjour ? `import { getApiBaseUrl } from './bonjour.js'\n` : ''
+  const baseBaseUrl = options.bonjour
+    ? `getApiBaseUrl() || import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'`
+    : `import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'`
+
+  const bonjourInterceptor = options.bonjour
+    ? `\n// dynamically use updated bonjour server ip on each request
+API.interceptors.request.use((config) => {
+  const dynamicUrl = getApiBaseUrl()
+  if (dynamicUrl) {
+    config.baseURL = dynamicUrl
+  }
+  return config
+})\n`
     : ''
 
-  const requestInterceptorCode = isAuthEnabled
-    ? `axiosInstance.interceptors.request.use((config) => {
-  console.log('API Sent:', (config.method || 'GET').toUpperCase(), config.url, config.data || '')
-  const token = getToken()
-  if (token) config.headers.Authorization = \`Bearer \${token}\`
+  const authInterceptor = options.auth
+    ? `\nAPI.interceptors.request.use((config) => {
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null
+  if (token) {
+    config.headers.Authorization = \`Bearer \${token}\`
+  }
   return config
-})`
-    : `axiosInstance.interceptors.request.use((config) => {
-  console.log('API Sent:', (config.method || 'GET').toUpperCase(), config.url, config.data || '')
-  return config
-})`
-
-  const error401Logic = isAuthEnabled
-    ? `if (status === 401) {
-    return getToken()
-      ? 'Your session has expired. Please log in again to continue.'
-      : serverMsg || 'Incorrect email or password.'
-  }`
-    : `if (status === 401) return serverMsg || 'Your session has expired or unauthorized access.'`
-
-  const unauthorizedHandlerCode = isAuthEnabled
-    ? `let onUnauthorized = null
-export const setUnauthorizedHandler = (fn) => { onUnauthorized = fn }
-`
-    : ''
-
-  const responseInterceptor401SideEffect = isAuthEnabled
-    ? `    if (error.status === 401 && getToken()) {
-      clearToken()
-      onUnauthorized?.()
-    }`
+})\n`
     : ''
 
   return `import axios from 'axios'
-import { toast } from 'ztoast'
-
-const BASE_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
-const DEFAULT_TIMEOUT = 15000
-
-const axiosInstance = axios.create({
-  baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
-  timeout: DEFAULT_TIMEOUT,
-})
-
-${tokenHelpers}${requestInterceptorCode}
-
-// Pure translator — no side effects, safe to call anywhere.
-export const getHumanReadableError = (error) => {
-  if (axios.isCancel?.(error) || error.code === 'ERR_CANCELED') return null
-
-  if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
-    return 'The request took too long. Please try again.'
-  }
-  if (error.code === 'ERR_NETWORK' || (typeof navigator !== 'undefined' && !navigator.onLine)) {
-    return "We couldn't reach the server. Check your internet connection."
-  }
-
-  const status = error.response?.status
-  const data = typeof error.response?.data === 'object' ? error.response.data : null
-  const serverMsg = data?.message
-
-  if (status === 400 || status === 422) return serverMsg || 'Please check the input fields and try again.'
-  ${error401Logic}
-  if (status === 403) return "You don't have access to do this. Contact your administrator."
-  if (status === 404) return serverMsg || 'The requested item was not found or may have been deleted.'
-  if (status === 405) return 'This action is not supported for this resource.'
-  if (status === 407) return 'Proxy authentication required. Please authenticate with your proxy server.'
-  if (status === 408) return 'Request timed out. The server took too long to respond.'
-  if (status === 409) return serverMsg || 'A record already exists with this information.'
-  if (status === 413) return 'The uploaded file or request data is too large.'
-  if (status === 415) return 'File format or media type is not supported.'
-  if (status === 429) {
-    const retryAfter = Number(error.response?.headers?.['retry-after'])
-    return retryAfter
-      ? \`Too many attempts. Try again in \${retryAfter} seconds.\`
-      : 'Too many attempts. Please wait a moment and try again.'
-  }
-  if (status === 502 || status === 503 || status === 504) {
-    return 'The server is temporarily unavailable. Please try again shortly.'
-  }
-  if (status >= 500) return 'Something went wrong on our end. Please try again in a moment.'
-
-  return error.message || 'An unexpected error occurred.'
-}
-
-// Extracts { fieldName: "message" } for inline form errors.
-const getFieldErrors = (error) => {
-  const data = error.response?.data
-  if (!data || typeof data !== 'object') return null
-  if (data.errors && typeof data.errors === 'object') return data.errors
-  if (Array.isArray(data.details)) {
-    return data.details.reduce((acc, d) => {
-      if (!d || typeof d !== 'object') return acc
-      const key = d.field ?? d.path ?? 'general'
-      return { ...acc, [key]: d.message }
-    }, {})
-  }
-  return null
-}
-
-${unauthorizedHandlerCode}
-
-axiosInstance.interceptors.response.use(
-  (response) => {
-    console.log('API Received:', (response.config?.method || 'GET').toUpperCase(), response.config?.url, response.data)
-    return response
+${bonjourImport}
+const API = axios.create({
+  baseURL: ${baseBaseUrl},
+  headers: {
+    'Content-Type': 'application/json',
   },
-  (error) => {
-    const isCanceled = axios.isCancel?.(error) || error.code === 'ERR_CANCELED'
-    if (isCanceled) return Promise.reject(Object.assign(error, { isCanceled: true }))
-
-    const message = getHumanReadableError(error)
-    error.friendlyMessage = message
-    error.status = error.response?.status
-    error.fieldErrors = getFieldErrors(error)
-
-${responseInterceptor401SideEffect}
-
-    if (!error.config?.silent && message) {
-      toast.error(message, { id: \`api-error-\${error.status ?? error.code ?? 'unknown'}\` })
-    }
-
-    return Promise.reject(error)
-  }
-)
-
-const unwrap = (promise) => promise.then((res) => res.data)
-
+})
+${bonjourInterceptor}${authInterceptor}
 export const api = {
 ${methodCodes}
-
-  // Direct reference to the underlying Axios instance
-  axios: axiosInstance,
 }
 
 export default api
@@ -1171,74 +1135,91 @@ export default api
 
 export const apiContent = generateApiFileContent(['get', 'post'])
 
-export const configureAxios = async (projectPath: string = process.cwd(), options: { auth?: boolean } = {}): Promise<void> => {
-  const pkgJsonPath = path.join(projectPath, 'package.json')
-  if (await pathExists(pkgJsonPath)) {
-    const pkgJson = JSON.parse(await readFile(pkgJsonPath))
-    const allDeps = { ...(pkgJson.dependencies || {}), ...(pkgJson.devDependencies || {}) }
-    if (!allDeps['ztoast']) {
-      await runPackageInstall(['ztoast'], { cwd: projectPath }, 'Failed to install ztoast')
-    }
-  }
-  await ensureDir(path.join(projectPath, 'src', 'services'))
-  await writeFile(path.join(projectPath, 'src', 'services', 'api.js'), generateApiFileContent(['get', 'post'], options))
+export const configureAxios = async (projectPath: string = process.cwd(), options: { auth?: boolean; bonjour?: boolean } = {}): Promise<void> => {
+  await configureApiMethods(['get', 'post'], options, projectPath)
 }
 
 export const configureApiMethods = async (
   methods: string[] = ['get', 'post'],
-  options: { auth?: boolean } | string = {},
+  options: { auth?: boolean; bonjour?: boolean } | string = {},
   projectPath: string = process.cwd()
 ): Promise<void> => {
-  let opts: { auth?: boolean } = typeof options === 'object' ? options : {}
-  let projPath = typeof options === 'string' ? options : projectPath
+  const opts: { auth?: boolean; bonjour?: boolean } = typeof options === 'object' ? options : {}
+  const projPath = typeof options === 'string' ? options : projectPath
 
   const pkgJsonPath = path.join(projPath, 'package.json')
   if (await pathExists(pkgJsonPath)) {
     const pkgJson = JSON.parse(await readFile(pkgJsonPath))
     const allDeps = { ...(pkgJson.dependencies || {}), ...(pkgJson.devDependencies || {}) }
-    if (!allDeps['ztoast']) {
-      await runPackageInstall(['ztoast'], { cwd: projPath }, 'Failed to install ztoast')
+    if (!allDeps['axios']) {
+      await runPackageInstall(['axios'], { cwd: projPath }, 'Failed to install axios')
     }
   }
 
-  const apiPath = path.join(projPath, 'src', 'services', 'api.js')
+  const servicesDir = path.join(projPath, 'src', 'services')
+  const hasBonjour = opts.bonjour ?? (await pathExists(path.join(servicesDir, 'bonjour.js')))
+  const apiPath = path.join(servicesDir, 'api.js')
   const requestedMethods = methods.length > 0 ? methods : ['get', 'post']
 
   if (!(await pathExists(apiPath))) {
-    await ensureDir(path.join(projPath, 'src', 'services'))
-    const initialContent = generateApiFileContent(requestedMethods, opts)
+    await ensureDir(servicesDir)
+    const initialContent = generateApiFileContent(requestedMethods, { ...opts, bonjour: hasBonjour })
     await writeFile(apiPath, initialContent)
-    console.log(chalk.green(`\n✅ Created src/services/api.js with method(s): ${requestedMethods.map((m) => m.toUpperCase()).join(', ')}${opts.auth ? ' (+Auth token interceptor)' : ''}!`))
+    console.log(chalk.green(`\n✅ Created src/services/api.js with method(s): ${requestedMethods.map((m) => m.toUpperCase()).join(', ')}${opts.auth ? ' (+Auth token interceptor)' : ''}${hasBonjour ? ' (+Bonjour sync)' : ''}!`))
     return
   }
 
   let content = await readFile(apiPath)
+  let changed = false
+
+  if (hasBonjour && !content.includes('getApiBaseUrl')) {
+    if (!content.includes("from './bonjour.js'") && !content.includes('from "./bonjour.js"')) {
+      content = `import { getApiBaseUrl } from './bonjour.js'\n` + content
+    }
+    const bonjourInterceptor = `\n// dynamically use updated bonjour server ip on each request\nAPI.interceptors.request.use((config) => {\n  const dynamicUrl = getApiBaseUrl()\n  if (dynamicUrl) {\n    config.baseURL = dynamicUrl\n  }\n  return config\n})\n`
+    if (content.includes('export const api = {')) {
+      content = content.replace('export const api = {', `${bonjourInterceptor}export const api = {`)
+    } else if (content.includes('export default api')) {
+      content = content.replace('export default api', `${bonjourInterceptor}export default api`)
+    }
+    changed = true
+  }
+
   const addedMethods: string[] = []
+  const newMethodLines: string[] = []
 
   for (const method of requestedMethods) {
     const lowerMethod = method.toLowerCase()
-    if (methodTemplates[lowerMethod]) {
-      const regex = new RegExp(`\\b${lowerMethod}\\s*:\\s*(?:async|\\()`)
-      if (!regex.test(content)) {
-        const methodCode = methodTemplates[lowerMethod]
-        if (content.includes('// Direct reference to the underlying Axios instance')) {
-          content = content.replace(
-            '// Direct reference to the underlying Axios instance',
-            `${methodCode}\n\n  // Direct reference to the underlying Axios instance`
-          )
-        } else if (content.includes('axios: axiosInstance,')) {
-          content = content.replace('axios: axiosInstance,', `${methodCode}\n\n  axios: axiosInstance,`)
-        } else if (content.includes('export default api')) {
-          content = content.replace('export default api', `${methodCode}\n\nexport default api`)
+    const targetMethods = (lowerMethod === 'del' || lowerMethod === 'delete') ? ['del', 'delete'] : [lowerMethod]
+
+    for (const tm of targetMethods) {
+      if (methodTemplates[tm]) {
+        const regex = new RegExp(`\\b${tm}\\s*:`)
+        if (!regex.test(content)) {
+          newMethodLines.push(methodTemplates[tm])
+          addedMethods.push(tm.toUpperCase())
         }
-        addedMethods.push(lowerMethod.toUpperCase())
       }
     }
   }
 
-  if (addedMethods.length > 0) {
+  if (newMethodLines.length > 0) {
+    if (content.includes('export const api = {')) {
+      content = content.replace(/(export\s+const\s+api\s*=\s*\{[\s\S]*?)(\n\})/, `$1\n${newMethodLines.join('\n')}$2`)
+    } else if (content.includes('export default api')) {
+      content = content.replace('export default api', `${newMethodLines.join('\n')}\n\nexport default api`)
+    }
+    changed = true
+  }
+
+  if (changed) {
     await writeFile(apiPath, content)
-    console.log(chalk.green(`\n✅ Added ${addedMethods.join(', ')} method(s) to src/services/api.js`))
+    if (addedMethods.length > 0) {
+      console.log(chalk.green(`\n✅ Added ${addedMethods.join(', ')} method(s) to src/services/api.js`))
+    }
+    if (hasBonjour) {
+      console.log(chalk.green(`\n✅ Synchronized src/services/api.js with bonjour server discovery`))
+    }
   } else {
     console.log(chalk.yellow('\nℹ️ Requested method(s) are already present in src/services/api.js'))
   }
@@ -1623,7 +1604,7 @@ export const createPackageHandlers = ({ installPackages }: PackageHandlersOption
     if (installPackages) {
       await runPackageInstall(['axios'], { cwd: projectPath }, 'Failed to install axios')
     }
-    await configureAxios(projectPath)
+    // do not automatically create api.js when installing axios
   },
   socket: async (projectPath: string) => {
     if (installPackages) {
@@ -1678,11 +1659,56 @@ export const createPackageHandlers = ({ installPackages }: PackageHandlersOption
 })
 
 export const projectNameRegex = /^[a-zA-Z0-9_-]+$|^\.$/
-export const fileNameRegex = /^[a-zA-Z][a-zA-Z0-9_-]*$/
-export const envKeyRegex = /^VITE_[A-Z0-9_]+$/
-export const maxWatchBodyBytes = 128 * 1024
+export const maxHttpBodyBytes = 128 * 1024
 export const setupUiPortStart = 4317
-export const watchPortStart = 4570
+
+export const collectRequestBody = (req: http.IncomingMessage): Promise<string> =>
+  new Promise((resolve, reject) => {
+    let body = ''
+
+    req.on('data', (chunk: any) => {
+      body += chunk
+      if (body.length > maxHttpBodyBytes) {
+        reject(new Error('Request body too large'))
+        req.destroy()
+      }
+    })
+    req.on('end', () => resolve(body))
+    req.on('error', reject)
+  })
+
+export const sendJson = (res: http.ServerResponse, statusCode: number, payload: any): void => {
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  })
+  res.end(JSON.stringify(payload))
+}
+
+export const isAllowedHost = (req: http.IncomingMessage, port: number): boolean => {
+  const host = req.headers.host
+  return host === `127.0.0.1:${port}` || host === `localhost:${port}`
+}
+
+export const findLocalPort = (preferredPort: number): Promise<number> =>
+  new Promise((resolve, reject) => {
+    const probe = http.createServer()
+    probe.once('error', (error: any) => {
+      if (error.code === 'EADDRINUSE') {
+        resolve(findLocalPort(preferredPort + 1))
+        return
+      }
+      reject(error)
+    })
+    probe.once('listening', () => {
+      const address = probe.address()
+      const port = typeof address === 'object' && address ? address.port : preferredPort
+      probe.close(() => resolve(port))
+    })
+    probe.listen(preferredPort, '127.0.0.1')
+  })
 
 export const readTextIfExists = async (targetPath: string): Promise<string> => {
   if (!(await pathExists(targetPath))) return ''

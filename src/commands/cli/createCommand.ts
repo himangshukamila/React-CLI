@@ -21,7 +21,6 @@ export const registerCreateCommand = (program: Command): void => {
     .option('--logscan', 'wire the logscan in-app console panel (Custom Log View)')
     .option('-p, --port <number>', 'dev server port to pin in vite.config (default 5173)')
     .option('--env', 'create a .env file with Vite environment variables')
-    .option('--watch', 'add frontend API watch client for react watch')
     .option('--ui', 'configure setup in a local browser wizard')
     .action(async (targetName: string | undefined, options: Record<string, any>) => {
       const rawArgs = process.argv.slice(2)

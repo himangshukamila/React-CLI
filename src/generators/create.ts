@@ -48,7 +48,7 @@ export const resolveFlagPort = (value: unknown): number => {
 export const hasSelectedFlags = (options: Record<string, any>): boolean => setupFlags.some((flag) => options[flag])
 export const getSelectedFlagPackages = (options: Record<string, any>): string[] => packageFlags.filter((flag) => options[flag])
 export const getSelectedFlagSetup = (options: Record<string, any>): string[] => setupFlags.filter((flag) => options[flag])
-// feature flags (env, watch, bonjour, logscan) travel in selectedSetup, not here —
+// feature flags (env, bonjour, logscan) travel in selectedSetup, not here —
 // listing them as folders made the preview promise src/ dirs that never exist
 export const getSelectedFlagFolders = (_options: Record<string, any>): string[] => [...defaultFlagFolders]
 
@@ -128,7 +128,7 @@ export const runInteractivePrompts = async (
 
 export const createSelectedFolders = async (projectPath: string, selectedFolders: string[]): Promise<void> => {
   for (const folder of selectedFolders) {
-    // env / watch / bonjour / logscan are features, not folders — the flag path
+    // env / bonjour / logscan are features, not folders — the flag path
     // passes them through here, so skip them instead of making empty src/ dirs
     if (folderFlags.includes(folder)) continue
 
@@ -205,32 +205,7 @@ export default ${file.name}
   }
 }
 
-export const configureFrontendWatch = async (projectPath: string): Promise<void> => {
-  await copyFile(
-    path.join(rootDir, 'templates', 'base', 'src', 'zecron-watch', 'client.js'),
-    path.join(projectPath, 'src', 'zecron-watch', 'client.js'),
-  )
-
-  const mainPath = path.join(projectPath, 'src', 'main.jsx')
-  if (!(await pathExists(mainPath))) return
-  const content = await readFile(mainPath)
-  if (content.includes('./zecron-watch/client.js') || content.includes("'./zecron-watch/client.js'")) return
-
-  const watchImport = `
-if (import.meta.env.DEV) {
-  import('./zecron-watch/client.js')
-}
-`
-  const appImport = "import App from './App.jsx'\n"
-  if (content.includes(appImport)) {
-    await writeFile(mainPath, content.replace(appImport, `${appImport}${watchImport}`))
-    return
-  }
-
-  await writeFile(mainPath, `${content}\n${watchImport}`)
-}
-
-export const applyBaseTemplates = async (projectPath: string, selectedSetup: string[] = []): Promise<void> => {
+export const applyBaseTemplates = async (projectPath: string, _selectedSetup: string[] = []): Promise<void> => {
   await copyFile(
     path.join(rootDir, 'templates', 'base', 'src', 'App.jsx'),
     path.join(projectPath, 'src', 'App.jsx'),
@@ -239,10 +214,6 @@ export const applyBaseTemplates = async (projectPath: string, selectedSetup: str
     path.join(rootDir, 'templates', 'base', 'src', 'main.jsx'),
     path.join(projectPath, 'src', 'main.jsx'),
   )
-
-  if (selectedSetup.includes('watch')) {
-    await configureFrontendWatch(projectPath)
-  }
 }
 
 export const deleteViteBoilerplate = async (projectPath: string): Promise<void> => {
@@ -321,7 +292,6 @@ export const printProjectPreview = ({ displayName, selectedFolders, selectedSetu
   section('project')
   console.log(accent(`${displayName}/`))
   console.log(`${muted('├─')} ${accent('src/')}`)
-  if (selectedSetup.includes('watch')) srcEntries.push('zecron-watch/')
   srcEntries.forEach((entry, index) => {
     const branch = index === srcEntries.length - 1 ? '└─' : '├─'
     const color = entry.endsWith('/') ? accent : strong

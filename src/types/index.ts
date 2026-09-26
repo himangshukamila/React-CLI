@@ -74,21 +74,3 @@ export interface FormGeneratorOptions {
   output?: string
   force?: boolean
 }
-
-export interface MakeOptions {
-  name?: string
-  fields?: string[]
-  output?: string
-  force?: boolean
-}
-
-export interface EnvironmentVariable {
-  key: string
-  value: string
-}
-
-export interface DoctorCheckResult {
-  title: string
-  status: 'ok' | 'warn' | 'error'
-  message: string
-}

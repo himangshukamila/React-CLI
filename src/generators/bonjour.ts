@@ -10,6 +10,7 @@ import {
   pathExists,
   runCommand,
   runPackageInstall,
+  generateSocketFileContent,
 } from '../shared.js'
 import { writeGenerated } from './safeWrite.js'
 
@@ -777,6 +778,35 @@ export const configureBonjourBoilerplate = async (targetPath?: string): Promise<
     for (const [filePath, content] of generatedFiles) {
       if (await writeGenerated(filePath, content, { projectRoot })) {
         pass(`created ${path.relative(projectRoot, filePath)}`)
+      }
+    }
+
+    // synchronize existing socket.js with bonjour if present
+    const socketPath = path.join(servicesDir, 'socket.js')
+    if (await pathExists(socketPath)) {
+      const socketCode = await readFile(socketPath)
+      if (!socketCode.includes('getWsBaseUrl')) {
+        await writeFile(socketPath, generateSocketFileContent({ bonjour: true }))
+        pass('synchronized src/services/socket.js with bonjour')
+      }
+    }
+
+    // synchronize existing api.js with bonjour if present
+    const apiPath = path.join(servicesDir, 'api.js')
+    if (await pathExists(apiPath)) {
+      let apiCode = await readFile(apiPath)
+      if (!apiCode.includes('getApiBaseUrl')) {
+        if (!apiCode.includes("from './bonjour.js'") && !apiCode.includes('from "./bonjour.js"')) {
+          apiCode = `import { getApiBaseUrl } from './bonjour.js'\n` + apiCode
+        }
+        const bonjourInterceptor = `\n// dynamically use updated bonjour server ip on each request\nAPI.interceptors.request.use((config) => {\n  const dynamicUrl = getApiBaseUrl()\n  if (dynamicUrl) {\n    config.baseURL = dynamicUrl\n  }\n  return config\n})\n`
+        if (apiCode.includes('export const api = {')) {
+          apiCode = apiCode.replace('export const api = {', `${bonjourInterceptor}export const api = {`)
+        } else if (apiCode.includes('export default api')) {
+          apiCode = apiCode.replace('export default api', `${bonjourInterceptor}export default api`)
+        }
+        await writeFile(apiPath, apiCode)
+        pass('synchronized src/services/api.js with bonjour')
       }
     }
 

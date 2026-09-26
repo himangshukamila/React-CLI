@@ -4,8 +4,7 @@ import { randomBytes } from 'node:crypto'
 import chalk from 'chalk'
 import { section, muted, strong } from '../ui/banner.js'
 import { folderOptions, packageOptions, setupLaunchChoices, folderFlags } from '../ui/banner.js'
-import { pathExists, readFile, rootDir, setupUiPortStart, projectNameRegex, validateDevServerPort } from '../shared.js'
-import { isAllowedHost, collectRequestBody, sendJson, findLocalPort } from './watch.js'
+import { pathExists, readFile, rootDir, setupUiPortStart, projectNameRegex, validateDevServerPort, isAllowedHost, collectRequestBody, sendJson, findLocalPort } from '../shared.js'
 import { SetupUiHtmlParams, SetupWizardOptions, UiSelections } from '../types/index.js'
 
 export const validateSelectionValues = (label: string, values: any, allowedValues: string[]): string[] => {

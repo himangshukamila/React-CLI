@@ -24,7 +24,7 @@ export const packageFlags: string[] = [
   "webcam",
   "printer",
 ];
-export const featureFlags: string[] = ["env", "watch", "bonjour", "logscan"];
+export const featureFlags: string[] = ["env", "bonjour", "logscan"];
 export const setupFlags: string[] = [...packageFlags, ...featureFlags];
 export const folderFlags: string[] = featureFlags;
 
@@ -54,29 +54,9 @@ export const commandReference: [string, string][] = [
   ["zecron open", "Launch production preview server on existing dist/ build"],
   ["zecron update", "Show outdated dependencies without upgrading"],
   [
-    "zecron doctor",
-    "Audit project health, dependencies, and .env configuration",
-  ],
-  [
     "zecron audit",
     "Security audit dependencies (npm audit) with auto-fix option",
   ],
-  ["zecron env list", "List Vite environment variables from .env"],
-  [
-    "zecron env add VITE_SERVER_URL http://localhost:3000",
-    "Add or update a VITE_ environment variable in .env",
-  ],
-  [
-    "zecron env remove VITE_SERVER_URL",
-    "Remove a VITE_ environment variable from .env",
-  ],
-  ["zecron make f components/ui", "Create a directory path under src/"],
-  [
-    "zecron make components Button",
-    "Generate a component file inside an existing src folder",
-  ],
-  ["zecron asset", "Create public asset folders (images, icons, fonts)"],
-  ["zecron watch", "Print frontend fetch/XHR API response logs in real time"],
   [
     "zecron push --git <url>",
     "Initialize Git, add remote origin, stage, commit, and push",
@@ -94,12 +74,8 @@ export const commandReference: [string, string][] = [
     "Scan public/fonts, auto-generate @font-face & register in src/index.css",
   ],
   [
-    "zecron set --image",
-    "Scan public/images and generate src/utils/images.js constants",
-  ],
-  [
-    "zecron set api -get -post",
-    "Generate src/services/api.js with selected method flags (-get -post -put -delete -patch)",
+    "zecron set api --get --post",
+    "Generate src/services/api.js with selected method flags (--get --post --del --put --patch)",
   ],
   [
     "zecron set ws",
@@ -173,11 +149,6 @@ export const folderOptions: OptionChoice[] = [
     hint: "reusable interface pieces",
   },
   { value: "pages", label: "src/pages", hint: "route-level screens" },
-  {
-    value: "watch",
-    label: "Frontend API Watch",
-    hint: "adds src/zecron-watch for react watch",
-  },
   {
     value: "services",
     label: "src/services",

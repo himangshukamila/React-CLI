@@ -57,11 +57,9 @@ Zecron CLI (zecron)
 │  ├─ react set bonjour  (4b-react-mdns network discovery + themed picker)
 │  ├─ Custom Log View    (logscan in-app console panel, dev-only)
 │  ├─ react set form     (styled React form component with state)
-│  ├─ react set --font   (scan public/fonts & auto-configure @font-face)
-│  └─ react set --image  (scan public/images & generate src/utils/images.js)
+│  └─ react set --font   (scan public/fonts & auto-configure @font-face)
 ├─ Integrated Git remote wrapper (react push --github / react push -m)
-├─ Web Setup Wizard (--ui mode) with particle canvases & TextType intro
-└─ Frontend API Watch logger (react watch)
+└─ Web Setup Wizard (--ui mode) with particle canvases & TextType intro
 ```
 
 ---
@@ -139,7 +137,6 @@ react my-app --tailwind --axios --router --env
 | `--logscan` | Installs `logscan` and mounts the Custom Log View console panel at the entry point (dev only) |
 | `-p, --port <number>` | Dev server port to pin in `vite.config.js` (default `5173`, validated) |
 | `--env` | Creates `.env` with `VITE_SERVER_URL` and ensures `.env` is listed in `.gitignore` |
-| `--watch` | Configures frontend API response logger |
 | `--ui` | Launches local browser setup wizard |
 
 ---
@@ -164,21 +161,13 @@ react list -c
 | `react build open` | Run production build and immediately launch preview server (`npm run preview`) |
 | `react open` | Launch production preview server (`npm run preview`) without rebuilding |
 | `react update` | Check outdated dependencies using `npm outdated` |
-| `react doctor` | Audit project health, setup, dependencies, and environment keys |
 | `react set loader` | Generate a responsive backdrop-blur `Loader.jsx` component |
 | `react set printer` | Generate `Printer.jsx` page with socket queue & `react-to-print` |
 | `react set bonjour` | Wire `4b-react-mdns` discovery and generate the themed `DiscoveryPage.jsx` |
 | `react set form -name -email` | Generate a styled React Form component with state & field icons |
 | `react set form -bio:textarea` | Override a field's guessed input type with `key:type` |
 | `react set --font` | Scan `public/fonts` and register `@font-face` rules in `src/index.css` |
-| `react set --image` | Scan `public/images` and generate `src/utils/images.js` asset map |
-| `react env list` | List Vite environment variables from `.env` |
-| `react env add VITE_SERVER_URL <url>` | Add or update a `VITE_` environment variable |
-| `react env remove VITE_SERVER_URL` | Remove a `VITE_` environment variable |
-| `react make f components/ui` | Create a directory under `src/` |
-| `react make components Button` | Create a file inside an existing `src` directory |
-| `react asset` | Create `public/images` and `public/fonts` folders |
-| `react watch` | Log frontend `fetch()` & browser Axios/XHR responses |
+| `react set api --get --post` | Generate clean Axios client in `src/services/api.js` with selected methods (`--get`, `--post`, `--del`, `--put`, `--patch`) |
 | `react push --github <url/msg>` | Stage, commit, and push updates to Git remote repository |
 
 ---
@@ -334,14 +323,47 @@ Scans `public/fonts/` for `.ttf`, `.woff`, `.woff2`, and `.otf` files:
 react set --font
 ```
 
-### 9. Image Asset Map Generator (`react set --image`)
+### 9. Simplified API Service Generator (`react set api`)
 
-Scans `public/images/` and outputs a camelCased asset map in `src/utils/images.js`:
+Generates a lightweight Axios client in `src/services/api.js` based on selected method flags (`--get`, `--post`, `--del`, `--put`, `--patch`):
+
+```bash
+react set api --get --post --del --put
+```
+
+Outputs a clean wrapper with standard method signatures:
 
 ```javascript
-import { images } from '../utils/images'
+import axios from 'axios'
 
-const Banner = () => <img src={images.heroBanner} alt="Hero" />
+const API = axios.create({
+  baseURL: import.meta.env.VITE_SERVER_URL || 'http://localhost:3000',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+export const api = {
+  get: (url, config = {}) => API.get(url, config),
+  post: (url, data, config = {}) => API.post(url, data, config),
+  put: (url, data, config = {}) => API.put(url, data, config),
+  del: (url, config = {}) => API.delete(url, config),
+  delete: (url, config = {}) => API.delete(url, config),
+}
+
+export default api
+```
+
+Usage in your components:
+
+```javascript
+// calling post with data and optional config headers
+const data = await api.post('/api/userdata', { username: 'john' }, { headers: { 'X-Custom': 'value' } })
+setUserData(data.data)
+
+// calling get
+const res = await api.get('/api/users')
+setUsers(res.data)
 ```
 
 ---

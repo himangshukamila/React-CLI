@@ -4,9 +4,8 @@ import { section, pass, fail, typeText } from '../ui/banner.js'
 import {
   ensureDir,
   ensureDeps,
-  writeFile,
   pathExists,
-  socketContent,
+  configureSocket,
   printerContent,
 } from '../shared.js'
 import { writeGenerated } from './safeWrite.js'
@@ -21,8 +20,7 @@ export const configurePrinterBoilerplate = async (projectPath: string = process.
     const servicesDir = path.join(projectPath, 'src', 'services')
     const socketPath = path.join(servicesDir, 'socket.js')
     if (!(await pathExists(socketPath))) {
-      await ensureDir(servicesDir)
-      await writeFile(socketPath, socketContent)
+      await configureSocket(projectPath)
       pass('created src/services/socket.js')
     }
 

@@ -5,36 +5,6 @@ import chalk from 'chalk'
 import { section, pass, warn, fail, typeText } from '../ui/banner.js'
 import { ensureDir, writeFile, pathExists, readFile, readDir, stat } from '../shared.js'
 
-export const createAssetFolders = async (): Promise<void> => {
-  try {
-    const pkgJsonPath = path.join(process.cwd(), 'package.json')
-    if (!(await pathExists(pkgJsonPath))) {
-      throw new Error('Not inside a React project. Run this from your app folder.')
-    }
-
-    const folders = [
-      path.join(process.cwd(), 'public', 'assets', 'images'),
-      path.join(process.cwd(), 'public', 'assets', 'icons'),
-      path.join(process.cwd(), 'public', 'assets', 'fonts'),
-    ]
-
-    section('asset', 'create asset folders')
-
-    for (const folderPath of folders) {
-      const relativePath = path.relative(process.cwd(), folderPath)
-      if (await pathExists(folderPath)) {
-        warn(`folder already exists: ${relativePath}`)
-        continue
-      }
-
-      await ensureDir(folderPath)
-      pass(`created ${relativePath}`)
-    }
-  } catch (error: any) {
-    fail(error.message)
-  }
-}
-
 export const escapeRegExp = (str: string): string => {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -454,96 +424,6 @@ export const configureFontAssets = async (): Promise<void> => {
 
     await writeFile(indexCssPath, updatedCss)
     await typeText(chalk.green.bold('\n✅ src/index.css successfully updated with custom font classes!'))
-  } catch (error: any) {
-    fail(error.message)
-  }
-}
-
-export const getImageFiles = async (dir: string, filesList: string[] = []): Promise<string[]> => {
-  const entries = await readDir(dir).catch(() => [])
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry)
-    const stats = await stat(fullPath)
-    if (stats.isDirectory()) {
-      await getImageFiles(fullPath, filesList)
-    } else {
-      const ext = path.extname(entry).toLowerCase()
-      if (['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.bmp'].includes(ext)) {
-        filesList.push(fullPath)
-      }
-    }
-  }
-  return filesList
-}
-
-export const getImageKey = (filePath: string, imagesDir: string): string => {
-  const relativePath = path.relative(imagesDir, filePath)
-  const ext = path.extname(relativePath)
-  const baseName = relativePath.slice(0, -ext.length)
-  const parts = baseName.split(/[\\/_\-\s]+/).filter(Boolean)
-
-  if (parts.length === 0) return 'image'
-
-  return parts
-    .map((part, index) => {
-      const cleanPart = part.replace(/[^a-zA-Z0-9]/g, '')
-      if (index === 0) {
-        return cleanPart.toLowerCase()
-      }
-      return cleanPart.charAt(0).toUpperCase() + cleanPart.slice(1).toLowerCase()
-    })
-    .join('')
-}
-
-export const configureImageAssets = async (): Promise<void> => {
-  try {
-    const imagesDirPrimary = path.join(process.cwd(), 'public', 'images')
-    const imagesDirSecondary = path.join(process.cwd(), 'public', 'assets', 'images')
-    const utilsDir = path.join(process.cwd(), 'src', 'utils')
-    const imagesJsPath = path.join(utilsDir, 'images.js')
-
-    const hasPrimary = await pathExists(imagesDirPrimary)
-    const hasSecondary = await pathExists(imagesDirSecondary)
-
-    if (!hasPrimary && !hasSecondary) {
-      throw new Error(`Directory public/images or public/assets/images does not exist. Run 'react asset' or create it first.`)
-    }
-
-    const imageItems: { filePath: string; dir: string }[] = []
-    if (hasPrimary) {
-      const files = await getImageFiles(imagesDirPrimary)
-      imageItems.push(...files.map((f) => ({ filePath: f, dir: imagesDirPrimary })))
-    }
-    if (hasSecondary) {
-      const files = await getImageFiles(imagesDirSecondary)
-      imageItems.push(...files.map((f) => ({ filePath: f, dir: imagesDirSecondary })))
-    }
-
-    if (imageItems.length === 0) {
-      console.log(chalk.yellow('No image files found under public/images/ or public/assets/images/'))
-      return
-    }
-
-    section('image auto-config', 'scanning and mapping local images')
-
-    const imageMap: Record<string, string> = {}
-    for (const item of imageItems) {
-      const key = getImageKey(item.filePath, item.dir)
-      const relativeUrlPath = getRelativeUrlPath(item.filePath)
-      imageMap[key] = relativeUrlPath
-      pass(`mapped image: ${key} ➔ ${relativeUrlPath}`)
-    }
-
-    const sortedKeys = Object.keys(imageMap).sort()
-    let jsContent = 'export const images = {\n'
-    for (const key of sortedKeys) {
-      jsContent += `  ${key}: ${JSON.stringify(imageMap[key])},\n`
-    }
-    jsContent += '}\n'
-
-    await ensureDir(utilsDir)
-    await writeFile(imagesJsPath, jsContent)
-    await typeText(chalk.green.bold('\n✅ src/utils/images.js successfully generated with custom image constants!'))
   } catch (error: any) {
     fail(error.message)
   }
