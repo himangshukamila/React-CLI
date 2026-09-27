@@ -1,6 +1,6 @@
 {
   "name": "zecron-cli",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Scaffold a Vite + React project with optional packages",
   "type": "module",
   "license": "MIT",
