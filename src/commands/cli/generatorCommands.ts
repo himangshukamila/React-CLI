@@ -123,6 +123,32 @@ export const registerGeneratorCommands = (program: Command): void => {
       }
     })
 
+  // alias get command inside anshh for component generation without package installs
+  program
+    .command('get [target]')
+    .description('Generate components or helpers (e.g. anshh get button, anshh get wrapper)')
+    .allowUnknownOption()
+    .action(async (target: string | undefined) => {
+      const rawArgs = process.argv.slice(3)
+      const lowerTarget = (target || '').toLowerCase()
+      if (lowerTarget === 'button' || lowerTarget === 'btn') {
+        await configureButton()
+      } else if (lowerTarget === 'wrapper') {
+        await configureWrapper()
+      } else if (lowerTarget === 'loader') {
+        await configureLoaderBoilerplate()
+      } else if (lowerTarget === 'printer' || lowerTarget === 'print') {
+        await configurePrinterBoilerplate()
+      } else if (lowerTarget === 'form') {
+        await configureFormBoilerplate(rawArgs)
+      } else if (lowerTarget === 'socket') {
+        await configureSocket(process.cwd())
+      } else {
+        console.log(chalk.yellow(`Tip: To install npm packages, use the standalone get command: get ${target || '<package>'}`))
+        console.log(chalk.hex('#94A3B8')('To generate components, use: anshh set button, anshh set form, anshh set loader, anshh set wrapper'))
+      }
+    })
+
   program
     .command('remove [target]')
     .description('Remove a configured feature or library (e.g. zecron remove logscan)')
