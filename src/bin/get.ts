@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
+import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { typeText } from '../ui/banner.js';
@@ -87,29 +89,57 @@ export interface InstallPackagesOptions {
   dev?: boolean;
 }
 
-const installPackages = async (
-  packageNames: string[],
-  options: InstallPackagesOptions,
+export const installPackages = async (
+  packageNames: string[] = [],
+  options: InstallPackagesOptions = {},
 ): Promise<void> => {
   try {
-    if (packageNames.length === 0) {
-      fail("Provide at least one package to install");
-    }
-
-    for (const packageName of packageNames) {
-      validatePackageName(packageName);
-    }
-
     const projectPath = process.cwd();
     const packageJsonPath = path.join(projectPath, "package.json");
     if (!(await pathExists(packageJsonPath))) {
       fail("Not inside a node project. Run react first.");
     }
 
-    const resolvedPackages = packageNames.map(resolvePackageName);
+    const pm = await detectPackageManager();
 
-    for (let i = 0; i < packageNames.length; i++) {
-      const packageName = packageNames[i];
+    // flatten and normalize package arguments in case of multiple values or commas
+    const rawPackages = Array.isArray(packageNames)
+      ? packageNames
+      : typeof packageNames === "string"
+        ? [packageNames]
+        : [];
+
+    const cleanedPackages = rawPackages
+      .flatMap((item) => (typeof item === "string" ? item.split(/[,\s]+/) : []))
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    // if no packages provided run default install like npm i
+    if (cleanedPackages.length === 0) {
+      await typeText(chalk.cyan(`Installing dependencies with ${pm}...`), 10);
+      const res = await runCommand(
+        pm,
+        ["install"],
+        { cwd: projectPath },
+        "Failed to install dependencies",
+      );
+      const out = (res?.stdout || res?.stderr || "").trim();
+      if (out) {
+        await typeText(formatInstallOutput(out), 12);
+      }
+      await typeText(chalk.green(`Installed dependencies ✓`), 18);
+      return;
+    }
+
+    // validate and resolve requested packages
+    for (const packageName of cleanedPackages) {
+      validatePackageName(packageName);
+    }
+
+    const resolvedPackages = cleanedPackages.map(resolvePackageName);
+
+    for (let i = 0; i < cleanedPackages.length; i++) {
+      const packageName = cleanedPackages[i];
       const resolvedPackage = resolvedPackages[i];
       if (packageName !== resolvedPackage) {
         await typeText(chalk.blue(`${packageName} -> ${resolvedPackage}`), 10);
@@ -119,8 +149,8 @@ const installPackages = async (
     const normalPackages: string[] = [];
     const devPackages: string[] = [];
 
-    for (let index = 0; index < packageNames.length; index++) {
-      const packageName = packageNames[index];
+    for (let index = 0; index < cleanedPackages.length; index++) {
+      const packageName = cleanedPackages[index];
       const baseName = getBasePackageName(packageName);
       const resolvedPackage = resolvedPackages[index];
       const isTailwind =
@@ -128,7 +158,11 @@ const installPackages = async (
         getBasePackageName(resolvedPackage) === "tailwindcss";
 
       if (isTailwind) {
-        normalPackages.push("tailwindcss", "@tailwindcss/vite");
+        if (options.dev) {
+          devPackages.push("tailwindcss", "@tailwindcss/vite");
+        } else {
+          normalPackages.push("tailwindcss", "@tailwindcss/vite");
+        }
       } else if (options.dev) {
         devPackages.push(resolvedPackage);
       } else {
@@ -138,15 +172,19 @@ const installPackages = async (
 
     const uniqueNormalPackages = [...new Set(normalPackages)];
     const uniqueDevPackages = [...new Set(devPackages)];
+    const allPackagesToInstall = [...uniqueNormalPackages, ...uniqueDevPackages];
 
-    const pm = await detectPackageManager();
+    await typeText(
+      chalk.cyan(`Installing ${allPackagesToInstall.join(", ")} with ${pm}...`),
+      10,
+    );
 
     if (uniqueNormalPackages.length > 0) {
       let args: string[] = [];
       if (pm === "bun" || pm === "pnpm" || pm === "yarn") {
-        args = ["add", "--", ...uniqueNormalPackages];
+        args = ["add", ...uniqueNormalPackages];
       } else {
-        args = ["install", "--", ...uniqueNormalPackages];
+        args = ["install", ...uniqueNormalPackages];
       }
       const res = await runCommand(
         pm,
@@ -163,9 +201,9 @@ const installPackages = async (
     if (uniqueDevPackages.length > 0) {
       let devArgs: string[] = [];
       if (pm === "bun" || pm === "pnpm" || pm === "yarn") {
-        devArgs = ["add", "-D", "--", ...uniqueDevPackages];
+        devArgs = ["add", "-D", ...uniqueDevPackages];
       } else {
-        devArgs = ["install", "-D", "--", ...uniqueDevPackages];
+        devArgs = ["install", "-D", ...uniqueDevPackages];
       }
       const devRes = await runCommand(
         pm,
@@ -180,7 +218,7 @@ const installPackages = async (
     }
 
     const handlersToRun = new Set<string>();
-    for (const packageName of packageNames) {
+    for (const packageName of cleanedPackages) {
       const baseName = getBasePackageName(packageName);
       const resolvedPackage = resolvePackageName(packageName);
       const resolvedBase = getBasePackageName(resolvedPackage);
@@ -202,6 +240,18 @@ const installPackages = async (
   }
 };
 
+// check if get was executed directly as entry script rather than imported
+const isMainModule = (): boolean => {
+  if (!process.argv[1]) return false;
+  try {
+    const scriptPath = fs.realpathSync(process.argv[1]);
+    const modulePath = fs.realpathSync(fileURLToPath(import.meta.url));
+    return scriptPath === modulePath;
+  } catch {
+    return false;
+  }
+};
+
 const program = new Command();
 
 program
@@ -211,6 +261,8 @@ program
   .option("--dev", "install as dev dependencies")
   .action(installPackages);
 
-program.parseAsync(process.argv).catch((error: any) => {
-  fail(error.message);
-});
+if (isMainModule()) {
+  program.parseAsync(process.argv).catch((error: any) => {
+    fail(error.message);
+  });
+}

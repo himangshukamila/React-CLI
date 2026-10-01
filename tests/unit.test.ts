@@ -249,6 +249,7 @@ test('registerAllCommands correctly registers all modular commands', async () =>
   for (const name of expectedCommands) {
     assert.ok(commandNames.includes(name), `Command ${name} should be registered`)
   }
+  assert.ok(!commandNames.includes('get'), 'get command should not be registered as anshh subcommand')
   assert.ok(!commandNames.includes('doctor'), 'doctor command should not be registered')
   assert.ok(!commandNames.includes('env'), 'env command should not be registered')
   assert.ok(!commandNames.includes('watch'), 'watch command should not be registered')
@@ -449,5 +450,23 @@ test('generateApiFileContent with bonjour enables dynamic bonjour ip request int
   assert.ok(content.includes('getApiBaseUrl()'))
   assert.ok(content.includes('API.interceptors.request.use'))
   assert.ok(content.includes('config.baseURL = dynamicUrl'))
+})
+
+test('installPackages is exported from get binary and callable', async () => {
+  const { installPackages } = await import('../src/bin/get.js')
+  assert.equal(typeof installPackages, 'function')
+})
+
+test('isSafeRemoteUrl accepts valid https, ssh, and custom domain git urls', async () => {
+  const { isSafeRemoteUrl } = await import('../src/commands/git.js')
+
+  assert.equal(isSafeRemoteUrl('https://github.com/user/repo.git'), true)
+  assert.equal(isSafeRemoteUrl('https://git.4brains.in/himangshu.kamila/Tote-Bag-Printer.git'), true)
+  assert.equal(isSafeRemoteUrl('git@github.com:user/repo.git'), true)
+  assert.equal(isSafeRemoteUrl('ssh://git@git.4brains.in:22/user/repo.git'), true)
+
+  assert.equal(isSafeRemoteUrl(''), false)
+  assert.equal(isSafeRemoteUrl('not-a-url'), false)
+  assert.equal(isSafeRemoteUrl('ext::sh -c evil'), false)
 })
 

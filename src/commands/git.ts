@@ -321,7 +321,7 @@ const clearStatusLine = (): void => {
 
 export interface GitPushOptions {
   github?: string | boolean
-  git?: string
+  git?: string | boolean
   message?: string
 }
 
@@ -330,82 +330,38 @@ export const gitPushWrapper = async (options: GitPushOptions): Promise<void> => 
   const gitDirExists = await pathExists(path.join(process.cwd(), '.git'))
   const autoCommitMessage = await generateAutoCommitMessage()
 
-  if (options.github) {
-    const isGitHubUrl = typeof options.github === 'string' && (/^(https?:\/\/|git@|git:\/\/)/.test(options.github) || options.github.endsWith('.git'))
-    const isFlagOnly = options.github === true
+  // validate if git flag was provided without a url
+  if (options.git === true) {
+    fail('Please provide a remote URL: anshh push --git <url>')
+  }
 
-    if (isGitHubUrl) {
-      if (!isSafeRemoteUrl(options.github)) {
-        fail('Unsafe git remote URL. Use an https://, ssh://, git:// or git@host:path URL.')
-      }
-      steps.push(
-        {
-          label: 'Initialize Git repository',
-          cmd: 'git',
-          args: ['init'],
-        },
-        {
-          label: 'Stage all files',
-          cmd: 'git',
-          args: ['add', '.'],
-        },
-        {
-          label: `Create first commit: "${autoCommitMessage}"`,
-          cmd: 'git',
-          args: ['commit', '-m', autoCommitMessage],
-        },
-        {
-          label: 'Rename branch to main',
-          cmd: 'git',
-          args: ['branch', '-M', 'main'],
-        },
-        {
-          label: `Add remote origin (${options.github})`,
-          cmd: 'git',
-          args: ['remote', 'add', 'origin', options.github as string],
-        },
-        {
-          label: 'Push branch main to origin',
-          cmd: 'git',
-          args: ['push', '--progress', '-u', 'origin', 'main'],
-        },
-      )
-    } else {
-      if (!gitDirExists) {
-        fail('Error: This directory is not a Git repository. Please initialize it by providing the remote URL: react push --github <url>')
-      }
-      const commitMessage = isFlagOnly ? autoCommitMessage : (options.github as string)
-      steps.push(
-        {
-          label: 'Stage all files',
-          cmd: 'git',
-          args: ['add', '.'],
-        },
-        {
-          label: `Create commit: "${commitMessage}"`,
-          cmd: 'git',
-          args: ['commit', '-m', commitMessage],
-        },
-        {
-          label: 'Push changes',
-          cmd: 'git',
-          args: ['push', '--progress'],
-        },
-      )
-    }
+  // resolve remote repository url from git or github options
+  let remoteUrl: string | undefined
+  if (typeof options.git === 'string' && options.git.trim()) {
+    remoteUrl = options.git.trim()
+  } else if (
+    typeof options.github === 'string' &&
+    (/^(https?:\/\/|git@|git:\/\/)/.test(options.github) || options.github.endsWith('.git'))
+  ) {
+    remoteUrl = options.github.trim()
+  }
+
+  // resolve commit message from message flag or github text argument
+  let commitMessage: string
+  if (typeof options.message === 'string' && options.message.trim()) {
+    commitMessage = options.message.trim()
+  } else if (typeof options.github === 'string' && !remoteUrl) {
+    commitMessage = options.github.trim()
   } else {
-    const repoUrl = options.git
-    const commitMessage = options.message || autoCommitMessage
+    commitMessage = autoCommitMessage
+  }
 
-    if (repoUrl && !isSafeRemoteUrl(repoUrl)) {
+  if (remoteUrl) {
+    if (!isSafeRemoteUrl(remoteUrl)) {
       fail('Unsafe git remote URL. Use an https://, ssh://, git:// or git@host:path URL.')
     }
 
-    if (!gitDirExists && !repoUrl) {
-      fail('Error: This directory is not a Git repository. Please initialize it by providing the remote URL: react push --git <url>')
-    }
-
-    if (!gitDirExists && repoUrl) {
+    if (!gitDirExists) {
       steps.push(
         {
           label: 'Initialize Git repository',
@@ -413,50 +369,91 @@ export const gitPushWrapper = async (options: GitPushOptions): Promise<void> => 
           args: ['init'],
         },
         {
-          label: 'Create and switch to main branch',
+          label: `Add remote origin (${remoteUrl})`,
           cmd: 'git',
-          args: ['checkout', '-b', 'main'],
-        },
-        {
-          label: 'Stage all files',
-          cmd: 'git',
-          args: ['add', '.'],
-        },
-        {
-          label: `Create first commit: "${commitMessage}"`,
-          cmd: 'git',
-          args: ['commit', '-m', commitMessage],
-        },
-        {
-          label: `Add remote origin (${repoUrl})`,
-          cmd: 'git',
-          args: ['remote', 'add', 'origin', repoUrl],
-        },
-        {
-          label: 'Push branch main to origin',
-          cmd: 'git',
-          args: ['push', '--progress', '-u', 'origin', 'main'],
+          args: ['remote', 'add', 'origin', remoteUrl],
         },
       )
     } else {
-      steps.push(
-        {
-          label: 'Stage all files',
+      // check if remote origin already exists in local repository
+      let hasOrigin = false
+      try {
+        const remotesRes = await execa('git', ['remote'], { cwd: process.cwd(), reject: false })
+        const existingRemotes = (remotesRes.stdout || '').split('\n').map((r) => r.trim()).filter(Boolean)
+        hasOrigin = existingRemotes.includes('origin')
+      } catch {}
+
+      if (hasOrigin) {
+        steps.push({
+          label: `Update remote origin (${remoteUrl})`,
           cmd: 'git',
-          args: ['add', '.'],
-        },
-        {
-          label: `Create commit: "${commitMessage}"`,
+          args: ['remote', 'set-url', 'origin', remoteUrl],
+        })
+      } else {
+        steps.push({
+          label: `Add remote origin (${remoteUrl})`,
           cmd: 'git',
-          args: ['commit', '-m', commitMessage],
-        },
-        {
-          label: 'Push branch main to origin',
-          cmd: 'git',
-          args: ['push', '--progress', '-u', 'origin', 'main'],
-        },
-      )
+          args: ['remote', 'add', 'origin', remoteUrl],
+        })
+      }
     }
+
+    steps.push(
+      {
+        label: 'Stage all files',
+        cmd: 'git',
+        args: ['add', '.'],
+      },
+      {
+        label: `Create commit: "${commitMessage}"`,
+        cmd: 'git',
+        args: ['commit', '-m', commitMessage],
+      },
+      {
+        label: 'Ensure main branch',
+        cmd: 'git',
+        args: ['branch', '-M', 'main'],
+      },
+      {
+        label: 'Push branch main to origin',
+        cmd: 'git',
+        args: ['push', '--progress', '-u', 'origin', 'main'],
+      },
+    )
+  } else {
+    if (!gitDirExists) {
+      fail('Error: This directory is not a Git repository. Please initialize it by providing the remote URL: anshh push --git <url>')
+    }
+
+    // verify repository has remote origin configured
+    let hasOrigin = false
+    try {
+      const remotesRes = await execa('git', ['remote'], { cwd: process.cwd(), reject: false })
+      const existingRemotes = (remotesRes.stdout || '').split('\n').map((r) => r.trim()).filter(Boolean)
+      hasOrigin = existingRemotes.includes('origin')
+    } catch {}
+
+    if (!hasOrigin) {
+      fail('Error: Remote "origin" is not configured. Please specify the remote URL: anshh push --git <url>')
+    }
+
+    steps.push(
+      {
+        label: 'Stage all files',
+        cmd: 'git',
+        args: ['add', '.'],
+      },
+      {
+        label: `Create commit: "${commitMessage}"`,
+        cmd: 'git',
+        args: ['commit', '-m', commitMessage],
+      },
+      {
+        label: 'Push branch main to origin',
+        cmd: 'git',
+        args: ['push', '--progress', '-u', 'origin', 'main'],
+      },
+    )
   }
 
   section('git setup & push', gitDirExists ? 'pushing updates' : 'linking workspace to remote')

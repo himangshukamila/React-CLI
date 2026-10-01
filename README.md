@@ -170,7 +170,8 @@ react list -c
 | `react set api --get --post` | Generate clean Axios client in `src/services/api.js` with selected methods (`--get`, `--post`, `--del`, `--put`, `--patch`) |
 | `react set logscan` | Wire the logscan in-app console panel as a dev dependency |
 | `react remove logscan` | Remove logscan bootstrap code and uninstall the library |
-| `react push --github <url/msg>` | Stage, commit, and push updates to Git remote repository |
+| `get [packages...]` | Install project dependencies (like `npm i`) or install specific packages |
+| `react push [--git <url>] [-m <msg>]` | Stage, commit, and push updates to Git remote repository |
 
 ---
 
