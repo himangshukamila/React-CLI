@@ -7,6 +7,7 @@ import { configurePrinterBoilerplate } from '../../generators/printer.js'
 import { configureBonjourBoilerplate } from '../../generators/bonjour.js'
 import { configureButton } from '../../generators/button.js'
 import { configureWrapper } from '../../generators/wrapper.js'
+import { configureLogscan, removeLogscan } from '../../generators/logscan.js'
 import { configureApiMethods, configureWebSocket, configureSocket } from '../../shared.js'
 
 export const registerGeneratorCommands = (program: Command): void => {
@@ -17,6 +18,7 @@ export const registerGeneratorCommands = (program: Command): void => {
     .option('--ws', 'Generate src/services/webSocket.js with auto-reconnect and message handlers')
     .option('--socket', 'Generate src/services/socket.js with socket.io-client connection')
     .option('--bonjour', 'Wire 4b-react-mdns network discovery and scaffold the discovery page')
+    .option('--logscan', 'Wire the logscan in-app console panel as a dev dependency')
     .option('--api', 'Generate src/services/api.js with the requested request methods')
     .option('--get', 'Include GET method in API service')
     .option('--post', 'Include POST method in API service')
@@ -54,6 +56,7 @@ export const registerGeneratorCommands = (program: Command): void => {
         websocket: 'ws',
         socket: 'socket',
         api: 'api',
+        logscan: 'logscan',
       }
 
       // the root command declares some of the same flags (--printer, --bonjour)
@@ -84,11 +87,13 @@ export const registerGeneratorCommands = (program: Command): void => {
         await configureWebSocket()
       } else if (kind === 'socket') {
         await configureSocket(process.cwd())
+      } else if (kind === 'logscan') {
+        await configureLogscan()
       } else if (kind === 'api' || requestedMethods.length > 0 || hasAuthFlag) {
         const methodsToSet = requestedMethods.length > 0 ? requestedMethods : ['get', 'post']
         await configureApiMethods(methodsToSet, { auth: hasAuthFlag })
       } else {
-        console.error(chalk.red('Error: Please specify what to set (e.g. zecron set api -get -post, zecron set button, zecron set wrapper, zecron set ws, zecron set socket, or zecron set bonjour)'))
+        console.error(chalk.red('Error: Please specify what to set (e.g. zecron set api -get -post, zecron set button, zecron set wrapper, zecron set ws, zecron set socket, zecron set logscan, or zecron set bonjour)'))
         process.exit(1)
       }
     })
@@ -114,6 +119,27 @@ export const registerGeneratorCommands = (program: Command): void => {
         await configureSocket(process.cwd())
       } else {
         console.error(chalk.red('Error: Please specify what to make (e.g. zecron make form, zecron make loader, zecron make printer, zecron make button, or zecron make wrapper)'))
+        process.exit(1)
+      }
+    })
+
+  program
+    .command('remove [target]')
+    .description('Remove a configured feature or library (e.g. zecron remove logscan)')
+    .option('--logscan', 'Remove logscan code and library')
+    .allowUnknownOption()
+    .action(async (target: string | undefined, options: Record<string, any>) => {
+      const rawArgs = process.argv.slice(3)
+      const lowerTarget = (target || '').toLowerCase()
+      const isLogscan =
+        lowerTarget === 'logscan' ||
+        Boolean(options.logscan) ||
+        rawArgs.some((a) => a.toLowerCase().replace(/^--?/, '') === 'logscan')
+
+      if (isLogscan) {
+        await removeLogscan()
+      } else {
+        console.error(chalk.red('Error: Please specify what to remove (e.g. zecron remove logscan)'))
         process.exit(1)
       }
     })

@@ -168,6 +168,8 @@ react list -c
 | `react set form -bio:textarea` | Override a field's guessed input type with `key:type` |
 | `react set --font` | Scan `public/fonts` and register `@font-face` rules in `src/index.css` |
 | `react set api --get --post` | Generate clean Axios client in `src/services/api.js` with selected methods (`--get`, `--post`, `--del`, `--put`, `--patch`) |
+| `react set logscan` | Wire the logscan in-app console panel as a dev dependency |
+| `react remove logscan` | Remove logscan bootstrap code and uninstall the library |
 | `react push --github <url/msg>` | Stage, commit, and push updates to Git remote repository |
 
 ---

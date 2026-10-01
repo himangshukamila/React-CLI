@@ -644,15 +644,32 @@ export const createViteApp = async (commandTarget?: string, projectPath?: string
 
 export const runPackageInstall = async (
   packages: string[],
-  options: ExecaOptions = {},
+  options: ExecaOptions & { dev?: boolean } = {},
   message: string = 'Failed to install packages'
+) => {
+  const pm = await detectPackageManager()
+  const { dev, ...execOptions } = options
+  let args: string[] = []
+  if (pm === 'bun' || pm === 'yarn' || pm === 'pnpm') {
+    args = ['add', ...(dev ? ['-D'] : []), ...packages]
+  } else {
+    args = ['install', ...(dev ? ['-D'] : []), ...packages]
+  }
+  return runCommand(pm, args, { stdio: 'inherit', ...execOptions }, message)
+}
+
+// run package uninstallation with the active package manager
+export const runPackageUninstall = async (
+  packages: string[],
+  options: ExecaOptions = {},
+  message: string = 'Failed to uninstall packages'
 ) => {
   const pm = await detectPackageManager()
   let args: string[] = []
   if (pm === 'bun' || pm === 'yarn' || pm === 'pnpm') {
-    args = ['add', ...packages]
+    args = ['remove', ...packages]
   } else {
-    args = ['install', ...packages]
+    args = ['uninstall', ...packages]
   }
   return runCommand(pm, args, { stdio: 'inherit', ...options }, message)
 }
@@ -720,7 +737,11 @@ export const readProjectPackageJson = async (projectPath: string): Promise<any> 
 }
 
 // install only what the project is missing, with the package manager it already uses
-export const ensureDeps = async (projectPath: string, packages: string[]): Promise<string[]> => {
+export const ensureDeps = async (
+  projectPath: string,
+  packages: string[],
+  options: { dev?: boolean } = {}
+): Promise<string[]> => {
   const pkgJson = await readProjectPackageJson(projectPath)
   const allDeps: Record<string, string> = {
     ...(pkgJson.dependencies || {}),
@@ -731,7 +752,7 @@ export const ensureDeps = async (projectPath: string, packages: string[]): Promi
   const missing = packages.filter((spec) => !allDeps[getBasePackageName(spec)])
   if (missing.length === 0) return []
 
-  await runPackageInstall(missing, { cwd: projectPath }, `Failed to install ${missing.join(', ')}`)
+  await runPackageInstall(missing, { cwd: projectPath, dev: options.dev }, `Failed to install ${missing.join(', ')}`)
   return missing
 }
 

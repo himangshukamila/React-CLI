@@ -193,6 +193,23 @@ test('addLogscanBootstrap starts logscan before render without touching the rend
   assert.equal(addLogscanBootstrap(viteEntry.replace('<App />', '<App /><LogScanner visible />')).status, 'legacy')
 })
 
+test('removeLogscanBootstrap removes the logscan bootstrap cleanly from entry file', async () => {
+  const { addLogscanBootstrap, removeLogscanBootstrap } = await import('../src/generators/logscan.js')
+
+  const { source: addedSource } = addLogscanBootstrap(viteEntry)
+  assert.ok(addedSource.includes('mountLogScanner'))
+
+  const { source: removedSource, status } = removeLogscanBootstrap(addedSource)
+  assert.equal(status, 'removed')
+  assert.ok(!removedSource.includes('mountLogScanner'))
+  assert.ok(!removedSource.includes('logscan'))
+  assert.ok(removedSource.includes('createRoot('))
+
+  // removing when absent returns status absent
+  const { status: absentStatus } = removeLogscanBootstrap(viteEntry)
+  assert.equal(absentStatus, 'absent')
+})
+
 test('mountAdminTrigger renders the trigger once, inside MdnsProvider', async () => {
   const { mountAdminTrigger } = await import('../src/generators/bonjour.js')
 
@@ -227,7 +244,7 @@ test('registerAllCommands correctly registers all modular commands', async () =>
   registerAllCommands(program)
 
   const commandNames = program.commands.map((cmd) => cmd.name())
-  const expectedCommands = ['zecron', 'list', 'audit', 'update', 'run', 'build', 'open', 'set', 'make', 'push']
+  const expectedCommands = ['zecron', 'list', 'audit', 'update', 'run', 'build', 'open', 'set', 'make', 'push', 'remove']
 
   for (const name of expectedCommands) {
     assert.ok(commandNames.includes(name), `Command ${name} should be registered`)

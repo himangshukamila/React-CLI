@@ -490,6 +490,7 @@ export const createProject = async (targetName?: string, options: Record<string,
     }
 
     const batchPackages: string[] = []
+    const batchDevPackages: string[] = []
     selections.selectedPackages.forEach((pkgName) => {
       const deps = packageMap[pkgName]
       if (deps) {
@@ -503,8 +504,8 @@ export const createProject = async (targetName?: string, options: Record<string,
       batchPackages.push(mdnsPackageName)
     }
 
-    if (selections.selectedSetup.includes('logscan') && !batchPackages.includes(logscanPackageSpec)) {
-      batchPackages.push(logscanPackageSpec)
+    if (selections.selectedSetup.includes('logscan') && !batchDevPackages.includes(logscanPackageSpec)) {
+      batchDevPackages.push(logscanPackageSpec)
     }
 
     await progress.step(async () => {
@@ -515,6 +516,13 @@ export const createProject = async (targetName?: string, options: Record<string,
           installArgs = ['add', ...batchPackages]
         }
         await execa(pm, installArgs, { cwd: projectPath, reject: false })
+      }
+      if (batchDevPackages.length > 0) {
+        let devArgs = ['install', '-D', ...batchDevPackages]
+        if (pm === 'bun' || pm === 'pnpm' || pm === 'yarn') {
+          devArgs = ['add', '-D', ...batchDevPackages]
+        }
+        await execa(pm, devArgs, { cwd: projectPath, reject: false })
       }
       await runCommand(pm, ['install'], { cwd: projectPath }, 'Failed to install project dependencies')
     })
