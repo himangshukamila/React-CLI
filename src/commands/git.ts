@@ -1,6 +1,8 @@
 import path from 'node:path'
 import readline from 'node:readline'
+import { stripVTControlCharacters } from 'node:util'
 import chalk from 'chalk'
+import stringWidth from 'string-width'
 import { execa } from 'execa'
 import { section, fail, typeText, accent, muted } from '../ui/banner.js'
 import { pathExists } from '../shared.js'
@@ -193,25 +195,70 @@ interface GitStepOutput {
   stopProgress?: () => void
 }
 
-class SmoothGitProgressTracker {
+const graphemes = new Intl.Segmenter()
+
+// Leave the last terminal column empty to avoid automatic line wrapping.
+export const fitGitStatusLine = (text: string, columns: number = process.stdout.columns || 80): string => {
+  const width = Math.max(0, columns - 1)
+  const singleLine = text.replace(/[\r\n\t]/g, ' ')
+  if (width === 0) return ''
+  if (stringWidth(singleLine) <= width) return singleLine
+
+  let fitted = ''
+  let used = 0
+  for (const part of singleLine.split(/(\x1B\[[0-9;]*m)/g)) {
+    if (part.startsWith('\x1B[')) {
+      fitted += part
+      continue
+    }
+    for (const { segment } of graphemes.segment(part)) {
+      const size = stringWidth(segment)
+      if (used + size > width - 1) return `${fitted}…\x1B[0m`
+      fitted += segment
+      used += size
+    }
+  }
+  return fitted
+}
+
+type GitProgressStream = NodeJS.WritableStream & { isTTY?: boolean; columns?: number }
+
+export class SmoothGitProgressTracker {
   private currentPercent = 0
   private targetPercent = 0
   private timer: NodeJS.Timeout | null = null
   private active = false
-  private label = 'Push changes'
+  private finishing = false
+  private phase = ''
+  private status = ''
+  private rendered = ''
+  private renderedColumns = 0
 
-  setLabel(label: string) {
-    this.label = label
+  constructor(private readonly stream: GitProgressStream = process.stdout) {}
+
+  start(status: string) {
+    this.active = true
+    this.status = status
+    if (!this.stream.isTTY) {
+      this.stream.write(`${status}\n`)
+      return
+    }
+    this.stream.on('resize', this.onResize)
+    this.render(status)
   }
 
   handleLine(text: string) {
-    const match = text.match(/(\d+)%\s*\(\d+\/\d+\)/)
-    if (match) {
-      this.targetPercent = Math.min(100, Math.max(0, Number(match[1])))
-    }
+    if (!this.active || this.finishing || !this.stream.isTTY) return
+    const match = text.match(/^(.*?):\s*(\d+)%\s*\(\d+\/\d+\)/)
+    if (!match) return
 
-    if (!this.active) {
-      this.active = true
+    if (match[1] !== this.phase) {
+      this.phase = match[1]
+      this.currentPercent = 0
+    }
+    this.targetPercent = Math.min(100, Math.max(0, Number(match[2])))
+
+    if (!this.timer) {
       this.startLoop()
     }
   }
@@ -225,61 +272,106 @@ class SmoothGitProgressTracker {
         this.currentPercent = Math.min(this.targetPercent, this.currentPercent + step)
       }
       this.draw()
-    }, 30)
+    }, 60)
+  }
+
+  private onResize = () => {
+    if (this.phase) this.draw()
+    else this.render(this.status)
+  }
+
+  private clear() {
+    if (!this.rendered) return
+
+    // A terminal resize can reflow the previous frame onto several rows.
+    const columns = this.stream.columns || 80
+    let rows = 0
+    let column = 0
+    for (const { segment } of graphemes.segment(stripVTControlCharacters(this.rendered))) {
+      const size = stringWidth(segment)
+      if (column + size > columns) {
+        rows += 1
+        column = 0
+      }
+      column += size
+    }
+    readline.cursorTo(this.stream, 0)
+    if (rows > 0) readline.moveCursor(this.stream, 0, -rows)
+    readline.clearScreenDown(this.stream)
+    this.rendered = ''
+  }
+
+  private render(text: string) {
+    if (!this.active || !this.stream.isTTY) return
+    const columns = this.stream.columns || 80
+    const frame = fitGitStatusLine(text, columns)
+    if (frame === this.rendered && columns === this.renderedColumns) return
+    this.clear()
+    this.stream.write(frame)
+    this.rendered = frame
+    this.renderedColumns = columns
   }
 
   private draw() {
-    if (!process.stdout.isTTY) return
-    readline.cursorTo(process.stdout, 0)
-    readline.clearLine(process.stdout, 0)
-
-    const barWidth = 14
+    const columns = this.stream.columns || 80
+    const barWidth = Math.max(4, Math.min(14, Math.floor(columns / 4)))
     const clamped = Math.min(100, Math.max(0, Math.round(this.currentPercent)))
     const filled = Math.round((clamped / 100) * barWidth)
     const bar = `${chalk.hex('#00E5FF')('█'.repeat(filled))}${chalk.hex('#475569')('·'.repeat(barWidth - filled))}`
     const pct = chalk.hex('#38BDF8').bold(`${String(clamped).padStart(3)}%`)
 
-    process.stdout.write(
-      `${chalk.hex('#EC4899')('⚡ running')}  ${chalk.bold.whiteBright(this.label)} [${bar}] ${pct}`
-    )
+    const prefix = columns >= 60 ? `${chalk.hex('#EC4899')('⚡ running')}  ` : `${accent('›')} `
+    const suffix = ` [${bar}] ${pct}`
+    const labelColumns = columns - stringWidth(prefix + suffix)
+    const label = fitGitStatusLine(this.phase, labelColumns)
+    this.render(labelColumns > 1 ? `${prefix}${chalk.bold.whiteBright(label)}${suffix}` : pct)
   }
 
   async finish(): Promise<void> {
-    if (!this.active) return
+    if (!this.active || this.finishing) return
+    this.finishing = true
+    // Only one animation loop may own the terminal while finishing.
+    this.stopTimer()
     this.targetPercent = 100
-    // smoothly glide to 100 percent so the user can easily see the animation
-    while (this.currentPercent < 100) {
-      const diff = 100 - this.currentPercent
-      const step = Math.max(2, Math.ceil(diff * 0.35))
-      this.currentPercent = Math.min(100, this.currentPercent + step)
-      this.draw()
-      await new Promise((resolve) => setTimeout(resolve, 25))
+    try {
+      if (this.phase) {
+        while (this.active && this.currentPercent < 100) {
+          const diff = 100 - this.currentPercent
+          const step = Math.max(2, Math.ceil(diff * 0.35))
+          this.currentPercent = Math.min(100, this.currentPercent + step)
+          this.draw()
+          await new Promise((resolve) => setTimeout(resolve, 25))
+        }
+        if (this.active) await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+    } finally {
+      this.stop()
     }
-    this.draw()
-    // hold complete frame for a brief visible beat
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    this.stop()
   }
 
-  stop() {
+  private stopTimer() {
     if (this.timer) {
       clearInterval(this.timer)
       this.timer = null
     }
   }
 
+  stop() {
+    this.active = false
+    this.stopTimer()
+    this.stream.removeListener('resize', this.onResize)
+    this.clear()
+  }
+
   get isProgressActive() {
-    return this.active
+    return Boolean(this.phase)
   }
 }
 
 const attachGitOutput = (
   child: { stderr?: NodeJS.ReadableStream | null },
-  canRender: boolean,
-  label: string = 'Push changes'
+  tracker: SmoothGitProgressTracker,
 ): GitStepOutput => {
-  const tracker = new SmoothGitProgressTracker()
-  tracker.setLabel(label)
   const state: GitStepOutput = {
     persistentLines: [],
     get progressActive() {
@@ -299,24 +391,12 @@ const attachGitOutput = (
     for (const { text, persistent } of lines) {
       if (persistent) {
         state.persistentLines.push(text)
-        continue
       }
-
-      if (!canRender) continue
-
       tracker.handleLine(text)
     }
   })
 
   return state
-}
-
-// drop whatever is on the current line so the result can be written over it
-const clearStatusLine = (): void => {
-  if (!process.stdout.isTTY) return
-
-  readline.clearLine(process.stdout, 0)
-  readline.cursorTo(process.stdout, 0)
 }
 
 export interface GitPushOptions {
@@ -464,20 +544,19 @@ export const gitPushWrapper = async (options: GitPushOptions): Promise<void> => 
 
     const isPushStep = step.args.includes('push')
     let output: GitStepOutput = { persistentLines: [], progressActive: false }
+    const tracker = new SmoothGitProgressTracker()
 
-    // without a TTY the status line cannot be overwritten, so end it properly
-    const statusEnd = process.stdout.isTTY ? '' : '\n'
-    process.stdout.write(`${chalk.hex('#EC4899')('⚡ running')}  ${displayLabel}...${statusEnd}`)
     try {
+      tracker.start(`${chalk.hex('#EC4899')('⚡ running')}  ${displayLabel}...`)
       const child = execa(step.cmd, step.args, { cwd: process.cwd() })
-      output = attachGitOutput(child, Boolean(process.stdout.isTTY), step.label)
+      output = attachGitOutput(child, tracker)
       const result = await child
 
       if (output.finishProgress) {
         await output.finishProgress()
       }
 
-      clearStatusLine()
+      tracker.stop()
       await typeText(`${chalk.hex('#10B981').bold('✅ success')}  ${displayLabel}`)
 
       if (result.stdout && result.stdout.trim()) {
@@ -524,7 +603,7 @@ export const gitPushWrapper = async (options: GitPushOptions): Promise<void> => 
       if (output.stopProgress) {
         output.stopProgress()
       }
-      clearStatusLine()
+      tracker.stop()
 
       if (step.args.includes('commit') && (error.stdout || error.message || '').includes('nothing to commit')) {
         await typeText(`${chalk.hex('#F59E0B').bold('⚠️ skipped')}  ${displayLabel} ${chalk.hex('#94A3B8')('(nothing to commit, working tree clean)')}`)

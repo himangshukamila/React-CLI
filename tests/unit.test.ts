@@ -1,5 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { Writable } from 'node:stream'
+import { setTimeout as delay } from 'node:timers/promises'
+import { stripVTControlCharacters } from 'node:util'
+import stringWidth from 'string-width'
 import { normalizeUiSelections } from '../src/commands/wizard.js'
 
 test('normalizeUiSelections parses valid project name and options', () => {
@@ -138,6 +142,139 @@ test('formatGitProgressFrame draws a bar for progress and leaves other lines alo
   // lines without a percentage are passed through untouched
   const other = plain(formatGitProgressFrame('Delta compression using up to 8 threads', 0))
   assert.equal(other, 'Delta compression using up to 8 threads')
+})
+
+test('git status fits narrow terminals without splitting colored or Unicode text', async () => {
+  const { fitGitStatusLine } = await import('../src/commands/git.js')
+  const statuses = [
+    '⚡ running  Push branch main to origin (git push --progress -u origin main)...',
+    `\x1b[35m⚡ running\x1b[0m  Create commit: "${'更新 👩🏽‍💻 café '.repeat(20)}"`,
+    'Create commit: "first line\nsecond line\tmore text"',
+  ]
+
+  for (const columns of [1, 8, 20, 40, 60, 80, 120]) {
+    for (const status of statuses) {
+      const fitted = fitGitStatusLine(status, columns)
+      const plain = stripVTControlCharacters(fitted)
+      assert.ok(stringWidth(fitted) < columns, `${columns}-column status wrapped: ${plain}`)
+      assert.doesNotMatch(plain, /[\r\n\t\uFFFD]/)
+      assert.doesNotMatch(plain, /\p{Surrogate}/u)
+    }
+  }
+
+  const short = '\x1b[35mStage all files\x1b[0m'
+  assert.equal(fitGitStatusLine(short, 80), short)
+  assert.equal(stripVTControlCharacters(fitGitStatusLine('👩🏽‍💻'.repeat(10), 6)), '👩🏽‍💻👩🏽‍💻…')
+})
+
+test('git progress stays within one row, handles resize and resets for the next phase', async () => {
+  const { SmoothGitProgressTracker } = await import('../src/commands/git.js')
+  const writes: string[] = []
+  const frames: string[] = []
+  const stream = Object.assign(new Writable({
+    write(chunk, _encoding, callback) {
+      const text = chunk.toString()
+      writes.push(text)
+      if (stripVTControlCharacters(text)) {
+        frames.push(stripVTControlCharacters(text))
+        assert.ok(stringWidth(text) < stream.columns, `Live status wrapped at ${stream.columns} columns`)
+        assert.doesNotMatch(text, /[\r\n]/)
+      }
+      callback()
+    },
+  }), { isTTY: true, columns: 80 })
+  const tracker = new SmoothGitProgressTracker(stream)
+
+  try {
+    tracker.start(`⚡ running  Create commit: "${'long commit message '.repeat(12)}"`)
+    const beforeResize = writes.length
+    stream.columns = 32
+    stream.emit('resize')
+    // The old 79-column frame reflows to three rows and all must be erased.
+    assert.match(writes.slice(beforeResize).join(''), /\x1b\[2A/)
+    assert.match(writes.slice(beforeResize).join(''), /\x1b\[0J/)
+
+    tracker.handleLine('Counting objects: 80% (80/100)')
+    await delay(150)
+    assert.match(frames.at(-1) || '', /Counting/)
+    assert.ok(Number(frames.at(-1)?.match(/(\d+)%/)?.[1]) > 5)
+
+    tracker.handleLine('Writing objects: 5% (5/100)')
+    await delay(150)
+    const writing = frames.at(-1) || ''
+    assert.match(writing, /Writing/)
+    assert.ok(Number(writing.match(/(\d+)%/)?.[1]) <= 5)
+
+    for (const columns of [20, 40, 60, 80, 120]) {
+      stream.columns = columns
+      stream.emit('resize')
+      assert.match(frames.at(-1) || '', /\d+%$/)
+    }
+
+    await tracker.finish()
+    assert.match(frames.at(-1) || '', /100%$/)
+    assert.equal(stream.listenerCount('resize'), 0)
+    const afterFinish = writes.length
+    tracker.handleLine('remote: Resolving deltas: 50% (1/2)')
+    stream.emit('resize')
+    await delay(100)
+    assert.equal(writes.length, afterFinish, 'Progress must not overwrite the typed result')
+  } finally {
+    tracker.stop()
+    stream.destroy()
+  }
+})
+
+test('stopping git progress cancels redraws even during the completion animation', async () => {
+  const { SmoothGitProgressTracker } = await import('../src/commands/git.js')
+  const writes: string[] = []
+  const stream = Object.assign(new Writable({
+    write(chunk, _encoding, callback) {
+      writes.push(chunk.toString())
+      callback()
+    },
+  }), { isTTY: true, columns: 40 })
+  const tracker = new SmoothGitProgressTracker(stream)
+
+  try {
+    tracker.start('⚡ running  Push branch main to origin')
+    tracker.handleLine('Writing objects: 10% (1/10)')
+    const finishing = tracker.finish()
+    tracker.stop()
+    const afterStop = writes.length
+    tracker.handleLine('Writing objects: 90% (9/10)')
+    stream.emit('resize')
+    await finishing
+    await delay(100)
+    assert.equal(writes.length, afterStop)
+    assert.equal(stream.listenerCount('resize'), 0)
+  } finally {
+    tracker.stop()
+    stream.destroy()
+  }
+})
+
+test('git progress writes one plain status when output is redirected', async () => {
+  const { SmoothGitProgressTracker } = await import('../src/commands/git.js')
+  const writes: string[] = []
+  const stream = Object.assign(new Writable({
+    write(chunk, _encoding, callback) {
+      writes.push(chunk.toString())
+      callback()
+    },
+  }), { isTTY: false, columns: 40 })
+  const tracker = new SmoothGitProgressTracker(stream)
+
+  try {
+    tracker.start('running push')
+    tracker.handleLine('Writing objects: 50% (1/2)')
+    await tracker.finish()
+    assert.deepEqual(writes, ['running push\n'])
+    assert.equal(stream.listenerCount('resize'), 0)
+  } finally {
+    tracker.stop()
+    stream.destroy()
+  }
 })
 
 test('buildSectionHeader keeps every header on one line', async () => {
