@@ -129,7 +129,7 @@ react my-app --tailwind --axios --router --env
 | `--toast` | Installs `ztoast`, configures `<Toaster />` in `src/App.jsx` |
 | `--router` | Installs `react-router-dom` |
 | `--qr` | Installs `react-qr-code` |
-| `--webcam` | Installs `react-webcam` |
+| `--webcam` | Installs camera dependencies and generates `Camera.jsx` and `Preview.jsx` |
 | `--printer` | Installs `react-to-print`, `socket.io-client`, and scaffolds `src/pages/Printer.jsx` |
 | `--icon` | Installs `react-icons` |
 | `--lucide` | Installs `lucide-react` |
@@ -163,6 +163,7 @@ react list -c
 | `react update` | Check outdated dependencies using `npm outdated` |
 | `react set loader` | Generate a responsive backdrop-blur `Loader.jsx` component |
 | `react set printer` | Generate `Printer.jsx` page with socket queue & `react-to-print` |
+| `anshh set camera` | Install camera dependencies and generate matching camera and preview pages |
 | `react set bonjour` | Wire `4b-react-mdns` discovery and generate the themed `DiscoveryPage.jsx` |
 | `react set form -name -email` | Generate a styled React Form component with state & field icons |
 | `react set form -bio:textarea` | Override a field's guessed input type with `key:type` |
@@ -176,6 +177,36 @@ react list -c
 ---
 
 ## Component & Boilerplate Generators
+
+### Camera & Photo Preview (`anshh set camera`)
+
+Run inside an existing React 18+ app with Tailwind CSS 4 configured:
+
+```bash
+anshh set camera
+```
+
+Installs missing `react-webcam`, `clsx`, and `react-error-boundary` dependencies and generates `src/pages/Camera.jsx` and `src/components/Preview.jsx`. `anshh set --camera`, `anshh set webcam`, `get webcam`, and project creation with `--webcam` use the same setup. Existing hand-edited files require confirmation before replacement. App routes, Tailwind configuration, and other components are left alone.
+
+Render the page from your app or route:
+
+```jsx
+import Camera from './pages/Camera.jsx'
+
+export default function App() {
+  return <Camera initialRotation={0} />
+}
+```
+
+- Omit `initialRotation` for the default −90° sideways kiosk mount; use `0` for a laptop webcam. The camera and rotation selectors allow changes before capture.
+- Portrait screens use the portrait frame; landscape screens use the landscape frame automatically. Set `orientation="portrait"` or `orientation="landscape"` to fix the layout.
+- Capture counts down from three seconds. Set `countdownSeconds={0}` for immediate capture, or choose up to ten seconds. The countdown can be cancelled.
+- Brio/external cameras are preferred. Capture requests native 4K with a 1080p minimum, then retries without the minimum if the hardware cannot provide it. The view displays the actual sensor resolution.
+- Photos are center-cropped directly from the native video buffer, mirrored and rotated to match the viewfinder, and encoded once as JPEG at 0.95 quality. Review keeps the stream mounted, so Retake does not reconnect the camera. Tracks stop when the flow unmounts.
+- Without a callback, **Use Photo** downloads the JPEG. To submit it, pass an async `onConfirm(image, { signal })` callback. It receives the JPEG data URL and an abort signal for your request; resolve only after a successful server response and throw on failure. Submission disables duplicate clicks and shows loading, error, retry, and success states. The signal aborts when Preview unmounts; pass it to your network request.
+- Optional `onError(error)` connects camera and submission failures to your error reporting. Render failures have a recovery boundary. No photos are uploaded by the generated code itself.
+
+Camera access requires HTTPS or localhost. Tailwind must scan these generated files; this generator does not rewrite your existing styling setup.
 
 ### 1. Backdrop Blur Loader (`react set loader`)
 
@@ -436,5 +467,3 @@ npm test
 ## License
 
 MIT License. Designed and implemented by **Anshh**.
-
-

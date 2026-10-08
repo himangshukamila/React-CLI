@@ -94,6 +94,10 @@ export const commandReference: [string, string][] = [
     "Generate Printer page (src/pages/Printer.jsx) with socket print queue",
   ],
   [
+    "anshh set camera",
+    "Install camera dependencies and generate Camera.jsx and Preview.jsx",
+  ],
+  [
     "zecron set button",
     "Generate simple Button component (src/components/Button.jsx) with custom styling & icon props",
   ],

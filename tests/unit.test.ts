@@ -4,6 +4,10 @@ import { Writable } from 'node:stream'
 import { setTimeout as delay } from 'node:timers/promises'
 import { stripVTControlCharacters } from 'node:util'
 import stringWidth from 'string-width'
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import { runInNewContext } from 'node:vm'
 import { normalizeUiSelections } from '../src/commands/wizard.js'
 
 test('normalizeUiSelections parses valid project name and options', () => {
@@ -606,3 +610,129 @@ test('isSafeRemoteUrl accepts valid https, ssh, and custom domain git urls', asy
   assert.equal(isSafeRemoteUrl('ext::sh -c evil'), false)
 })
 
+test('camera command and webcam setup generate a matching pair without changing app files', async () => {
+  const { Command } = await import('commander')
+  const { registerGeneratorCommands } = await import('../src/commands/cli/generatorCommands.js')
+  const { configureWebcam, readTemplate } = await import('../src/shared.js')
+  const project = await fs.mkdtemp(path.join(os.tmpdir(), 'zecron-camera-'))
+  const originalCwd = process.cwd()
+  const manifest = JSON.stringify({ dependencies: { 'react-webcam': '^7.2.0', clsx: '^2.1.1', 'react-error-boundary': '^6.0.0' } })
+  try {
+    await fs.mkdir(path.join(project, 'src'))
+    await fs.writeFile(path.join(project, 'package.json'), manifest)
+    await fs.writeFile(path.join(project, 'src/App.jsx'), 'export default function App() { return null }')
+    process.chdir(project)
+    for (const args of [['set', 'camera'], ['set', '--camera'], ['set', 'webcam']]) {
+      const program = new Command()
+      registerGeneratorCommands(program)
+      await program.parseAsync(args, { from: 'user' })
+    }
+    await configureWebcam(project)
+    for (const [folder, name] of [['pages', 'Camera.jsx'], ['components', 'Preview.jsx']]) {
+      const generated = await fs.readFile(path.join(project, 'src', folder, name), 'utf8')
+      assert.equal(generated.slice(generated.indexOf('\n') + 1), await readTemplate('camera', name))
+    }
+    assert.equal(await fs.readFile(path.join(project, 'package.json'), 'utf8'), manifest)
+    assert.equal(await fs.readFile(path.join(project, 'src/App.jsx'), 'utf8'), 'export default function App() { return null }')
+    assert.deepEqual((await fs.readdir(path.join(project, 'src'))).sort(), ['App.jsx', 'components', 'pages'])
+  } finally {
+    process.chdir(originalCwd)
+    await fs.rm(project, { recursive: true, force: true })
+  }
+})
+
+test('camera setup preserves a custom preview and does not generate an incompatible camera', async () => {
+  const { configureCameraBoilerplate } = await import('../src/generators/camera.js')
+  const project = await fs.mkdtemp(path.join(os.tmpdir(), 'zecron-camera-kept-'))
+  const originalStdinIsTTY = process.stdin.isTTY
+  const originalStdoutIsTTY = process.stdout.isTTY
+  try {
+    process.stdin.isTTY = false
+    process.stdout.isTTY = false
+    await fs.writeFile(path.join(project, 'package.json'), JSON.stringify({ dependencies: { 'react-webcam': '*', clsx: '*', 'react-error-boundary': '*' } }))
+    await fs.mkdir(path.join(project, 'src/components'), { recursive: true })
+    const preview = path.join(project, 'src/components/Preview.jsx')
+    await fs.writeFile(preview, 'export default function CustomPreview() { return null }')
+    await assert.rejects(configureCameraBoilerplate(project), /Camera setup stopped.*Preview.jsx was kept/)
+    assert.equal(await fs.readFile(preview, 'utf8'), 'export default function CustomPreview() { return null }')
+    await assert.rejects(fs.access(path.join(project, 'src/pages/Camera.jsx')))
+  } finally {
+    process.stdin.isTTY = originalStdinIsTTY
+    process.stdout.isTTY = originalStdoutIsTTY
+    await fs.rm(project, { recursive: true, force: true })
+  }
+})
+
+test('camera capture crops native pixels and encodes once for every right-angle rotation', async () => {
+  const ts = await import('typescript')
+  const { cameraContent } = await import('../src/shared.js')
+  const source = ts.createSourceFile('Camera.jsx', cameraContent, ts.ScriptTarget.Latest, true, ts.ScriptKind.JSX)
+  const captureNode = source.statements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === 'capturePhoto')
+  assert.ok(captureNode)
+  const video = { readyState: 4, videoWidth: 3840, videoHeight: 2160 }
+  for (const rotation of [0, 90, 180, 270]) {
+    const operations: any[][] = []
+    const context = Object.fromEntries(['translate', 'rotate', 'scale', 'drawImage'].map((method) => [method, (...args: any[]) => operations.push([method, ...args])]))
+    let encodes = 0
+    let canvases = 0
+    const canvas = {
+      width: 0, height: 0,
+      getContext: (kind: string) => { assert.equal(kind, '2d'); return context },
+      toDataURL: (kind: string, quality: number) => {
+        encodes++
+        assert.equal(kind, 'image/jpeg')
+        assert.equal(quality, 0.95)
+        return 'data:image/jpeg;base64,test'
+      },
+    }
+    const capture = runInNewContext(captureNode.getText(source) + '\ncapturePhoto', {
+      document: { createElement: (tag: string) => { canvases++; assert.equal(tag, 'canvas'); return canvas } },
+    })
+    assert.equal(capture(video, { clientWidth: 800, clientHeight: 1000 }, rotation), 'data:image/jpeg;base64,test')
+    assert.equal(canvases, 1)
+    assert.equal(encodes, 1)
+    const sideways = rotation === 90 || rotation === 270
+    assert.deepEqual([canvas.width, canvas.height], sideways ? [2160, 2700] : [1728, 2160])
+    assert.deepEqual(operations, [
+      ['translate', canvas.width / 2, canvas.height / 2],
+      ['rotate', rotation * Math.PI / 180],
+      ['scale', -1, 1],
+      sideways
+        ? ['drawImage', video, 570, 0, 2700, 2160, -1350, -1080, 2700, 2160]
+        : ['drawImage', video, 1056, 0, 1728, 2160, -864, -1080, 1728, 2160],
+    ])
+    assert.throws(() => capture(null, { clientWidth: 800, clientHeight: 1000 }, rotation), /not ready/)
+    assert.equal(encodes, 1)
+  }
+})
+
+test('camera switching stops the previous stream before replacing the webcam', async () => {
+  const ts = await import('typescript')
+  const { cameraContent } = await import('../src/shared.js')
+  const source = ts.createSourceFile('Camera.jsx', cameraContent, ts.ScriptTarget.Latest, true, ts.ScriptKind.JSX)
+  const flow = source.statements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === 'CameraFlow')
+  assert.ok(flow && ts.isFunctionDeclaration(flow))
+  const declaration = flow.body?.statements
+    .filter(ts.isVariableStatement)
+    .flatMap((statement) => [...statement.declarationList.declarations])
+    .find((variable) => variable.name.getText(source) === 'restartCamera')
+  assert.ok(declaration?.initializer)
+  let stopped = 0
+  const streamRef = { current: { getTracks: () => [{ stop: () => stopped++ }, { stop: () => stopped++ }] } }
+  const requestRef = { current: { deviceId: 'laptop', relaxed: false, version: 1 } }
+  const restart = runInNewContext('(' + declaration.initializer.getText(source) + ')', {
+    streamRef, requestRef,
+    setStream: () => {}, setIsReady: () => {}, setIsSelecting: () => {}, setError: () => {}, setCountdown: () => {},
+    setRequest: () => {
+      assert.equal(stopped, 2, 'tracks must stop even before react-webcam commits its media state')
+      assert.equal(streamRef.current, null)
+    },
+  })
+  restart('brio')
+  assert.equal(requestRef.current.deviceId, 'brio')
+  assert.equal(requestRef.current.version, 2)
+  restart('brio', true)
+  assert.equal(requestRef.current.version, 3)
+  assert.equal(requestRef.current.relaxed, true)
+  assert.equal(stopped, 2)
+})
