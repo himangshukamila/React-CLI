@@ -59,7 +59,7 @@ Zecron CLI (zecron)
 │  ├─ react set form     (styled React form component with state)
 │  └─ react set --font   (scan public/fonts & auto-configure @font-face)
 ├─ Integrated Git remote wrapper (react push --github / react push -m)
-└─ Web Setup Wizard (--ui mode) with particle canvases & TextType intro
+└─ Web Setup Wizard (--ui mode) with searchable choices and a live project preview
 ```
 
 ---
@@ -115,6 +115,14 @@ Non-interactive flags mode:
 ```bash
 react my-app --tailwind --axios --router --env
 ```
+
+Browser setup:
+
+```bash
+anshh my-app --ui
+```
+
+Open the local URL printed in the terminal. The typing intro leads into three setup steps: dependencies, structure, and launch. Search choices, review the live file tree, and send your selections to the terminal to create the project. Each choice has original generated artwork bundled with the CLI; the interface needs no external font, icon, or animation downloads. Choose **Skip intro** or press **Escape** to enter setup immediately. Reduced-motion preferences skip the animation automatically.
 
 ---
 
@@ -455,12 +463,14 @@ Short aliases: `tailwind`, `axios`, `zod`, `socket`, `toast`, `icon`, `lucide`, 
 
 ## Maintenance
 
-Build and check unit test suite after making changes to the CLI:
+Use Node.js 20 or newer to build the CLI from source, including its Tailwind compiler, and check the unit test suite:
 
 ```bash
 npm run build
 npm test
 ```
+
+After editing the browser wizard in `templates/setup-ui/index.html`, run `npm run build:ui` to regenerate its bundled `style.css`. The normal build runs this step automatically. Keep wizard styling in Tailwind utilities; `templates/setup-ui/input.css` is the compiler entry point.
 
 ---
 

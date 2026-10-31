@@ -461,6 +461,26 @@ test('escapeHtml safely encodes special markup characters', async () => {
   assert.equal(escapeHtml("project's \"name\" & more"), 'project&#039;s &quot;name&quot; &amp; more')
 })
 
+test('readSetupUiIcon rejects names outside the bundled icon allowlist', async () => {
+  const { readSetupUiIcon } = await import('../src/commands/wizard.js')
+
+  for (const name of ['', 'unknown', 'TAILWIND', 'tailwind.png', '../style', '../../package.json', '/tailwind', 'tailwind\\..\\style', '%2e%2e%2fstyle', '__proto__', 'constructor', 'tailwind\0']) {
+    assert.equal(await readSetupUiIcon(name), undefined, name)
+  }
+})
+
+test('readSetupUiIcon returns binary PNG data for every wizard choice', async () => {
+  const { readSetupUiIcon } = await import('../src/commands/wizard.js')
+  const { packageOptions, folderOptions, setupLaunchChoices } = await import('../src/ui/banner.js')
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
+
+  for (const { value } of [...packageOptions, ...folderOptions, ...setupLaunchChoices]) {
+    const icon = await readSetupUiIcon(value)
+    assert.ok(Buffer.isBuffer(icon), `${value} must have a bundled icon`)
+    assert.deepEqual(icon.subarray(0, 8), signature, `${value} must remain valid binary PNG data`)
+  }
+})
+
 test('createSetupUiHtml safely embeds project names with quotes and special characters', async () => {
   const { createSetupUiHtml } = await import('../src/commands/wizard.js')
 
@@ -473,6 +493,29 @@ test('createSetupUiHtml safely embeds project names with quotes and special char
 
   assert.ok(html.includes('const TEMPLATE_PROJECT_NAME = "my-\\"custom\\"-app";'))
   assert.ok(html.includes('&quot;custom&quot;'))
+})
+
+test('browser wizard choices match the selections accepted by the CLI', async () => {
+  const ts = await import('typescript')
+  const { readTemplate } = await import('../src/shared.js')
+  const { packageOptions, folderOptions, setupLaunchChoices } = await import('../src/ui/banner.js')
+  const html = await readTemplate('setup-ui', 'index.html')
+  const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1]
+  assert.ok(script)
+  const source = ts.createSourceFile('wizard.js', script, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)
+  const declarations = source.statements.filter(ts.isVariableStatement)
+    .flatMap((statement) => [...statement.declarationList.declarations])
+  const choices: Record<string, string[]> = {}
+  for (const [name, accepted] of [['packages', packageOptions], ['structure', folderOptions], ['launchOptions', setupLaunchChoices]] as const) {
+    const initializer = declarations.find((declaration) => declaration.name.getText(source) === name)?.initializer
+    assert.ok(initializer)
+    const items = runInNewContext('(' + initializer.getText(source) + ')') as { value: string }[]
+    choices[name] = Array.from(items, (item) => item.value)
+    assert.deepEqual([...choices[name]].sort(), accepted.map((item) => item.value).sort())
+  }
+  const selections = normalizeUiSelections({ projectName: 'wizard-check', packages: choices.packages, structure: choices.structure, launch: choices.launchOptions, devServerPort: '5173' })
+  assert.equal(selections.selectedPackages.length, packageOptions.length)
+  assert.equal(selections.shouldRunDevServer, true)
 })
 
 test('configureWrapper is exported and wrapperContent includes dynamic bg and children props', async () => {

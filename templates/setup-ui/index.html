@@ -1,1735 +1,567 @@
-<!DOCTYPE html>
-<html lang="en" class="dark">
+<!doctype html>
+<html lang="en" class="scheme-dark scroll-pb-28">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>React Setup CLI</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Space+Grotesk:wght@600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <meta name="theme-color" content="#09090b">
+  <title>Project setup · anshh</title>
+  <link rel="stylesheet" href="/style.css">
 </head>
-<body class="intro-active">
-  <canvas id="particle-canvas" aria-hidden="true"></canvas>
-  <div class="intro-screen" id="intro-screen" aria-live="polite">
-    <section class="intro-panel" id="intro-panel">
-      <div id="intro-typed-text"></div>
-    </section>
-  </div>
-  <div class="scan-line"></div>
-  <div class="shell">
-    <div class="blueprint" aria-hidden="true"></div>
+<body class="min-h-screen bg-zinc-950 font-sans text-zinc-100 antialiased selection:bg-zinc-600">
+  <dialog id="intro-screen" aria-labelledby="intro-title" class="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none flex-col items-center justify-center border-0 bg-zinc-950 px-6 text-white transition-opacity duration-1000 open:flex motion-reduce:transition-none backdrop:bg-transparent">
+    <h1 id="intro-title" class="sr-only">Let's build your new React App</h1>
+    <p aria-hidden="true" class="min-h-36 w-full max-w-4xl text-center text-3xl leading-snug font-bold tracking-tight sm:text-4xl lg:text-5xl"><span id="intro-typed-text"></span><span id="intro-cursor" class="ml-1 font-normal transition-opacity duration-500 motion-reduce:transition-none">|</span></p>
+    <button id="skip-intro" type="button" class="absolute right-6 bottom-8 rounded border border-zinc-700 px-4 py-2.5 text-sm text-zinc-300 hover:border-zinc-500 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-300 sm:right-10">Skip intro</button>
+  </dialog>
 
-    <header class="topbar">
-      <div class="brand">
-        <div class="project-mark">
-         <svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" fill="none">
-  <defs>
-    <linearGradient id="zenith-grad-1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00fee6" />
-      <stop offset="50%" stop-color="#3b82f6" />
-      <stop offset="100%" stop-color="#8b5cf6" />
-    </linearGradient>
+  <a href="#workspace" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-zinc-800 focus:px-4 focus:py-3">Skip to setup</a>
+  <div id="setup-screen">
+    <aside class="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-zinc-800/80 bg-zinc-900/40 lg:flex">
+      <a href="#workspace" aria-label="anshh project setup" class="flex h-20 items-center gap-3 px-7">
 
-    <linearGradient id="zenith-grad-2" x1="100%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#d2bbff" />
-      <stop offset="50%" stop-color="#a855f7" />
-      <stop offset="100%" stop-color="#00fee6" />
-    </linearGradient>
-
-    <linearGradient id="zenith-grad-glow" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00fee6" stop-opacity="0.8" />
-      <stop offset="100%" stop-color="#d2bbff" stop-opacity="0.2" />
-    </linearGradient>
-  </defs>
-
-  <!-- Container Ring -->
-  <rect x="25" y="25" width="450" height="450" rx="120" fill="#09090b" stroke="url(#zenith-grad-1)" stroke-width="14" stroke-opacity="0.6" />
-
-  <!-- Zenith Peak Accent Grid -->
-  <path d="M 120,250 L 250,120 L 380,250 L 250,380 Z" stroke="url(#zenith-grad-glow)" stroke-width="3" stroke-dasharray="8 8" opacity="0.35" />
-
-  <!-- Zenith 'Z' Emblem Main Geometry -->
-  <g>
-    <!-- Top Horizontal Blade -->
-    <path d="M 120 140 L 380 140 L 320 200 L 170 200 Z" fill="url(#zenith-grad-1)" />
-
-    <!-- Diagonal Core Spire -->
-    <path d="M 380 140 L 170 360 L 120 360 L 320 200 Z" fill="url(#zenith-grad-2)" />
-
-    <!-- Bottom Horizontal Base -->
-    <path d="M 120 360 L 380 360 L 330 300 L 180 300 Z" fill="url(#zenith-grad-1)" />
-
-    <!-- Zenith Peak Star -->
-    <polygon points="390,110 404,125 390,140 376,125" fill="#00fee6" />
-  </g>
-</svg>
-          <span>REACT CLI</span>
-          
-        </div>
-        <div class="subtitle">
-          <strong>Project: <span id="project-name">__PROJECT_NAME__</span></strong>
-          <small>Configure your Vite + React project before launch</small>
-        </div>
+        <span class="text-xl font-semibold tracking-tight">anshh<span class="text-zinc-300">.</span></span>
+        <span class="ml-auto rounded border border-zinc-700 px-1.5 py-0.5 font-mono text-xs text-zinc-400">CLI</span>
+      </a>
+      <div class="px-5 pt-8">
+        <p class="mb-5 px-3 text-xs font-medium tracking-widest text-zinc-400 uppercase">New workspace</p>
+        <nav class="space-y-2" aria-label="Setup steps" id="desktop-steps"></nav>
       </div>
-
-      <div class="status-row">
-        <div class="status-pill"><span class="pip"></span> LOCAL SETUP SESSION</div>
-        <button class="cancel-btn" type="button" id="cancel-setup">
-          <span class="material-symbols-outlined">close</span>
-          <span>Cancel Setup</span>
-        </button>
+      <div class="mx-5 mt-8 rounded border border-zinc-800 bg-zinc-950/40 p-4">
+        <p class="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-300">Base configuration</p>
+        <p class="text-xs leading-6 text-zinc-400">React + Vite are included.<br>Your choices shape the rest.</p>
       </div>
-    </header>
-
-    <aside class="leftbar">
-      <h1 class="side-title">CORE</h1>
-      <div class="side-meta"><span class="pip"></span><span>Live setup profile</span></div>
-      <div class="side-dashboard" aria-label="Current setup summary">
-        <div class="side-stat">
-          <span class="side-stat-label">Packages</span>
-          <span class="side-stat-value" id="side-packages">0 selected</span>
-        </div>
-        <div class="side-stat">
-          <span class="side-stat-label">Structure</span>
-          <span class="side-stat-value" id="side-structure">0 items</span>
-        </div>
-        <div class="side-stat">
-          <span class="side-stat-label">Launch</span>
-          <span class="side-stat-value good" id="side-launch">Dev on</span>
-        </div>
-        <div class="side-stat">
-          <span class="side-stat-label">UI Port</span>
-          <span class="side-stat-value" id="side-port">3002</span>
-        </div>
+      <div class="mt-auto space-y-3 border-t border-zinc-800/70 p-6">
+        <p class="flex items-center gap-2 text-xs text-zinc-400">Running locally</p>
+        <p class="font-mono text-xs text-zinc-400" id="session-host">localhost</p>
       </div>
     </aside>
 
-    <main>
-      <nav class="main-section-switch" aria-label="Setup sections">
-        <button class="step active" type="button" data-view="packages"><span class="material-symbols-outlined">inventory_2</span><span>Dependencies</span></button>
-        <button class="step" type="button" data-view="structure"><span class="material-symbols-outlined">account_tree</span><span>Structure</span></button>
-        <button class="step" type="button" data-view="launch"><span class="material-symbols-outlined">rocket_launch</span><span>Launch</span></button>
-      </nav>
-      <div class="panel-stack view-packages" id="panel-stack">
-        <section id="packages" aria-labelledby="packages-heading">
-          <div class="section-head">
-            <span class="material-symbols-outlined">grid_view</span>
-            <h2 id="packages-heading">Configure Dependencies</h2>
+    <div class="min-w-0 lg:pl-60">
+      <header class="flex min-h-20 flex-wrap items-center justify-between gap-3 border-b border-zinc-800/80 px-5 py-4 sm:px-8 xl:px-12">
+        <div class="flex min-w-0 items-center gap-3 text-sm">
+          <span class="font-semibold text-zinc-300 lg:hidden">anshh.</span>
+          <span class="hidden text-zinc-400 sm:inline">Workspace</span><span class="hidden text-zinc-700 sm:inline">/</span>
+          <span class="truncate font-medium">New project</span>
+        </div>
+        <div class="flex items-center gap-3 sm:gap-5">
+          <span class="hidden items-center gap-2 text-xs text-zinc-400 sm:flex">Local session <span class="font-mono text-zinc-400" id="session-time" aria-label="Time remaining"></span></span>
+          <button id="cancel-setup" type="button" class="rounded border border-zinc-700/80 px-3 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-500 hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-300 disabled:opacity-40">Cancel setup</button>
+        </div>
+      </header>
+
+      <main id="workspace" tabindex="-1" class="mx-auto max-w-7xl px-5 pt-7 pb-32 outline-none sm:px-8 sm:pt-10 xl:px-12">
+        <nav id="mobile-steps" aria-label="Setup steps" class="mb-8 grid grid-cols-3 gap-2 lg:hidden"></nav>
+        <div class="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <p class="mb-3 flex items-center gap-2 text-xs font-medium tracking-widest text-zinc-300 uppercase">Project setup <span id="step-number" class="ml-1 text-zinc-400">01 / 03</span></p>
+            <h1 id="step-title" tabindex="-1" class="text-3xl font-semibold tracking-tight outline-none sm:text-4xl">Configure dependencies.</h1>
+            <p id="step-description" class="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">Start with React + Vite. Add the tools your project needs.</p>
           </div>
-          <div class="card-grid" id="package-grid"></div>
-        </section>
+          <button id="reset" type="button" class="mt-1 flex shrink-0 items-center gap-2 rounded px-2 py-2 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-300 disabled:opacity-40"><span>Reset</span></button>
+        </div>
 
-        <section id="structure" aria-labelledby="structure-heading">
-          <div class="section-head">
-            <span class="material-symbols-outlined">folder_open</span>
-            <h2 id="structure-heading">Project Structure</h2>
-          </div>
-          <div class="structure-grid" id="structure-list"></div>
-        </section>
+        <div class="grid min-w-0 gap-8 xl:grid-cols-3">
+          <fieldset id="setup-fields" class="min-w-0 space-y-7 disabled:opacity-60 xl:col-span-2">
+            <legend class="sr-only">Project configuration</legend>
+            <div class="rounded border border-zinc-800 bg-zinc-900/40 p-5">
+              <div class="mb-3 flex items-center justify-between gap-3"><label for="project-name-input" class="text-sm font-medium">Project name</label><span class="font-mono text-xs text-zinc-400">./<span id="project-name">__PROJECT_NAME__</span></span></div>
+              <div class="flex items-center gap-3 rounded border border-zinc-700/70 bg-zinc-950 px-3 focus-within:border-zinc-300 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-zinc-400">
 
-        <section id="launch" aria-labelledby="launch-heading">
-          <div class="section-head">
-            <span class="material-symbols-outlined">rocket_launch</span>
-            <h2 id="launch-heading">Launch Sequence</h2>
-          </div>
-          <button class="launch-panel structure-row selected" type="button" data-launch="runDevServer" aria-pressed="true">
-            <span>
-              <strong>Run npm run dev after setup</strong>
-              <span>The CLI will start Vite with --host 0.0.0.0 after the project is created.</span>
-            </span>
-            <span class="switch npm" aria-hidden="true"></span>
-          </button>
-
-          <button class="launch-panel structure-row" type="button" data-launch="bonjour" aria-pressed="false" style="margin-top: 12px;">
-            <span>
-              <strong>Configure Bonjour Discovery Service</strong>
-              <span>Wire the 4b-react-mdns network scanner and a themed discovery page.</span>
-            </span>
-            <span class="switch npm" aria-hidden="true"></span>
-          </button>
-
-          <button class="launch-panel structure-row selected" type="button" data-launch="logscan" aria-pressed="true" style="margin-top: 12px;">
-            <span>
-              <strong>Custom Log View</strong>
-              <span>Mount the logscan floating console panel at the root, shown in dev only.</span>
-            </span>
-            <span class="switch npm" aria-hidden="true"></span>
-          </button>
-
-          <div class="port-config-container" id="port-config-container">
-            <div class="port-config-row">
-              <label for="dev-port">Dev Server Port</label>
-              <div class="port-input-wrapper">
-                <span class="port-prefix">:</span>
-                <input type="number" id="dev-port" min="1" max="65535" value="5173" placeholder="5173" aria-label="Development server port number">
+                <input id="project-name-input" value="__PROJECT_NAME__" type="text" autocomplete="off" spellcheck="false" placeholder="my-next-project" aria-describedby="project-name-error" class="min-w-0 flex-1 bg-transparent py-3 font-mono text-sm outline-none placeholder:text-zinc-400">
+                <span class="text-xs text-zinc-400">React</span>
               </div>
+              <p id="project-name-error" class="mt-2 hidden text-xs text-red-300" role="alert"></p>
             </div>
-            <p class="port-hint">Specify a custom port to run Vite. Default is 5173.</p>
-          </div>
 
-          <div class="file-creator-container" id="file-creator-container">
-            <div class="file-creator-header">
-              <span class="material-symbols-outlined">note_add</span>
-              <h3>Quick File Creator</h3>
+            <section id="packages" aria-label="Dependencies" class="space-y-5">
+              <div class="flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900/40 px-3 focus-within:border-zinc-300">
+
+                <label for="package-search" class="sr-only">Search packages</label><input id="package-search" type="search" placeholder="Search packages, features..." autocomplete="off" class="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none placeholder:text-zinc-400">
+              </div>
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex gap-1 rounded bg-zinc-900 p-1">
+                  <button type="button" data-filter="all" aria-pressed="true" class="rounded px-3 py-1.5 text-xs font-medium text-zinc-400 aria-pressed:bg-zinc-800 aria-pressed:text-zinc-100 focus-visible:outline-2 focus-visible:outline-zinc-300">All packages</button>
+                  <button type="button" data-filter="selected" aria-pressed="false" class="rounded px-3 py-1.5 text-xs font-medium text-zinc-400 aria-pressed:bg-zinc-800 aria-pressed:text-zinc-100 focus-visible:outline-2 focus-visible:outline-zinc-300">Selected <span id="selected-filter-count">1</span></button>
+                </div>
+                <span id="visible-count" class="text-xs text-zinc-400" role="status">11 packages</span>
+              </div>
+              <div id="package-grid" class="grid grid-cols-1 gap-3 sm:grid-cols-2"></div>
+              <div id="package-empty" class="hidden rounded border border-dashed border-zinc-700 px-6 py-10 text-center">
+                <p class="text-sm font-medium">No packages found</p><p class="mt-2 text-xs text-zinc-400">Try another search or show all packages.</p>
+                <button id="clear-search" type="button" class="mt-5 rounded border border-zinc-700 px-4 py-2 text-xs hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-zinc-300">Clear filters</button>
+              </div>
+              <p class="flex items-start gap-2 text-xs leading-5 text-zinc-400">You can add more packages later with <code class="whitespace-nowrap text-zinc-400">get &lt;package&gt;</code></p>
+            </section>
+
+            <section id="structure" aria-label="Project structure" class="hidden space-y-6">
+              <div id="structure-list" class="grid grid-cols-1 gap-3 sm:grid-cols-2"></div>
+              <div class="rounded border border-zinc-800 bg-zinc-900/40 p-5">
+                <h2 class="text-sm font-medium">Add starter files</h2><p class="mt-2 text-xs leading-5 text-zinc-400">Add a starter file to one of your selected folders.</p>
+                <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                  <div><label for="file-target-folder" class="mb-2 block text-xs text-zinc-400">Folder</label><select id="file-target-folder" class="w-full rounded border border-zinc-700 bg-zinc-950 p-2.5 text-sm focus-visible:outline-2 focus-visible:outline-zinc-300"></select></div>
+                  <div><label for="file-extension" class="mb-2 block text-xs text-zinc-400">File type</label><select id="file-extension" class="w-full rounded border border-zinc-700 bg-zinc-950 p-2.5 text-sm focus-visible:outline-2 focus-visible:outline-zinc-300"><option value=".jsx">React component · .jsx</option><option value=".js">JavaScript · .js</option></select></div>
+                </div>
+                <label for="file-name-input" class="mt-4 mb-2 block text-xs text-zinc-400">File name</label>
+                <div class="flex gap-2"><input id="file-name-input" type="text" placeholder="Dashboard" autocomplete="off" spellcheck="false" aria-describedby="file-error" class="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-950 px-3 py-2.5 font-mono text-sm placeholder:text-zinc-400 focus-visible:outline-2 focus-visible:outline-zinc-300"><button type="button" id="create-file-btn" class="flex items-center gap-1.5 rounded border border-zinc-600 bg-zinc-800 px-4 text-xs font-medium hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-zinc-300 disabled:opacity-40">Add file</button></div>
+                <p id="file-error" class="mt-2 hidden text-xs text-red-300" role="alert"></p>
+                <p id="file-folder-hint" class="mt-3 hidden text-xs text-zinc-400">Select a src folder above to add a file.</p>
+                <ul id="created-files-list" class="mt-4 space-y-2" aria-label="Starter files"></ul>
+              </div>
+            </section>
+
+            <section id="launch" aria-label="Launch options" class="hidden space-y-5">
+              <div class="rounded border border-zinc-700 bg-zinc-900 p-5"><p class="flex items-center gap-2 text-sm font-medium text-zinc-200">Review your configuration</p><p class="mt-2 text-xs leading-6 text-zinc-400">Review your project preview, choose what runs after setup, and send it to your terminal.</p></div>
+              <div id="launch-options" class="space-y-3"></div>
+              <div id="port-config-container" class="rounded border border-zinc-800 bg-zinc-900/40 p-5">
+                <label for="dev-port" class="block text-sm font-medium">Development port</label><p class="mt-2 text-xs text-zinc-400">The port your new app will run on.</p>
+                <input id="dev-port" type="number" min="1024" max="65535" step="1" value="5173" aria-describedby="port-error" class="mt-4 w-36 rounded border border-zinc-700 bg-zinc-950 px-3 py-2.5 font-mono text-sm focus-visible:outline-2 focus-visible:outline-zinc-300">
+                <p id="port-error" class="mt-2 hidden text-xs text-red-300" role="alert"></p>
+              </div>
+            </section>
+          </fieldset>
+
+          <aside class="min-w-0 xl:col-span-1" aria-label="Live project preview">
+            <div class="space-y-4 xl:sticky xl:top-8">
+              <div class="overflow-hidden rounded border border-zinc-800 bg-zinc-900/40">
+                <div class="flex items-center justify-between border-b border-zinc-800 px-5 py-4"><h2 class="text-sm font-medium">Project preview</h2><span class="flex items-center gap-2 text-xs font-medium text-zinc-400">Live</span></div>
+                <div class="flex items-center gap-3 border-b border-zinc-800/70 p-5"><div class="min-w-0"><p id="preview-project-name" class="truncate text-sm font-medium">Your project</p><p class="mt-1 text-xs text-zinc-400">React + Vite</p></div></div>
+                <div id="tree-preview" class="max-h-96 overflow-auto p-5 font-mono text-xs leading-6 text-zinc-400" aria-label="Planned project files"></div>
+                <dl class="grid grid-cols-2 gap-3 border-t border-zinc-800/70 p-5"><div><dt class="text-xs text-zinc-400">Packages</dt><dd id="side-packages" class="mt-1 text-lg font-medium">1<span class="ml-1 text-xs font-normal text-zinc-400">selected</span></dd></div><div><dt class="text-xs text-zinc-400">Structure</dt><dd id="side-structure" class="mt-1 text-lg font-medium">4<span class="ml-1 text-xs font-normal text-zinc-400">items</span></dd></div></dl>
+              </div>
+              <div class="rounded border border-zinc-800/70 p-4"><p class="flex items-center gap-2 text-xs text-zinc-400">After setup<span id="side-launch" class="ml-auto font-mono text-zinc-300">localhost:5173</span></p></div>
+              <p class="px-1 text-xs leading-5 text-zinc-400">Nothing is installed until you choose<br class="hidden xl:block"> <span class="text-zinc-400">Create project</span>.</p>
             </div>
-            <div class="file-creator-grid">
-              <div class="file-creator-field">
-                <label for="file-target-folder">Folder</label>
-                <div class="file-creator-input-wrapper">
-                  <select id="file-target-folder" aria-label="Target folder for new file"></select>
-                </div>
-              </div>
-              <div class="file-creator-field">
-                <label for="file-name-input">File Name</label>
-                <div class="file-creator-input-wrapper">
-                  <input type="text" id="file-name-input" placeholder="e.g. Dashboard" aria-label="New file name">
-                </div>
-              </div>
-              <div class="file-creator-field">
-                <label for="file-extension">Extension</label>
-                <div class="file-creator-input-wrapper">
-                  <select id="file-extension" aria-label="File extension selection">
-                    <option value=".jsx">.jsx</option>
-                    <option value=".js">.js</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <button class="file-creator-btn" type="button" id="create-file-btn">
-              <span class="material-symbols-outlined">add</span> Create File
-            </button>
-            <div class="created-files-list" id="created-files-list"></div>
+          </aside>
+        </div>
+
+        <div id="feedback" role="alert" class="mt-6 hidden rounded border border-red-900 bg-red-950/40 px-5 py-4 text-sm text-red-200"></div>
+        <p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
+        <footer class="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-800 bg-zinc-950 lg:left-60">
+          <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8 xl:px-12">
+          <button type="button" id="previous-step" class="flex items-center gap-2 rounded px-3 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300 disabled:opacity-30">Back</button>
+          <div class="flex items-center gap-4"><span id="footer-step" class="hidden text-xs text-zinc-400 sm:inline">Step 1 of 3</span><button type="button" id="next-step" class="flex items-center gap-3 rounded border border-zinc-200 bg-zinc-200 px-5 py-3 text-sm font-semibold text-zinc-950 transition-colors hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-300 disabled:opacity-40">Continue</button><button type="button" id="create" class="hidden items-center gap-3 rounded border border-zinc-200 bg-zinc-200 px-5 py-3 text-sm font-semibold text-zinc-950 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-300 disabled:opacity-50"><span id="create-label">Create project</span></button></div>
           </div>
-        </section>
-      </div>
-    </main>
-
-    <aside class="rightbar" aria-label="Live project preview">
-      <div class="tree-head">
-        <span class="tree-title">MEMORY_MAP</span>
-        <span class="live"><span class="pip"></span> LIVE</span>
-      </div>
-      <div class="file-tree" id="tree-preview" aria-live="polite" aria-label="Project file tree"></div>
-    </aside>
-
-    <footer class="bottombar">
-      <div class="bottom-left">
-        <button class="ghost-btn" type="button" id="focus-packages"><span class="material-symbols-outlined">arrow_back</span> Previous</button>
-        <button class="ghost-btn muted-btn" type="button" id="reset"><span class="material-symbols-outlined">refresh</span> Reset</button>
-      </div>
-      <div class="bottom-right">
-        <button class="primary-btn" type="button" id="create"><span class="material-symbols-outlined">add_box</span> Create Project</button>
-      </div>
-    </footer>
-
-    <div class="toast" id="toast" role="status" aria-live="polite">
-      <strong id="toast-title">Ready</strong>
-      <span id="toast-message">Configure your project and launch.</span>
+        </footer>
+      </main>
     </div>
   </div>
 
-  <section class="final-screen" id="final-screen" aria-live="polite" aria-labelledby="final-title">
-    <div class="final-panel">
-      <div class="final-header">
-        <div class="final-icon" aria-hidden="true">
-          <span class="material-symbols-outlined">check</span>
-        </div>
-        <div>
-          <p class="final-kicker">Setup accepted</p>
-          <h2 class="final-title" id="final-title">Project queued</h2>
-        </div>
-      </div>
-      <p class="final-copy">
-        The local CLI has your selections. Keep the terminal open while it creates
-        <strong id="final-project">this project</strong>, installs packages, and writes the selected structure.
-      </p>
-      <div class="final-stats" aria-label="Submitted setup summary">
-        <div class="final-stat">
-          <span>Packages</span>
-          <strong id="final-packages">0 selected</strong>
-        </div>
-        <div class="final-stat">
-          <span>Structure</span>
-          <strong id="final-structure">0 items</strong>
-        </div>
-        <div class="final-stat">
-          <span>Launch</span>
-          <strong id="final-launch">Dev server ready</strong>
-        </div>
-      </div>
-      <div class="final-terminal">
-        <span class="material-symbols-outlined" aria-hidden="true">terminal</span>
-        Watch the terminal for install progress
-      </div>
-      <p class="final-note">You can close this window after returning to the terminal.</p>
-    </div>
+  <section id="result-screen" hidden class="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center px-6 py-16 text-center" aria-labelledby="result-title">
+    <p class="mb-3 text-xs font-medium tracking-widest text-zinc-400 uppercase">anshh / project setup</p>
+    <h1 id="result-title" tabindex="-1" class="text-3xl font-semibold tracking-tight outline-none">Continue in your terminal</h1>
+    <p id="result-description" class="mt-4 text-sm leading-7 text-zinc-400"></p>
+    <div id="result-summary" class="mt-8 w-full rounded border border-zinc-800 bg-zinc-900/40 p-5 text-left text-sm text-zinc-300"></div>
+    <p class="mt-8 text-xs text-zinc-400">You can close this browser tab.</p>
   </section>
 
-  <section class="final-screen" id="cancel-screen" aria-live="polite" aria-labelledby="cancel-title">
-    <div class="final-panel" style="border-color: rgba(239, 68, 68, 0.2);">
-      <div class="final-header">
-        <div class="final-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); border-color: var(--danger); box-shadow: 0 0 24px rgba(239, 68, 68, 0.35); --success-glow: rgba(239, 68, 68, 0.15);" aria-hidden="true">
-          <span class="material-symbols-outlined">close</span>
-        </div>
-        <div>
-          <p class="final-kicker" style="color: var(--danger);">Setup Aborted</p>
-          <h2 class="final-title" id="cancel-title">Process Cancelled</h2>
-        </div>
-      </div>
-      <p class="final-action-text" style="color: var(--muted); max-width: 400px; line-height: 1.6;">
-        The setup process has been terminated. You can safely close this browser window.
-      </p>
-    </div>
-  </section>
-
-  <section class="final-screen" id="timeout-screen" aria-live="polite" aria-labelledby="timeout-title">
-    <div class="final-panel" style="border-color: rgba(245, 158, 11, 0.2);">
-      <div class="final-header">
-        <div class="final-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border-color: #f59e0b; box-shadow: 0 0 24px rgba(245, 158, 11, 0.35); --success-glow: rgba(245, 158, 11, 0.15);" aria-hidden="true">
-          <span class="material-symbols-outlined">alarm</span>
-        </div>
-        <div>
-          <p class="final-kicker" style="color: #f59e0b;">Session Expired</p>
-          <h2 class="final-title" id="timeout-title">Time Limit Exceeded</h2>
-        </div>
-      </div>
-      <p class="final-action-text" style="color: var(--muted); max-width: 400px; line-height: 1.6;">
-        The 10-minute setup session has timed out. The project creation process has failed. Please run the CLI command again in your terminal.
-      </p>
-    </div>
-  </section>
-
-  <!-- Project Name Selection Modal (shown when zecron --ui is launched without a project name) -->
-  <div class="project-name-modal-overlay" id="project-name-modal" aria-live="polite">
-    <div class="project-name-modal-card">
-      <div class="modal-header">
-        <span class="material-symbols-outlined modal-icon">edit_square</span>
-        <div>
-          <h2 class="modal-title">Enter Project Name</h2>
-          <p class="modal-subtitle">Specify your React app folder name to proceed with setup</p>
-        </div>
-      </div>
-      <form id="project-name-form" class="modal-body">
-        <div class="modal-input-group">
-          <label for="modal-project-name-input">Project Name</label>
-          <div class="modal-input-wrapper">
-            <span class="material-symbols-outlined input-prefix">folder</span>
-            <input type="text" id="modal-project-name-input" placeholder="my-react-app" required autocomplete="off" spellcheck="false" />
-          </div>
-          <span class="modal-error-msg" id="modal-name-error"></span>
-        </div>
-        <div class="modal-footer flex-row">
-          <button type="button" id="modal-cancel-btn" class="modal-secondary-btn">
-            <span>Cancel</span>
-          </button>
-          <button type="submit" id="confirm-project-name-btn" class="modal-primary-btn">
-            <span>Continue Setup</span>
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Cancel Setup Confirmation Modal -->
-  <div class="project-name-modal-overlay" id="cancel-confirm-modal" aria-live="polite">
-    <div class="project-name-modal-card">
-      <div class="modal-header">
-        <span class="material-symbols-outlined modal-icon danger-icon">warning</span>
-        <div>
-          <h2 class="modal-title">Cancel Project Setup?</h2>
-          <p class="modal-subtitle">This will terminate the CLI wizard session and discard your current configuration.</p>
-        </div>
-      </div>
-      <div class="modal-footer flex-row">
-        <button type="button" id="abort-cancel-btn" class="modal-secondary-btn">
-          <span>Keep Editing</span>
-        </button>
-        <button type="button" id="confirm-cancel-btn" class="modal-danger-btn">
-          <span>Yes, Cancel Setup</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <canvas id="click-spark-canvas" aria-hidden="true"></canvas>
+  <dialog id="cancel-confirm-modal" aria-labelledby="cancel-title" aria-describedby="cancel-description" class="m-auto w-full max-w-md rounded border border-zinc-700 bg-zinc-900 p-6 text-zinc-100 backdrop:bg-black/70 ">
+    <h2 id="cancel-title" class="text-xl font-semibold tracking-tight">Leave this setup?</h2><p id="cancel-description" class="mt-3 text-sm leading-6 text-zinc-400">Your selections will be discarded. No project will be created from this session.</p>
+    <div class="mt-7 flex flex-wrap justify-end gap-3"><button type="button" id="abort-cancel-btn" autofocus class="rounded border border-zinc-600 px-4 py-2.5 text-sm hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-zinc-300">Keep editing</button><button type="button" id="confirm-cancel-btn" class="rounded border border-red-800 bg-red-950 px-4 py-2.5 text-sm font-semibold text-red-100 hover:bg-red-900 focus-visible:outline-2 focus-visible:outline-zinc-300">Cancel setup</button></div>
+  </dialog>
+  <noscript><div class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950 p-8 text-center text-zinc-200">Enable JavaScript to use the setup wizard, or return to the terminal to configure your project.</div></noscript>
 
   <script>
     const TEMPLATE_PROJECT_NAME = "__PROJECT_NAME__";
     const TEMPLATE_SESSION_TOKEN = "__SESSION_TOKEN__";
     const TEMPLATE_SUBMIT_URL = "__SUBMIT_URL__";
     const TEMPLATE_TIME_LEFT_MS = "__TIME_LEFT_MS__";
-    const PROJECT_NAME_PLACEHOLDER = "__" + "PROJECT_NAME__";
-    const SESSION_TOKEN_PLACEHOLDER = "__" + "SESSION_TOKEN__";
-    const SUBMIT_URL_PLACEHOLDER = "__" + "SUBMIT_URL__";
-    const TIME_LEFT_MS_PLACEHOLDER = "__" + "TIME_LEFT_MS__";
-    const URL_TOKEN = new URLSearchParams(window.location.search).get("token") || "";
-    let PROJECT_NAME = (TEMPLATE_PROJECT_NAME === PROJECT_NAME_PLACEHOLDER || !TEMPLATE_PROJECT_NAME.trim()) ? "" : TEMPLATE_PROJECT_NAME.trim();
-    const SESSION_TOKEN = TEMPLATE_SESSION_TOKEN === SESSION_TOKEN_PLACEHOLDER ? URL_TOKEN : TEMPLATE_SESSION_TOKEN;
-    const SUBMIT_URL = TEMPLATE_SUBMIT_URL === SUBMIT_URL_PLACEHOLDER && window.location.protocol !== "file:"
-      ? `${window.location.origin}/api/setup`
-      : TEMPLATE_SUBMIT_URL;
-    const TIME_LEFT = TEMPLATE_TIME_LEFT_MS === TIME_LEFT_MS_PLACEHOLDER ? 10 * 60 * 1000 : parseInt(TEMPLATE_TIME_LEFT_MS, 10);
-    const IS_TEMPLATE_PREVIEW = window.location.protocol === "file:" || !SESSION_TOKEN || SUBMIT_URL === SUBMIT_URL_PLACEHOLDER;
-
-    if (!IS_TEMPLATE_PREVIEW) {
-      window.setTimeout(() => {
-        if (setupLocked) return;
-        document.getElementById("timeout-screen").classList.add("is-visible");
-        document.body.classList.add("final-active");
-        if (typeof showToast === 'function') {
-          showToast("Session Expired", "Setup timed out. Run CLI command again.", true);
-        }
-      }, TIME_LEFT);
-
-      const heartbeatInterval = window.setInterval(async () => {
-        if (setupLocked) {
-          clearInterval(heartbeatInterval);
-          return;
-        }
-        try {
-          const response = await fetch("/", { method: "HEAD" });
-          if (!response.ok) {
-            clearInterval(heartbeatInterval);
-            document.getElementById("timeout-screen").classList.add("is-visible");
-            document.body.classList.add("final-active");
-            if (typeof showToast === 'function') {
-              showToast("Session Expired", "Setup timed out. Run CLI command again.", true);
-            }
-          }
-        } catch (error) {
-          clearInterval(heartbeatInterval);
-          document.getElementById("timeout-screen").classList.add("is-visible");
-          document.body.classList.add("final-active");
-          if (typeof showToast === 'function') {
-            showToast("Session Expired", "Setup timed out. Run CLI command again.", true);
-          }
-        }
-      }, 3000);
-    }
-
+    const $ = (id) => document.getElementById(id);
+    const escapeText = (text) => String(text).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
     const packages = [
-      { value: "tailwind", label: "Tailwind CSS", hint: "style engine + Vite plugin", icon: "palette", selected: true },
-      { value: "router", label: "React Router", hint: "Declarative routing for React.", icon: "route" },
-      { value: "axios", label: "Axios", hint: "HTTP client", icon: "api" },
-      { value: "zod", label: "Zod", hint: "TypeScript schema validation", icon: "verified" },
-      { value: "socket", label: "Socket.IO", hint: "realtime websocket layer", icon: "sync_alt" },
-      { value: "toast", label: "ztoast", hint: "toast notifications", icon: "notifications_active" },
-      { value: "qr", label: "QR Code", hint: "react-qr-code", icon: "qr_code_2" },
-      { value: "webcam", label: "Webcam", hint: "react-webcam", icon: "photo_camera" },
-      { value: "printer", label: "Print Helper", hint: "react-to-print", icon: "print" },
-      { value: "icon", label: "React Icons", hint: "large icon library", icon: "interests" },
-      { value: "lucide", label: "Lucide React", hint: "sharp SVG icon set", icon: "diamond" },
+      { value: 'tailwind', label: 'Tailwind CSS', hint: 'Utility-first styling, ready to go.', package: 'tailwindcss + vite plugin' },
+      { value: 'router', label: 'React Router', hint: 'Client-side routing.', package: 'react-router-dom' },
+      { value: 'axios', label: 'Axios', hint: 'Connect your app to an API.', package: 'axios' },
+      { value: 'zod', label: 'Zod', hint: 'Validate your data with schemas.', package: 'zod' },
+      { value: 'socket', label: 'Socket.IO', hint: 'Keep your app connected in real time.', package: 'socket.io-client' },
+      { value: 'toast', label: 'ztoast', hint: 'Toast notifications.', package: 'ztoast' },
+      { value: 'qr', label: 'QR Code', hint: 'Generate QR codes.', package: 'react-qr-code' },
+      { value: 'webcam', label: 'Camera & Preview', hint: 'Capture, review, and retake photos.', package: 'react-webcam' },
+      { value: 'printer', label: 'Print Helper', hint: 'Create a page with a print queue.', package: 'react-to-print' },
+      { value: 'icon', label: 'React Icons', hint: 'Popular icon sets in one place.', package: 'react-icons' },
+      { value: 'lucide', label: 'Lucide React', hint: 'Simple, consistent SVG icons.', package: 'lucide-react' },
     ];
-
     const structure = [
-      { value: "env", label: ".env Skeleton", hint: "VITE_SERVER_URL boilerplate", icon: "description", selected: true },
-      { value: "assets", label: "public/assets", hint: "create public/images & public/fonts", icon: "image", selected: true },
-      { value: "watch", label: "Frontend API Watch", hint: "frontend fetch/XHR logs", icon: "terminal" },
-      { value: "components", label: "src/components", hint: "reusable interface pieces", icon: "folder", selected: true },
-      { value: "pages", label: "src/pages", hint: "route-level screens", icon: "folder_special", selected: true },
-      { value: "services", label: "src/services", hint: "api clients · data fetchers", icon: "settings_ethernet" },
-      { value: "hooks", label: "src/hooks", hint: "custom React hooks", icon: "conversion_path" },
-      { value: "utils", label: "src/utils", hint: "helper functions", icon: "data_object" },
-      { value: "store", label: "src/store", hint: "state management layer", icon: "database" },
-      { value: "lib", label: "src/lib", hint: "third-party configuration", icon: "deployed_code" },
-      { value: "types", label: "src/types", hint: "shared type contracts", icon: "schema" },
+      { value: 'env', label: '.env', hint: 'Environment variable starter.' },
+      { value: 'assets', label: 'public/assets', hint: 'Images and fonts folders.' },
+      { value: 'components', label: 'src/components', hint: 'Reusable interface pieces.' },
+      { value: 'pages', label: 'src/pages', hint: 'Your application screens.' },
+      { value: 'services', label: 'src/services', hint: 'API clients and data fetching.' },
+      { value: 'hooks', label: 'src/hooks', hint: 'Custom React hooks.' },
+      { value: 'utils', label: 'src/utils', hint: 'Shared helper functions.' },
+      { value: 'store', label: 'src/store', hint: 'Application state.' },
+      { value: 'lib', label: 'src/lib', hint: 'Library configuration.' },
+      { value: 'types', label: 'src/types', hint: 'Shared type contracts.' },
     ];
-
-    const selectedPackages = new Set(packages.filter((item) => item.selected).map((item) => item.value));
-    const selectedStructure = new Set(structure.filter((item) => item.selected).map((item) => item.value));
+    const launchOptions = [
+      { value: 'runDevServer', label: 'Start the dev server', hint: 'Open your new app on your development port.' },
+      { value: 'bonjour', label: 'Bonjour discovery', hint: 'Find services on your local network.' },
+      { value: 'logscan', label: 'Development log viewer', hint: 'An in-app console, visible only in development.' },
+    ];
+    const defaults = { packages: ['tailwind'], structure: ['env', 'assets', 'components', 'pages'], launch: ['runDevServer', 'logscan'] };
+    const selectedPackages = new Set(defaults.packages);
+    const selectedStructure = new Set(defaults.structure);
+    const selectedLaunch = new Set(defaults.launch);
     const createdFiles = [];
+    const steps = [
+      { id: 'packages', label: 'Dependencies', detail: 'Choose your tools', title: 'Configure dependencies.', description: 'Start with React + Vite. Add the tools your project needs.' },
+      { id: 'structure', label: 'Structure', detail: 'Organize your workspace', title: 'Project structure.', description: 'Choose your folders and add a few starter files.' },
+      { id: 'launch', label: 'Review & launch', detail: 'Make it happen', title: 'Review and create.', description: 'One last look, then your terminal takes it from here.' },
+    ];
+    const cardClass = 'group relative flex w-full gap-3 rounded border border-zinc-800 bg-zinc-900/40 p-4 text-left transition-colors hover:border-zinc-600 hover:bg-zinc-900 aria-pressed:border-zinc-400 aria-pressed:bg-zinc-800/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300 disabled:cursor-wait motion-reduce:transition-none';
+    let currentStep = 0;
+    let packageFilter = 'all';
+    let busy = false;
+    let finished = false;
+    let requestController = null;
+    let heartbeatController = null;
+    let heartbeatTimer;
+    let clockTimer;
+    let expiryTimer;
+    const unresolved = (value) => /^__(PROJECT_NAME|SESSION_TOKEN|SUBMIT_URL|TIME_LEFT_MS)__$/.test(value);
+    const sessionToken = unresolved(TEMPLATE_SESSION_TOKEN) ? new URLSearchParams(location.search).get('token') || '' : TEMPLATE_SESSION_TOKEN;
+    const submitUrl = unresolved(TEMPLATE_SUBMIT_URL) ? location.origin + '/api/setup' : TEMPLATE_SUBMIT_URL;
+    const previewOnly = location.protocol === 'file:' || !sessionToken;
+    const remainingTime = unresolved(TEMPLATE_TIME_LEFT_MS) ? 600000 : Math.max(0, Number(TEMPLATE_TIME_LEFT_MS) || 0);
+    const expiresAt = Date.now() + remainingTime;
+    $('project-name-input').value = unresolved(TEMPLATE_PROJECT_NAME) ? '' : TEMPLATE_PROJECT_NAME;
+    $('session-host').textContent = location.host || 'Local preview';
 
-    const packageGrid = document.getElementById("package-grid");
-    const structureList = document.getElementById("structure-list");
-    const treePreview = document.getElementById("tree-preview");
-    const toast = document.getElementById("toast");
-    const toastTitle = document.getElementById("toast-title");
-    const toastMessage = document.getElementById("toast-message");
-    const createButton = document.getElementById("create");
-    const introScreen = document.getElementById("intro-screen");
-    const sidePackages = document.getElementById("side-packages");
-    const sideStructure = document.getElementById("side-structure");
-    const sideLaunch = document.getElementById("side-launch");
-    const sidePort = document.getElementById("side-port");
-    const finalScreen = document.getElementById("final-screen");
-    const finalProject = document.getElementById("final-project");
-    const finalPackages = document.getElementById("final-packages");
-    const finalStructure = document.getElementById("final-structure");
-    const finalLaunch = document.getElementById("final-launch");
-    const panelStack = document.getElementById("panel-stack");
-    let setupLocked = false;
+    const introScreen = $('intro-screen');
+    const introMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let introTimer;
+    let introCursorTimer;
     let introStarted = false;
-    let activeSection = "packages";
+    let introLeaving = false;
 
-    const showToast = (title, message, isError = false) => {
-      toastTitle.textContent = title;
-      toastMessage.textContent = message;
-      toast.classList.toggle("error", isError);
-      toast.classList.add("show");
-      window.setTimeout(() => toast.classList.remove("show"), 4200);
-    };
-
-    const toggleSet = (set, value) => {
-      if (setupLocked) return;
-      if (set.has(value)) set.delete(value);
-      else set.add(value);
-    };
-
-    const setSetupLocked = (locked) => {
-      setupLocked = locked;
-      document.body.classList.toggle("is-locked", locked);
-      document.querySelectorAll("button").forEach((button) => {
-        button.disabled = locked;
-        button.setAttribute("aria-disabled", String(locked));
-      });
-      createButton.disabled = locked;
-      createButton.setAttribute("aria-disabled", String(locked));
-    };
-
-    // TextType vanilla implementation
-    const initTextType = ({
-      text,
-      el,
-      typingSpeed = 50,
-      initialDelay = 0,
-      pauseDuration = 2000,
-      deletingSpeed = 30,
-      loop = true,
-      showCursor = true,
-      cursorCharacter = '|',
-      cursorClassName = '',
-      cursorBlinkDuration = 0.5,
-      textColors = [],
-      variableSpeed,
-      onSentenceComplete,
-      onComplete
-    }) => {
-      const textArray = Array.isArray(text) ? text : [text];
-      let displayedText = '';
-      let currentCharIndex = 0;
-      let isDeleting = false;
-      let currentTextIndex = 0;
-      let timeout;
-
-      el.className = 'text-type';
-      const contentSpan = document.createElement('span');
-      contentSpan.className = 'text-type__content';
-      el.appendChild(contentSpan);
-
-      let cursorSpan;
-      if (showCursor) {
-        cursorSpan = document.createElement('span');
-        cursorSpan.className = `text-type__cursor ${cursorClassName}`;
-        cursorSpan.textContent = cursorCharacter;
-        el.appendChild(cursorSpan);
-
-        // GSAP cursor blink animation
-        gsap.set(cursorSpan, { opacity: 1 });
-        gsap.to(cursorSpan, {
-          opacity: 0,
-          duration: cursorBlinkDuration,
-          repeat: -1,
-          yoyo: true,
-          ease: 'power2.inOut'
-        });
-      }
-
-      const getRandomSpeed = () => {
-        if (!variableSpeed) return typingSpeed;
-        const { min, max } = variableSpeed;
-        return Math.random() * (max - min) + min;
-      };
-
-      const updateColor = () => {
-        if (textColors.length > 0) {
-          contentSpan.style.color = textColors[currentTextIndex % textColors.length];
-        }
-      };
-
-      const execute = () => {
-        const currentText = textArray[currentTextIndex];
-        
-        if (isDeleting) {
-          if (displayedText === '') {
-            isDeleting = false;
-            
-            if (currentTextIndex === textArray.length - 1 && !loop) {
-              if (onComplete) onComplete();
-              return;
-            }
-
-            if (onSentenceComplete) {
-              onSentenceComplete(textArray[currentTextIndex], currentTextIndex);
-            }
-
-            currentTextIndex = (currentTextIndex + 1) % textArray.length;
-            currentCharIndex = 0;
-            updateColor();
-            timeout = setTimeout(execute, pauseDuration);
-          } else {
-            displayedText = displayedText.slice(0, -1);
-            contentSpan.textContent = displayedText;
-            timeout = setTimeout(execute, deletingSpeed);
-          }
-        } else {
-          if (currentCharIndex < currentText.length) {
-            displayedText += currentText[currentCharIndex];
-            contentSpan.textContent = displayedText;
-            currentCharIndex++;
-            timeout = setTimeout(execute, variableSpeed ? getRandomSpeed() : typingSpeed);
-          } else {
-            if (!loop && currentTextIndex === textArray.length - 1) {
-              if (onComplete) {
-                setTimeout(onComplete, pauseDuration);
-              }
-              return;
-            }
-            timeout = setTimeout(() => {
-              isDeleting = true;
-              execute();
-            }, pauseDuration);
-          }
-        }
-      };
-
-      updateColor();
-      timeout = setTimeout(execute, initialDelay);
-    };
-
-    const enterSetupScreen = () => {
-      if (introStarted) return;
+    function stopIntro(restoreFocus = false) {
+      clearTimeout(introTimer); clearInterval(introCursorTimer);
+      introMotion.removeEventListener('change', handleIntroMotion);
+      introScreen.removeEventListener('cancel', cancelIntro);
+      $('skip-intro')?.removeEventListener('click', skipIntro);
+      if (introScreen.open) introScreen.close();
+      introScreen.remove();
+      $('setup-screen').inert = false;
+      document.body.classList.remove('overflow-hidden');
+      if (restoreFocus && !finished) $('step-title').focus();
+    }
+    function skipIntro() { stopIntro(true); }
+    function cancelIntro(event) { event.preventDefault(); skipIntro(); }
+    function handleIntroMotion(event) { if (event.matches) stopIntro(true); }
+    function enterSetupScreen() {
+      if (introLeaving || !introScreen.isConnected || finished) return;
+      introLeaving = true;
+      clearTimeout(introTimer); clearInterval(introCursorTimer);
+      introScreen.classList.add('opacity-0');
+      introTimer = setTimeout(() => stopIntro(true), 1000);
+    }
+    function startIntro() {
+      if (introStarted || finished) return;
       introStarted = true;
-      introScreen.classList.add("is-leaving");
+      if (introMotion.matches) { stopIntro(); return; }
+      $('setup-screen').inert = true;
+      document.body.classList.add('overflow-hidden');
+      introScreen.addEventListener('cancel', cancelIntro);
+      $('skip-intro').addEventListener('click', skipIntro);
+      introMotion.addEventListener('change', handleIntroMotion);
+      introScreen.showModal();
+      $('skip-intro').focus();
+      const text = "Let's build your new React App";
+      let characters = 0;
+      introCursorTimer = setInterval(() => $('intro-cursor')?.classList.toggle('opacity-0'), 500);
+      const typeNextCharacter = () => {
+        if (!introScreen.isConnected || introLeaving || finished) return;
+        characters += 1;
+        $('intro-typed-text').textContent = text.slice(0, characters);
+        introTimer = setTimeout(characters < text.length ? typeNextCharacter : enterSetupScreen, characters < text.length ? 55 : 2400);
+      };
+      typeNextCharacter();
+    }
 
-      window.setTimeout(() => {
-        introScreen.remove();
-        document.body.classList.remove("intro-active");
-        showToast("Local wizard ready", "Choose packages, structure, and launch options.");
-      }, 1000);
-    };
-
-    const setup3DTiltEffect = (button) => {
-      button.addEventListener("mousemove", (e) => {
-        const rect = button.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const rotateX = ((y - rect.height / 2) / (rect.height / 2)) * -10;
-        const rotateY = ((x - rect.width / 2) / (rect.width / 2)) * 10;
-        button.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
-        button.style.transition = "transform 0.08s ease-out";
-      });
-      button.addEventListener("mouseleave", () => {
-        button.style.transform = "perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)";
-        button.style.transition = "transform 0.4s ease-in-out";
-      });
-    };
-
-    let packagesBuilt = false;
-    const renderPackages = () => {
-      if (!packagesBuilt) {
-        packagesBuilt = true;
-        packageGrid.replaceChildren(...packages.map((item) => {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = `package-card${selectedPackages.has(item.value) ? " selected" : ""}`;
-          button.setAttribute("aria-pressed", String(selectedPackages.has(item.value)));
-          button.dataset.value = item.value;
-          button.innerHTML = `
-            <span class="material-symbols-outlined card-icon">${item.icon}</span>
-            <span class="material-symbols-outlined check">check_circle</span>
-            <span class="card-copy">
-              <span class="card-title">${item.label}</span>
-              <span class="card-hint">${item.hint}</span>
-            </span>
-          `;
-          button.addEventListener("click", () => {
-            if (setupLocked) return;
-            toggleSet(selectedPackages, item.value);
-            const sel = selectedPackages.has(item.value);
-            button.classList.toggle("selected", sel);
-            button.setAttribute("aria-pressed", String(sel));
-            renderTree();
-            updateSideDashboard();
-          });
+    function announce(message) { $('announcement').textContent = message; }
+    function showError(id, message) {
+      $(id).textContent = message;
+      $(id).classList.toggle('hidden', !message);
+    }
+    function setBusy(value) {
+      busy = value;
+      $('setup-fields').disabled = value || finished;
+      $('workspace').setAttribute('aria-busy', String(value));
+      document.querySelectorAll('[data-view], #cancel-setup, #reset, #next-step, #create').forEach((button) => { button.disabled = value || finished; });
+      $('previous-step').disabled = value || finished || currentStep === 0;
+      $('create-label').textContent = value ? 'Sending to terminal…' : 'Create project';
+    }
+    function renderSteps() {
+      ['desktop-steps', 'mobile-steps'].forEach((id) => {
+        $(id).replaceChildren(...steps.map((step, index) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.dataset.view = step.id;
+          button.setAttribute('aria-controls', step.id);
+          button.setAttribute('aria-label', step.label);
+          if (index === currentStep) button.setAttribute('aria-current', 'step');
+          button.disabled = busy || finished;
+          button.className = 'flex w-full items-center gap-3 rounded border border-transparent px-3 py-3 text-left text-zinc-400 transition-colors hover:bg-zinc-800/50 hover:text-zinc-200 aria-[current=step]:border-zinc-600 aria-[current=step]:bg-zinc-800 aria-[current=step]:text-white focus-visible:outline-2 focus-visible:outline-zinc-300 motion-reduce:transition-none' + (id === 'mobile-steps' ? ' flex-col justify-center text-center' : '');
+          const label = id === 'mobile-steps' ? ['Packages', 'Structure', 'Launch'][index] : step.label;
+          button.innerHTML = '<span class="flex size-7 shrink-0 items-center justify-center rounded border border-current/20 font-mono text-xs">' + String(index + 1).padStart(2, '0') + '</span><span class="min-w-0"><span class="block text-xs font-medium lg:text-sm">' + label + '</span><span class="mt-1 hidden text-xs text-zinc-400 lg:block">' + step.detail + '</span></span>';
+          button.addEventListener('click', () => setStep(index));
           return button;
         }));
-      } else {
-        packageGrid.querySelectorAll(".package-card").forEach((btn) => {
-          const sel = selectedPackages.has(btn.dataset.value);
-          btn.classList.toggle("selected", sel);
-          btn.setAttribute("aria-pressed", String(sel));
-        });
-      }
-    };
-
-    let structureBuilt = false;
-    const renderStructure = () => {
-      if (!structureBuilt) {
-        structureBuilt = true;
-        structureList.replaceChildren(...structure.map((item) => {
-          const isDirectory = item.label.startsWith("src/") || item.label.startsWith("public/");
-          const displayLabel = item.label;
-          const displayPath = item.value === 'env' ? '.env' : (item.value === 'assets' ? 'public/assets/' : (item.value === 'watch' ? 'src/apiWatch.js' : `src/${item.value}/`));
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = `package-card tilt-card${selectedStructure.has(item.value) ? " selected" : ""}`;
-          button.setAttribute("aria-pressed", String(selectedStructure.has(item.value)));
-          button.dataset.value = item.value;
-          button.innerHTML = `
-            <!-- Watermark Background SVG -->
-            <div class="card-bg-svg" aria-hidden="true">
-              <svg viewBox="0 0 500 500">
-                <g transform="translate(578.336,832.80383)">
-                  <g transform="matrix(1.564053,0,0,1.564053,-710.99228,-892.17352)">
-                    <path fill="currentColor" d="m 140.6,214.1 c -13.9,0 -24.3,-8.9 -23.7,-20.6 0.3,-5.6 3.4,-10.2 8,-14 13.7,-11.4 109.9,-87.3 109.9,-87.3 v 48.1 l -52.2,40.1 -42.1,33.7 z" />
-                    <path fill="currentColor" d="m 286.4,271.1 c 0,0 8,0.1 12.6,-1.3 8.4,-2.6 15.9,-6.6 19,-16.9 0.3,-1 0.6,-2 0.7,-3 1.9,-10.2 -0.7,-23.4 -9.9,-29.4 -8.3,-5.4 -18.7,-6.2 -28.3,-6.4 -11.1,-0.3 -22.3,-0.3 -33.4,-0.4 -21.9,-0.1 -43.8,0 -65.6,0.2 -13.7,0 -27.3,0.2 -41,0.2 l 42.1,-33.7 c 0,0 61.7,-0.3 90.7,0 75.3,0.5 102.8,62.6 70.4,99 -8.1,9.1 -20.8,16.7 -38.7,21.4 -6.9,1.8 -14,2.6 -21.2,2.6 -11.8,-0.1 -34.8,0 -34.8,0 l 37.4,-32.1 z" />
-                    <polygon fill="currentColor" points="286.4,271.1 249,303.2 249,227.9 286.6,227.9 " />
-                    <polygon fill="currentColor" points="234.9,227.9 234.9,303.3 192.8,271.3 192.9,227.9" />
-                    <path fill="currentColor" d="m 249.1,92.3 c 0,0 26.6,-0.1 17.4,0 23.1,0.3 46.2,13 56.1,34.3 7.7,16.5 4.8,33.8 -2.6,49.8 0,0.1 -2.2,5.9 -2.3,5.8 0,0 -28.7,-11.3 -28.7,-11.3 0.4,0.2 2.9,-3.5 3.1,-3.8 9.6,-13.7 7.2,-34.1 -7.8,-42.9 -5.3,-3.1 -11.2,-5 -17.2,-6.4 0,0 -0.7,-0.1 -0.7,-0.2" />
-                    <polyline fill="currentColor" points="286.4 117.6 286.5 166.1 249 166.1 249.1 92.3" />
-                  </g>
-                </g>
-              </svg>
-            </div>
-
-            <span class="material-symbols-outlined card-icon">${item.icon}</span>
-            <span class="material-symbols-outlined check">check_circle</span>
-            <span class="card-copy">
-              <span class="structure-badge">${displayPath}</span>
-              <span class="card-title" style="margin-top: 6px;">${displayLabel}</span>
-              <span class="card-hint">${item.hint}</span>
-            </span>
-          `;
-          setup3DTiltEffect(button);
-          button.addEventListener("click", () => {
-            if (setupLocked) return;
-            toggleSet(selectedStructure, item.value);
-            const sel = selectedStructure.has(item.value);
-            button.classList.toggle("selected", sel);
-            button.setAttribute("aria-pressed", String(sel));
-            updateFolderDropdown();
-            renderTree();
-            updateSideDashboard();
-          });
-          return button;
-        }));
-      } else {
-        structureList.querySelectorAll(".package-card").forEach((btn) => {
-          const sel = selectedStructure.has(btn.dataset.value);
-          btn.classList.toggle("selected", sel);
-          btn.setAttribute("aria-pressed", String(sel));
-        });
-      }
-    };
-
-    const ICONS = {
-      folder: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#e2a750"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
-      folderOpen: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#e2a750"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><polyline points="2 13 8 13 10 11 14 11 16 13 22 13"/></svg>`,
-      jsx: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#74f5ff"><circle cx="12" cy="12" r="2"/><path d="M12 2a10 10 0 0 1 0 20A10 10 0 0 1 12 2"/><path d="M12 6a6 6 0 0 1 0 12 6 6 0 0 1 0-12"/></svg>`,
-      js: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#f7df1e"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 17c0 1-1 2-2 2s-2-1-2-2v-5"/><path d="M14 10v7a2 2 0 0 0 4 0v-2"/></svg>`,
-      css: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#38bdf8"><path d="m4 4 1.5 15L12 21l6.5-2L20 4z"/><path d="M8 8h8M7.5 12H16l-1 4-3 1-3-1-.3-1.5"/></svg>`,
-      json: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#a3e635"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg>`,
-      env: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#fbbf24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>`,
-      file: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#8e9ba5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
-      chevron: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`,
-    };
-
-    const expandedFolders = new Set(["src"]);
-
-    const getFileIcon = (name) => {
-      if (name.endsWith(".jsx")) return ICONS.jsx;
-      if (name.endsWith(".js") || name.endsWith(".mjs")) return ICONS.js;
-      if (name.endsWith(".css")) return ICONS.css;
-      if (name.endsWith(".json")) return ICONS.json;
-      if (name.startsWith(".env")) return ICONS.env;
-      return ICONS.file;
-    };
-
-    const buildTreeData = () => {
-      const srcFiles = ["App.jsx", "main.jsx"];
-      if (selectedPackages.has("tailwind")) srcFiles.push("index.css");
-
-      const srcFolders = structure
-        .filter((item) => selectedStructure.has(item.value) && item.label.startsWith("src/"))
-        .map((item) => ({ name: item.label.replace("src/", ""), children: [] }));
-      if (selectedStructure.has("watch")) srcFolders.push({ name: "react-setup-watch", children: [], badge: "watch" });
-
-      // If socket package is selected, dynamically include src/services/socket.js in tree preview
-      if (selectedPackages.has("socket")) {
-        let servicesFolder = srcFolders.find(f => f.name === "services");
-        if (!servicesFolder) {
-          servicesFolder = { name: "services", children: [] };
-          srcFolders.push(servicesFolder);
-        }
-        servicesFolder.children.push({ name: "socket.js" });
-      }
-
-      // If webcam package is selected, dynamically include src/pages/Camera.jsx in tree preview
-      if (selectedPackages.has("webcam")) {
-        let pagesFolder = srcFolders.find(f => f.name === "pages");
-        if (!pagesFolder) {
-          pagesFolder = { name: "pages", children: [] };
-          srcFolders.push(pagesFolder);
-        }
-        pagesFolder.children.push({ name: "Camera.jsx" });
-      }
-
-      // Inject dynamically created files
-      createdFiles.forEach((file) => {
-        let folderNode = srcFolders.find((f) => f.name === file.folder);
-        if (!folderNode) {
-          folderNode = { name: file.folder, children: [] };
-          srcFolders.push(folderNode);
-        }
-        if (!folderNode.children.some((child) => child.name === `${file.name}${file.ext}`)) {
-          folderNode.children.push({ name: `${file.name}${file.ext}` });
-        }
       });
-
-      // If bonjour is selected in launch or structure, include server files and bonjour pages
-      const isBonjour = getSelectedLaunch().includes("bonjour") || selectedStructure.has("bonjour");
-      if (isBonjour) {
-        let pagesFolder = srcFolders.find((f) => f.name === "pages");
-        if (!pagesFolder) {
-          pagesFolder = { name: "pages", children: [] };
-          srcFolders.push(pagesFolder);
-        }
-        if (!pagesFolder.children.some((c) => c.name === "DiscoveryPage.jsx")) {
-          pagesFolder.children.push({ name: "DiscoveryPage.jsx" });
-        }
-        if (!pagesFolder.children.some((c) => c.name === "Home.jsx")) {
-          pagesFolder.children.push({ name: "Home.jsx" });
-        }
-
-        let servicesFolder = srcFolders.find((f) => f.name === "services");
-        if (!servicesFolder) {
-          servicesFolder = { name: "services", children: [] };
-          srcFolders.push(servicesFolder);
-        }
-        if (!servicesFolder.children.some((c) => c.name === "bonjour.js")) {
-          servicesFolder.children.push({ name: "bonjour.js" });
-        }
-        if (!servicesFolder.children.some((c) => c.name === "useServiceScanner.js")) {
-          servicesFolder.children.push({ name: "useServiceScanner.js" });
-        }
-      }
-
-
-      const rootFiles = ["index.html", "vite.config.js"];
-      if (selectedStructure.has("env")) rootFiles.push(".env");
-      rootFiles.push("package.json");
-
-      const publicChildren = [];
-      if (selectedStructure.has("assets")) {
-        publicChildren.push({ name: "images", children: [] });
-        publicChildren.push({ name: "fonts", children: [] });
-      }
-
-      const rootFolders = [];
-      if (isBonjour) {
-        rootFolders.push({
-          name: "server",
-          children: [
-            { name: "mdnsScanner.js" },
-            { name: "vitePluginMdns.js" },
-          ],
-        });
-      }
-
-      return {
-        name: PROJECT_NAME,
-        isRoot: true,
-        children: [
-          ...rootFolders,
-          {
-            name: "src",
-            children: [
-              ...srcFolders,
-              ...srcFiles.map((f) => ({ name: f })),
-            ],
-          },
-          { name: "public", children: publicChildren },
-          ...rootFiles.map((f) => ({ name: f })),
-        ],
+    }
+    function setStep(index, focus = true) {
+      if (busy || finished) return;
+      currentStep = index;
+      steps.forEach((step, position) => $(step.id).classList.toggle('hidden', position !== index));
+      $('step-title').textContent = steps[index].title;
+      $('step-description').textContent = steps[index].description;
+      $('step-number').textContent = String(index + 1).padStart(2, '0') + ' / 03';
+      $('footer-step').textContent = 'Step ' + (index + 1) + ' of 3';
+      $('next-step').classList.toggle('hidden', index === 2);
+      $('create').classList.toggle('hidden', index !== 2);
+      $('create').classList.toggle('flex', index === 2);
+      $('previous-step').disabled = index === 0;
+      renderSteps();
+      if (focus) $('step-title').focus();
+    }
+    function selectionCard(item, selected, onToggle, kind) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset[kind] = item.value;
+      button.className = cardClass + (kind === 'launch' ? ' items-center' : ' flex-col items-start');
+      button.setAttribute('aria-pressed', String(selected.has(item.value)));
+      button.setAttribute('aria-label', item.label);
+      const artwork = '<img src="/icons/' + item.value + '.png" alt="" width="56" height="56" loading="lazy" decoding="async" class="size-14 shrink-0 object-contain">';
+      const selection = '<span class="shrink-0 text-xs font-medium text-zinc-400 group-aria-pressed:hidden">Select</span><span class="hidden shrink-0 text-xs font-semibold text-zinc-100 group-aria-pressed:inline">Selected</span>';
+      button.innerHTML = (kind === 'launch' ? artwork : '<span class="flex w-full items-start justify-between gap-3">' + artwork + selection + '</span>') + '<span class="block w-full min-w-0 flex-1"><span class="block text-sm font-semibold text-zinc-200">' + item.label + '</span><span class="mt-2 block text-xs leading-5 text-zinc-400">' + item.hint + '</span>' + (item.package ? '<span class="mt-3 block truncate font-mono text-xs text-zinc-400">' + item.package + '</span>' : '') + '</span>' + (kind === 'launch' ? selection : '');
+      button.querySelector('img').addEventListener('error', (event) => { event.currentTarget.hidden = true; console.error('setup artwork could not load', item.value); });
+      button.addEventListener('click', () => {
+        if (busy || finished) return;
+        selected.has(item.value) ? selected.delete(item.value) : selected.add(item.value);
+        button.setAttribute('aria-pressed', String(selected.has(item.value)));
+        onToggle();
+        if (button.classList.contains('hidden')) document.querySelector('[data-filter="selected"]').focus();
+        announce(item.label + (selected.has(item.value) ? ' selected.' : ' removed.'));
+      });
+      return button;
+    }
+    function renderPackages() {
+      $('package-grid').replaceChildren(...packages.map((item) => selectionCard(item, selectedPackages, () => { filterPackages(); renderSummary(); }, 'package')));
+      filterPackages();
+    }
+    function filterPackages() {
+      const query = $('package-search').value.trim().toLowerCase();
+      let count = 0;
+      document.querySelectorAll('[data-package]').forEach((button) => {
+        const item = packages.find((entry) => entry.value === button.dataset.package);
+        const visible = [item.label, item.hint, item.package, item.value].join(' ').toLowerCase().includes(query) && (packageFilter === 'all' || selectedPackages.has(item.value));
+        button.classList.toggle('hidden', !visible);
+        if (visible) count++;
+      });
+      $('package-empty').classList.toggle('hidden', count > 0);
+      $('visible-count').textContent = count + (count === 1 ? ' package' : ' packages');
+      $('selected-filter-count').textContent = selectedPackages.size;
+      document.querySelectorAll('[data-filter]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.filter === packageFilter)));
+    }
+    function renderStructure() {
+      $('structure-list').replaceChildren(...structure.map((item) => selectionCard(item, selectedStructure, () => { updateFolderOptions(); renderSummary(); }, 'structure')));
+      updateFolderOptions();
+    }
+    function renderLaunch() {
+      $('launch-options').replaceChildren(...launchOptions.map((item) => selectionCard(item, selectedLaunch, () => { updatePort(); renderSummary(); }, 'launch')));
+      updatePort();
+    }
+    function updatePort() {
+      $('port-config-container').classList.toggle('hidden', !selectedLaunch.has('runDevServer'));
+    }
+    function updateFolderOptions() {
+      const previous = $('file-target-folder').value;
+      const folders = structure.filter((item) => item.label.startsWith('src/') && selectedStructure.has(item.value));
+      $('file-target-folder').replaceChildren(...folders.map((folder) => new Option(folder.label, folder.value)));
+      if (folders.some((folder) => folder.value === previous)) $('file-target-folder').value = previous;
+      $('create-file-btn').disabled = folders.length === 0;
+      $('file-folder-hint').classList.toggle('hidden', folders.length > 0);
+    }
+    function plannedTree() {
+      const tree = { src: {}, public: {}, 'index.html': null, 'vite.config.js': null, 'package.json': null };
+      const add = (file) => {
+        const parts = file.split('/');
+        let parent = tree;
+        parts.slice(0, -1).forEach((part) => { parent = parent[part] ||= {}; });
+        parent[parts.at(-1)] = null;
       };
-    };
-
-    const makeRow = (node, depth) => {
-      const isFolder = Array.isArray(node.children);
-      const isExpanded = isFolder && expandedFolders.has(node.name);
-
-      const el = document.createElement("div");
-      el.className = `ft-row${isFolder ? " ft-folder" : ""}`;
-
-      const indentEl = document.createElement("span");
-      indentEl.className = "ft-indent";
-      for (let i = 0; i < depth; i++) {
-        const seg = document.createElement("span");
-        seg.className = "ft-indent-seg";
-        indentEl.appendChild(seg);
-      }
-
-      const chevronEl = document.createElement("span");
-      chevronEl.className = `ft-chevron ${isFolder ? (isExpanded ? "open" : "closed") : ""}`;
-      if (isFolder) chevronEl.innerHTML = ICONS.chevron;
-
-      const iconEl = document.createElement("span");
-      iconEl.className = "ft-icon";
-      iconEl.innerHTML = isFolder ? (isExpanded ? ICONS.folderOpen : ICONS.folder) : getFileIcon(node.name);
-
-      const nameEl = document.createElement("span");
-      nameEl.className = "ft-name";
-      nameEl.style.color = node.isRoot ? "#fff" : (isFolder ? "#e2c08a" : "");
-      if (node.isRoot) nameEl.style.fontWeight = "700";
-      nameEl.textContent = node.name;
-
-      el.appendChild(indentEl);
-      el.appendChild(chevronEl);
-      el.appendChild(iconEl);
-      el.appendChild(nameEl);
-
-      if (node.badge) {
-        const badge = document.createElement("span");
-        badge.className = "ft-badge";
-        badge.textContent = node.badge;
-        el.appendChild(badge);
-      }
-
-      if (isFolder) {
-        el.addEventListener("click", () => {
-          const nowOpen = expandedFolders.has(node.name);
-          if (nowOpen) expandedFolders.delete(node.name);
-          else expandedFolders.add(node.name);
-          // re-render to show/hide children with animation
-          renderTree();
-          // update chevron/icon on this element
-          chevronEl.className = `ft-chevron ${nowOpen ? "closed" : "open"}`;
-          iconEl.innerHTML = nowOpen ? ICONS.folder : ICONS.folderOpen;
+      add('src/App.jsx'); add('src/main.jsx');
+      structure.filter((item) => selectedStructure.has(item.value) && item.label.startsWith('src/')).forEach((item) => { tree.src[item.value] ||= {}; });
+      if (selectedStructure.has('assets')) { tree.public.images = {}; tree.public.fonts = {}; }
+      if (selectedStructure.has('env')) add('.env');
+      if (selectedPackages.has('tailwind')) add('src/index.css');
+      if (selectedPackages.has('router')) tree.src.router = {};
+      if (selectedPackages.has('socket')) add('src/services/socket.js');
+      if (selectedPackages.has('webcam')) { add('src/pages/Camera.jsx'); add('src/components/Preview.jsx'); }
+      if (selectedPackages.has('printer')) { add('src/pages/Printer.jsx'); add('src/services/socket.js'); }
+      if (selectedLaunch.has('bonjour')) ['src/pages/DiscoveryPage.jsx', 'src/pages/Home.jsx', 'src/services/bonjour.js', 'src/services/useServiceScanner.js', 'server/mdnsScanner.js', 'server/vitePluginMdns.js'].forEach(add);
+      createdFiles.forEach((file) => add('src/' + file.folder + '/' + file.name + file.ext));
+      return tree;
+    }
+    function treeMarkup(tree, parent = '') {
+      return Object.entries(tree).sort(([a, av], [b, bv]) => Number(bv !== null) - Number(av !== null) || a.localeCompare(b)).map(([name, children]) => {
+        const key = parent + '/' + name;
+        if (children !== null) return '<li><details open data-folder-path="' + escapeText(key) + '"><summary class="cursor-pointer list-none rounded py-1 font-medium text-zinc-300 hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-zinc-300 [&::-webkit-details-marker]:hidden">' + escapeText(name) + '/</summary><ul class="ml-3 border-l border-zinc-800 pl-4">' + treeMarkup(children, key) + '</ul></details></li>';
+        return '<li class="break-all py-1">' + escapeText(name) + '</li>';
+      }).join('');
+    }
+    function renderSummary() {
+      const name = $('project-name-input').value.trim();
+      $('project-name').textContent = name || 'your-project';
+      $('preview-project-name').textContent = name || 'Your project';
+      $('side-packages').innerHTML = selectedPackages.size + '<span class="ml-1 text-xs font-normal text-zinc-400">selected</span>';
+      $('side-structure').innerHTML = selectedStructure.size + '<span class="ml-1 text-xs font-normal text-zinc-400">items</span>';
+      $('side-launch').textContent = selectedLaunch.has('runDevServer') ? 'localhost:' + ($('dev-port').value || '5173') : 'Manual start';
+      const closed = new Set([...$('tree-preview').querySelectorAll('details:not([open])')].map((folder) => folder.dataset.folderPath));
+      $('tree-preview').innerHTML = '<ul>' + treeMarkup(plannedTree()) + '</ul>';
+      $('tree-preview').querySelectorAll('details').forEach((folder) => { folder.open = !closed.has(folder.dataset.folderPath); });
+    }
+    function renderFiles() {
+      $('created-files-list').replaceChildren(...createdFiles.map((file, index) => {
+        const row = document.createElement('li');
+        row.className = 'flex items-center gap-2 rounded border border-zinc-800 bg-zinc-950 px-3 py-1.5';
+        const name = 'src/' + file.folder + '/' + file.name + file.ext;
+        row.innerHTML = '<span class="min-w-0 flex-1 break-all font-mono text-xs text-zinc-400">' + escapeText(name) + '</span>';
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'flex h-9 shrink-0 items-center justify-center rounded px-2 text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:outline-2 focus-visible:outline-zinc-300';
+        remove.setAttribute('aria-label', 'Remove ' + name);
+        remove.textContent = 'Remove';
+        remove.addEventListener('click', () => {
+          if (busy || finished) return;
+          createdFiles.splice(index, 1); renderFiles(); renderSummary();
+          $('file-name-input').focus(); announce(name + ' removed.');
         });
-      }
-
-      return el;
-    };
-
-    // tracks rendered node wrappers by key so we can diff
-    const treeNodeMap = new Map();
-
-    const nodeKey = (node, depth) => `${depth}:${node.name}`;
-
-    const flattenTree = (node, depth = 0, result = []) => {
-      result.push({ node, depth, key: nodeKey(node, depth) });
-      if (Array.isArray(node.children) && (node.isRoot || expandedFolders.has(node.name))) {
-        node.children.forEach((child) => flattenTree(child, depth + 1, result));
-      }
-      return result;
-    };
-
-    let prevFlatKeys = [];
-    let treeDebounceTimer = null;
-
-    const applyTreeUpdate = () => {
-      const tree = buildTreeData();
-      const flat = flattenTree(tree);
-      const newKeys = flat.map((e) => e.key);
-      const previousKeys = new Set(prevFlatKeys);
-      const nextNodeMap = new Map();
-      const fragment = document.createDocumentFragment();
-
-      flat.forEach(({ node, depth, key }) => {
-        const wrapper = makeRow(node, depth);
-        if (!previousKeys.has(key)) wrapper.classList.add("ft-enter");
-        nextNodeMap.set(key, wrapper);
-        fragment.appendChild(wrapper);
-      });
-
-      treePreview.replaceChildren(fragment);
-      treeNodeMap.clear();
-      nextNodeMap.forEach((value, key) => treeNodeMap.set(key, value));
-      prevFlatKeys = newKeys;
-    };
-
-    const renderTree = () => {
-      clearTimeout(treeDebounceTimer);
-      treeDebounceTimer = setTimeout(applyTreeUpdate, 45);
-    };
-
-    const getSelectedLaunch = () => [...document.querySelectorAll("[data-launch].selected")]
-      .map((button) => button.dataset.launch)
-      .filter(Boolean);
-
-    const getSetupUiPort = () => {
-      try {
-        return new URL(SUBMIT_URL, window.location.href).port || "3002";
-      } catch {
-        return "3002";
-      }
-    };
-
-    const updateSideDashboard = () => {
-      const launchEnabled = getSelectedLaunch().includes("runDevServer");
-      const port = document.getElementById("dev-port") ? document.getElementById("dev-port").value || "5173" : "5173";
-      sidePackages.textContent = `${selectedPackages.size} selected`;
-      sideStructure.textContent = `${selectedStructure.size} items`;
-      sideLaunch.textContent = launchEnabled ? `Dev on: ${port}` : "Dev off";
-      sideLaunch.classList.toggle("good", launchEnabled);
-      sidePort.textContent = getSetupUiPort();
-    };
-
-    const showFinalScreen = () => {
-      const launchEnabled = getSelectedLaunch().includes("runDevServer");
-      const port = document.getElementById("dev-port") ? document.getElementById("dev-port").value || "5173" : "5173";
-      finalProject.textContent = PROJECT_NAME;
-      finalPackages.textContent = `${selectedPackages.size} selected`;
-      finalStructure.textContent = `${selectedStructure.size} items`;
-      finalLaunch.textContent = launchEnabled ? `Dev server ready (port ${port})` : "Manual start selected";
-      document.body.classList.add("final-active");
-      finalScreen.classList.add("is-visible");
-    };
-
-    const updateFolderDropdown = () => {
-      const folderSelect = document.getElementById("file-target-folder");
-      if (!folderSelect) return;
-      const selectedFolders = structure.filter(
-        (item) => selectedStructure.has(item.value) && item.label.startsWith("src/")
-      );
-      
-      const prevValue = folderSelect.value;
-      folderSelect.innerHTML = selectedFolders
-        .map((f) => `<option value="${f.value}">${f.label.replace("src/", "")}</option>`)
-        .join("");
-
-      if (prevValue && selectedFolders.some((f) => f.value === prevValue)) {
-        folderSelect.value = prevValue;
-      }
-    };
-
-    const renderCreatedFiles = () => {
-      const listEl = document.getElementById("created-files-list");
-      if (!listEl) return;
-      listEl.innerHTML = createdFiles
-        .map(
-          (file, idx) => `
-            <div class="created-file-tag">
-              <span class="file-path">src/${file.folder}/</span>
-              <span>${file.name}${file.ext}</span>
-              <button type="button" class="remove-file-btn" data-index="${idx}" aria-label="Remove created file">
-                <span class="material-symbols-outlined" style="font-size: 1.1rem; line-height: 1; vertical-align: middle;">close</span>
-              </button>
-            </div>
-          `
-        )
-        .join("");
-
-      listEl.querySelectorAll(".remove-file-btn").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const idx = parseInt(btn.dataset.index, 10);
-          createdFiles.splice(idx, 1);
-          renderCreatedFiles();
-          renderTree();
-        });
-      });
-    };
-
-    const handleCreateFile = () => {
-      if (setupLocked) return;
-
-      const folderSelect = document.getElementById("file-target-folder");
-      const nameInput = document.getElementById("file-name-input");
-      const extSelect = document.getElementById("file-extension");
-
-      if (!folderSelect || !nameInput || !extSelect) return;
-
-      const folder = folderSelect.value;
-      let name = nameInput.value.trim();
-      const ext = extSelect.value;
-
-      if (!folder) {
-        showToast("Error", "Please select a target folder first.", true);
-        return;
-      }
-
-      if (!name) {
-        showToast("Error", "Please type a file name.", true);
-        return;
-      }
-
-      if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name)) {
-        showToast("Error", "File name must start with a letter and contain only alphanumeric characters, dashes, or underscores.", true);
-        return;
-      }
-
-      // Normalize name for components/pages (PascalCase)
-      if (ext === ".jsx" || folder === "components" || folder === "pages") {
-        name = name.charAt(0).toUpperCase() + name.slice(1);
-      }
-
-      const filename = `${name}${ext}`;
-      const duplicate = createdFiles.some((f) => f.folder === folder && f.name === name && f.ext === ext);
-      if (duplicate) {
-        showToast("Error", `File ${filename} already exists in src/${folder}/`, true);
-        return;
-      }
-
-      createdFiles.push({ folder, name, ext });
-      nameInput.value = "";
-      renderCreatedFiles();
-
-      expandedFolders.add(folder);
-      renderTree();
-
-      showToast("File added", `Created src/${folder}/${filename} dynamically.`);
-    };
-
-    document.getElementById("create-file-btn").addEventListener("click", handleCreateFile);
-
-    document.getElementById("file-name-input").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleCreateFile();
-      }
-    });
-
-    let renderAll = () => {
-      renderPackages();
-      renderStructure();
-      updateFolderDropdown();
-      renderCreatedFiles();
-      renderTree();
-      updateSideDashboard();
-    };
-
-    const sectionOrder = ["packages", "structure", "launch"];
-
-    const setActiveSection = (sectionId) => {
-      activeSection = sectionId;
-      panelStack.classList.remove("view-packages", "view-structure", "view-launch");
-      panelStack.classList.add(`view-${sectionId}`);
-      document.querySelectorAll(".step").forEach((item) => {
-        item.classList.toggle("active", item.dataset.view === sectionId);
-      });
-    };
-
-    document.querySelectorAll("[data-view]").forEach((button) => {
-      button.addEventListener("click", () => {
-        if (setupLocked) return;
-        setActiveSection(button.dataset.view);
-      });
-    });
-
-    document.querySelectorAll("[data-launch]").forEach((button) => {
-      button.addEventListener("click", () => {
-        if (setupLocked) return;
-        const selected = !button.classList.contains("selected");
-        button.classList.toggle("selected", selected);
-        button.setAttribute("aria-pressed", String(selected));
-        
-        if (button.dataset.launch === "runDevServer") {
-          const container = document.getElementById("port-config-container");
-          if (selected) {
-            container.style.display = "flex";
-            container.offsetHeight; // force reflow
-            container.style.opacity = "1";
-            container.style.transform = "translateY(0)";
-          } else {
-            container.style.opacity = "0";
-            container.style.transform = "translateY(-8px)";
-            setTimeout(() => {
-              if (!button.classList.contains("selected")) {
-                container.style.display = "none";
-              }
-            }, 300);
-          }
-        }
-        renderTree();
-        updateSideDashboard();
-      });
-    });
-
-    document.getElementById("dev-port").addEventListener("input", () => {
-      let val = parseInt(document.getElementById("dev-port").value, 10);
-      if (isNaN(val) || val < 1) val = 1;
-      if (val > 65535) val = 65535;
-      updateSideDashboard();
-    });
-    document.getElementById("dev-port").addEventListener("blur", () => {
-      let val = parseInt(document.getElementById("dev-port").value, 10);
-      if (isNaN(val) || val < 1) val = 5173;
-      if (val > 65535) val = 65535;
-      document.getElementById("dev-port").value = val;
-      updateSideDashboard();
-    });
-
-    document.getElementById("focus-packages").addEventListener("click", () => {
-      if (setupLocked) return;
-      const currentIndex = sectionOrder.indexOf(activeSection);
-      const previousIndex = currentIndex <= 0 ? 0 : currentIndex - 1;
-      setActiveSection(sectionOrder[previousIndex]);
-    });
-
-    document.getElementById("reset").addEventListener("click", () => {
-      if (setupLocked) return;
-      selectedPackages.clear();
-      selectedStructure.clear();
-      packages.filter((item) => item.selected).forEach((item) => selectedPackages.add(item.value));
-      structure.filter((item) => item.selected).forEach((item) => selectedStructure.add(item.value));
-      document.querySelectorAll("[data-launch]").forEach((button) => {
-        const selected = button.dataset.launch === "runDevServer";
-        button.classList.toggle("selected", selected);
-        button.setAttribute("aria-pressed", String(selected));
-      });
-      const portInput = document.getElementById("dev-port");
-      document.getElementById("dev-port").value = "5173";
-      createdFiles.length = 0;
-      renderCreatedFiles();
-      renderAll();
-      showToast("Reset complete", "Selections returned to the default launch profile.");
-    });
-
-    const modalEl = document.getElementById("project-name-modal");
-    const modalInput = document.getElementById("modal-project-name-input");
-    const modalForm = document.getElementById("project-name-form");
-    const modalError = document.getElementById("modal-name-error");
-    const headerProjNameEl = document.getElementById("project-name");
-
-    let introAnimationStarted = false;
-
-    const startIntroAnimation = () => {
-      if (introAnimationStarted) return;
-      introAnimationStarted = true;
-
-      const typedTextEl = document.getElementById("intro-typed-text");
-      if (typedTextEl) typedTextEl.innerHTML = "";
-
-      const textToType = PROJECT_NAME
-        ? `Let's build your new React App ☀︎`
-        : "Let's build your new React App ☀︎";
-
-      initTextType({
-        text: [textToType],
-        el: typedTextEl,
-        typingSpeed: 55,
-        pauseDuration: 1200,
-        deletingSpeed: 25,
-        loop: false,
-        textColors: ["#ffffff", "#74f5ff", "#60a5fa"],
-        onComplete: () => {
-          setTimeout(enterSetupScreen, 1200);
-        }
-      });
-    };
-
-    const checkProjectNameRequired = () => {
-      if (!PROJECT_NAME) {
-        if (headerProjNameEl) headerProjNameEl.textContent = "(Project Name Required)";
-        if (modalEl) {
-          modalEl.classList.add("is-visible");
-          setTimeout(() => modalInput && modalInput.focus(), 150);
-        }
-      } else {
-        if (headerProjNameEl) headerProjNameEl.textContent = PROJECT_NAME;
-        startIntroAnimation();
-      }
-    };
-
-    if (modalForm) {
-      modalForm.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const val = (modalInput ? modalInput.value : "").trim();
-        const validNameRegex = /^[a-zA-Z0-9_.-]+$/;
-
-        if (!val) {
-          if (modalError) modalError.textContent = "Please enter a project name.";
-          return;
-        }
-        if (!validNameRegex.test(val) || val.includes("..") || val.includes("/")) {
-          if (modalError) modalError.textContent = "Invalid name. Use letters, numbers, hyphens or underscores.";
-          return;
-        }
-
-        PROJECT_NAME = val;
-        if (headerProjNameEl) headerProjNameEl.textContent = PROJECT_NAME;
-        if (modalEl) modalEl.classList.remove("is-visible");
-        if (typeof renderTree === 'function') renderTree();
-
-        // Start background intro typing animation now that project name is set!
-        startIntroAnimation();
-      });
-    }
-
-    if (modalInput) {
-      modalInput.addEventListener("input", () => {
-        if (modalError) modalError.textContent = "";
-      });
-    }
-
-    createButton.addEventListener("click", async () => {
-      if (!PROJECT_NAME) {
-        checkProjectNameRequired();
-        showToast("Project Name Required", "Please enter a project name in the popup modal before creating.", true);
-        return;
-      }
-
-      setSetupLocked(true);
-      createButton.innerHTML = `<span class="material-symbols-outlined">progress_activity</span> Sending Launch Sequence`;
-
-      try {
-        if (IS_TEMPLATE_PREVIEW) {
-          throw new Error("Open this wizard from react <name> --ui, not the raw HTML template.");
-        }
-
-        const response = await fetch(SUBMIT_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token: SESSION_TOKEN,
-            projectName: PROJECT_NAME,
-            packages: [...selectedPackages],
-            structure: [...selectedStructure],
-            launch: getSelectedLaunch(),
-            devServerPort: document.getElementById("dev-port").value || "5173",
-            createdFiles: createdFiles,
-          }),
-        });
-        const result = await response.json();
-
-        if (!response.ok || !result.ok) {
-          throw new Error(result.error || "Setup failed");
-        }
-
-        showToast("Project launch sequence sent", "Return to the terminal. The CLI is creating your React app now.");
-        createButton.innerHTML = `<span class="material-symbols-outlined">check_circle</span> Sent To Terminal`;
-        showFinalScreen();
-      } catch (error) {
-        setSetupLocked(false);
-        createButton.innerHTML = `<span class="material-symbols-outlined">add_box</span> Create Project`;
-        showToast("Setup failed", error.message, true);
-      }
-    });
-
-    const cancelModalEl = document.getElementById("cancel-confirm-modal");
-    const abortCancelBtn = document.getElementById("abort-cancel-btn");
-    const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
-
-    const openCancelModal = () => {
-      if (setupLocked) return;
-      if (cancelModalEl) cancelModalEl.classList.add("is-visible");
-    };
-
-    const closeCancelModal = () => {
-      if (cancelModalEl) cancelModalEl.classList.remove("is-visible");
-    };
-
-    if (abortCancelBtn) {
-      abortCancelBtn.addEventListener("click", closeCancelModal);
-    }
-
-    const modalCancelBtn = document.getElementById("modal-cancel-btn");
-    if (modalCancelBtn) {
-      modalCancelBtn.addEventListener("click", () => {
-        openCancelModal();
-      });
-    }
-
-    document.getElementById("cancel-setup").addEventListener("click", () => {
-      openCancelModal();
-    });
-
-    if (confirmCancelBtn) {
-      confirmCancelBtn.addEventListener("click", async () => {
-        closeCancelModal();
-        if (setupLocked) return;
-
-        setSetupLocked(true);
-        const cancelBtn = document.getElementById("cancel-setup");
-        if (cancelBtn) {
-          cancelBtn.innerHTML = `<span class="material-symbols-outlined">progress_activity</span> Cancelling...`;
-        }
-
-        try {
-          if (IS_TEMPLATE_PREVIEW) {
-            throw new Error("Open this wizard from react <name> --ui to cancel setup.");
-          }
-
-          const cancelUrl = SUBMIT_URL.replace("/api/setup", "/api/cancel");
-          const response = await fetch(cancelUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              token: SESSION_TOKEN,
-            }),
-          });
-          const result = await response.json();
-
-          if (!response.ok || !result.ok) {
-            throw new Error(result.error || "Cancellation failed");
-          }
-
-          showToast("Setup cancelled", "The CLI terminal process has been terminated.", true);
-          if (modalEl) modalEl.classList.remove("is-visible");
-          if (cancelModalEl) cancelModalEl.classList.remove("is-visible");
-          if (typeof enterSetupScreen === "function") enterSetupScreen();
-          document.getElementById("cancel-screen").classList.add("is-visible");
-          document.body.classList.add("final-active");
-        } catch (error) {
-          setSetupLocked(false);
-          if (cancelBtn) {
-            cancelBtn.innerHTML = `<span class="material-symbols-outlined">close</span> Cancel Setup`;
-          }
-          showToast("Cancellation failed", error.message, true);
-        }
-      });
-    }
-
-    renderAll();
-    setActiveSection(activeSection);
-    checkProjectNameRequired();
-
-    // Allow user to skip intro by clicking background intro screen once project name is set
-    const introScreenEl = document.getElementById("intro-screen");
-    if (introScreenEl) {
-      introScreenEl.addEventListener("click", () => {
-        if (PROJECT_NAME) {
-          enterSetupScreen();
-        }
-      });
-    }
-
-    if (IS_TEMPLATE_PREVIEW) {
-      showToast("Template preview only", "Run react <name> --ui and open the printed 127.0.0.1 URL.", true);
-    }
-
-
-    // ── Pixel canvas web component ────────────────────────────────────
-    class Pixel {
-      constructor(canvas, ctx, x, y, color, speed, delay) {
-        this.width = canvas.width;
-        this.height = canvas.height;
-        this.ctx = ctx;
-        this.x = x;
-        this.y = y;
-        this.color = color;
-        this.speed = this._rand(0.1, 0.9) * speed;
-        this.size = 0;
-        this.sizeStep = Math.random() * 0.4;
-        this.minSize = 0.5;
-        this.maxSizeInteger = 2;
-        this.maxSize = this._rand(this.minSize, this.maxSizeInteger);
-        this.delay = delay;
-        this.counter = 0;
-        this.counterStep = Math.random() * 4 + (this.width + this.height) * 0.01;
-        this.isIdle = false;
-        this.isReverse = false;
-        this.isShimmer = false;
-      }
-      _rand(min, max) { return Math.random() * (max - min) + min; }
-      draw() {
-        const off = this.maxSizeInteger * 0.5 - this.size * 0.5;
-        this.ctx.fillStyle = this.color;
-        this.ctx.fillRect(this.x + off, this.y + off, this.size, this.size);
-      }
-      appear() {
-        this.isIdle = false;
-        if (this.counter <= this.delay) { this.counter += this.counterStep; return; }
-        if (this.size >= this.maxSize) this.isShimmer = true;
-        if (this.isShimmer) this._shimmer(); else this.size += this.sizeStep;
-        this.draw();
-      }
-      disappear() {
-        this.isShimmer = false; this.counter = 0;
-        if (this.size <= 0) { this.isIdle = true; return; }
-        this.size -= 0.1;
-        this.draw();
-      }
-      _shimmer() {
-        if (this.size >= this.maxSize) this.isReverse = true;
-        else if (this.size <= this.minSize) this.isReverse = false;
-        this.size += this.isReverse ? -this.speed : this.speed;
-      }
-    }
-
-    class PixelCanvasElement extends HTMLElement {
-      constructor() {
-        super();
-        this._canvas = document.createElement("canvas");
-        this._ctx = this._canvas.getContext("2d");
-        this._pixels = [];
-        this._animation = null;
-        this._timePrev = performance.now();
-        this._interval = 1000 / 60;
-        this._reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        this._ready = false;
-        this._ro = null;
-        this._parent = null;
-
-        const shadow = this.attachShadow({ mode: "open" });
-        const style = document.createElement("style");
-        style.textContent = ":host{display:grid;inline-size:100%;block-size:100%;overflow:hidden;}";
-        shadow.appendChild(style);
-        shadow.appendChild(this._canvas);
-      }
-      get _colors() { return this.dataset.colors?.split(",") || ["#f8fafc","#f1f5f9","#cbd5e1"]; }
-      get _gap() { const v = Number(this.dataset.gap)||5; return Math.max(4,Math.min(50,v)); }
-      get _speed() { const v = Number(this.dataset.speed)||35; return this._reduced ? 0 : Math.max(0,Math.min(100,v))*0.001; }
-      get _variant() { return this.dataset.variant||"default"; }
-
-      connectedCallback() {
-        if (this._ready) return;
-        this._ready = true;
-        this._parent = this.parentElement;
-        requestAnimationFrame(() => {
-          this._resize();
-          this._ro = new ResizeObserver(() => requestAnimationFrame(() => this._resize()));
-          this._ro.observe(this);
-        });
-        this._onEnter = () => this._animate("appear");
-        this._onLeave = () => this._animate("disappear");
-        this._parent?.addEventListener("mouseenter", this._onEnter);
-        this._parent?.addEventListener("mouseleave", this._onLeave);
-      }
-      disconnectedCallback() {
-        this._ready = false;
-        this._ro?.disconnect();
-        this._parent?.removeEventListener("mouseenter", this._onEnter);
-        this._parent?.removeEventListener("mouseleave", this._onLeave);
-        if (this._animation) { cancelAnimationFrame(this._animation); this._animation = null; }
-        this._parent = null;
-      }
-      _resize() {
-        if (!this._ctx || !this._ready) return;
-        const rect = this.getBoundingClientRect();
-        if (!rect.width || !rect.height) return;
-        const dpr = window.devicePixelRatio || 1;
-        const w = Math.floor(rect.width), h = Math.floor(rect.height);
-        this._canvas.width = w * dpr; this._canvas.height = h * dpr;
-        this._canvas.style.width = w + "px"; this._canvas.style.height = h + "px";
-        this._ctx.setTransform(1,0,0,1,0,0);
-        this._ctx.scale(dpr, dpr);
-        this._buildPixels(w, h);
-      }
-      _buildPixels(w, h) {
-        if (!this._ctx) return;
-        this._pixels = [];
-        for (let x = 0; x < w; x += this._gap) {
-          for (let y = 0; y < h; y += this._gap) {
-            const color = this._colors[Math.floor(Math.random() * this._colors.length)];
-            const dx = x - w/2, dy = y - h/2;
-            const delay = this._reduced ? 0 : Math.sqrt(dx*dx + dy*dy);
-            this._pixels.push(new Pixel(
-              { width: w, height: h }, this._ctx, x, y, color, this._speed, delay
-            ));
-          }
-        }
-      }
-      _animate(name) {
-        if (this._animation) cancelAnimationFrame(this._animation);
-        const tick = () => {
-          this._animation = requestAnimationFrame(tick);
-          const now = performance.now();
-          const passed = now - this._timePrev;
-          if (passed < this._interval) return;
-          this._timePrev = now - (passed % this._interval);
-          if (!this._ctx) return;
-          const rect = this.getBoundingClientRect();
-          this._ctx.clearRect(0, 0, rect.width, rect.height);
-          let allIdle = true;
-          for (const p of this._pixels) { p[name](); if (!p.isIdle) allIdle = false; }
-          if (allIdle) { cancelAnimationFrame(this._animation); this._animation = null; }
-        };
-        tick();
-      }
-    }
-
-    if (!customElements.get("pixel-canvas")) {
-      customElements.define("pixel-canvas", PixelCanvasElement);
-    }
-
-    // ── Particle canvas ───────────────────────────────────────────────
-    (() => {
-      const canvas = document.getElementById("particle-canvas");
-      const ctx = canvas.getContext("2d");
-
-      let W = 0, H = 0, mouse = { x: -9999, y: -9999 };
-
-      const resize = () => {
-        W = canvas.width  = window.innerWidth;
-        H = canvas.height = window.innerHeight;
-      };
-      window.addEventListener("resize", resize);
-      resize();
-
-      window.addEventListener("mousemove", (e) => {
-        mouse.x = e.clientX;
-        mouse.y = e.clientY;
-      });
-
-      // Build particles
-      const COUNT = 110;
-      const particles = Array.from({ length: COUNT }, () => ({
-        x:  Math.random() * window.innerWidth,
-        y:  Math.random() * window.innerHeight,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
-        r:  Math.random() * 2 + 0.8,
-        hue: Math.random() < 0.65 ? "cyan" : Math.random() < 0.5 ? "white" : "orange",
-        opacity: Math.random() * 0.55 + 0.3,
+        row.append(remove);
+        return row;
       }));
-
-      const COLORS = {
-        cyan:   "rgba(116,245,255,",
-        white:  "rgba(255,255,255,",
-        orange: "rgba(255,87,26,",
-      };
-
-      const CONNECTION_DIST = 150;
-      const MOUSE_REPEL     = 110;
-
-      const draw = () => {
-        ctx.clearRect(0, 0, W, H);
-
-        // subtle radial background glow (moves slightly with mouse)
-        const gx = W * 0.5 + (mouse.x - W * 0.5) * 0.08;
-        const gy = H * 0.5 + (mouse.y - H * 0.5) * 0.08;
-        const grad = ctx.createRadialGradient(gx, gy, 0, gx, gy, Math.max(W, H) * 0.65);
-        grad.addColorStop(0,   "rgba(116,245,255,0.13)");
-        grad.addColorStop(0.4, "rgba(58,91,191,0.09)");
-        grad.addColorStop(1,   "rgba(0,0,0,0)");
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, W, H);
-
-        // update + draw particles
-        for (let i = 0; i < COUNT; i++) {
-          const p = particles[i];
-
-          // mouse repulsion
-          const dx = p.x - mouse.x;
-          const dy = p.y - mouse.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < MOUSE_REPEL && dist > 0) {
-            const force = (MOUSE_REPEL - dist) / MOUSE_REPEL * 0.012;
-            p.vx += (dx / dist) * force;
-            p.vy += (dy / dist) * force;
-          }
-
-          // drift + clamp velocity
-          p.vx *= 0.999;
-          p.vy *= 0.999;
-          const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-          if (speed > 0.8) { p.vx = p.vx / speed * 0.8; p.vy = p.vy / speed * 0.8; }
-
-          p.x += p.vx;
-          p.y += p.vy;
-
-          // wrap edges
-          if (p.x < 0) p.x = W;
-          if (p.x > W) p.x = 0;
-          if (p.y < 0) p.y = H;
-          if (p.y > H) p.y = 0;
-
-          // draw dot
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-          ctx.fillStyle = COLORS[p.hue] + p.opacity + ")";
-          ctx.fill();
-
-          // draw connecting lines to nearby particles
-          for (let j = i + 1; j < COUNT; j++) {
-            const q = particles[j];
-            const lx = p.x - q.x, ly = p.y - q.y;
-            const ld = Math.sqrt(lx * lx + ly * ly);
-            if (ld < CONNECTION_DIST) {
-              const alpha = (1 - ld / CONNECTION_DIST) * 0.28;
-              ctx.beginPath();
-              ctx.moveTo(p.x, p.y);
-              ctx.lineTo(q.x, q.y);
-              ctx.strokeStyle = `rgba(116,245,255,${alpha})`;
-              ctx.lineWidth = 0.6;
-              ctx.stroke();
-            }
-          }
+    }
+    function addFile() {
+      if (busy || finished) return;
+      const folder = $('file-target-folder').value;
+      let name = $('file-name-input').value.trim();
+      const ext = $('file-extension').value;
+      if (!folder) return showError('file-error', 'Select a source folder first.');
+      if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(name)) return showError('file-error', 'Start with a letter; use letters, numbers, and underscores.');
+      if (ext === '.jsx' || folder === 'components' || folder === 'pages') name = name[0].toUpperCase() + name.slice(1);
+      if (createdFiles.some((file) => file.folder === folder && file.name === name && file.ext === ext)) return showError('file-error', 'That file is already in your project plan.');
+      createdFiles.push({ folder, name, ext });
+      $('file-name-input').value = '';
+      showError('file-error', '');
+      renderFiles(); renderSummary(); $('file-name-input').focus();
+      announce(name + ext + ' added to the project plan.');
+    }
+    function validProjectName() {
+      const name = $('project-name-input').value.trim();
+      const valid = /^([a-zA-Z0-9_-]+|\.)$/.test(name);
+      showError('project-name-error', valid ? '' : 'Use letters, numbers, hyphens, or underscores for your project name.');
+      $('project-name-input').setAttribute('aria-invalid', String(!valid));
+      if (!valid) $('project-name-input').focus();
+      return valid;
+    }
+    function stopSessionChecks() {
+      clearInterval(heartbeatTimer); clearInterval(clockTimer); clearTimeout(expiryTimer);
+      heartbeatController?.abort(); heartbeatController = null;
+    }
+    function showResult(kind) {
+      finished = true;
+      stopIntro();
+      stopSessionChecks();
+      requestController?.abort();
+      $('cancel-confirm-modal').close();
+      $('setup-screen').hidden = true;
+      $('result-screen').hidden = false;
+      const success = kind === 'success';
+      $('result-title').textContent = success ? 'Over to your terminal.' : kind === 'cancelled' ? 'Setup cancelled.' : 'This session has ended.';
+      $('result-description').textContent = success ? 'Your configuration was received. The CLI is now creating your project. Follow installation progress in your terminal.' : kind === 'cancelled' ? 'Your setup was cancelled. Start a new session whenever you are ready.' : 'The setup session expired or the CLI stopped. Check your terminal and run the command again to start a new session.';
+      $('result-summary').textContent = success ? ($('project-name-input').value.trim() + ' · ' + selectedPackages.size + ' packages selected · ' + (selectedLaunch.has('runDevServer') ? 'dev server on port ' + ($('dev-port').value || '5173') : 'manual start')) : 'Start again: anshh ' + ($('project-name-input').value.trim() || 'my-app') + ' --ui';
+      $('result-title').focus();
+    }
+    async function send(action) {
+      if (busy || finished) return;
+      if (previewOnly) return showError('feedback', 'Open this wizard using anshh <project-name> --ui to create a project.');
+      if (action === 'setup' && !validProjectName()) return;
+      const port = $('dev-port').value || '5173';
+      if (action === 'setup' && (!/^\d+$/.test(port) || Number(port) < 1024 || Number(port) > 65535)) {
+        setStep(2); showError('port-error', 'Choose a whole-number port from 1024 to 65535.');
+        $('port-config-container').classList.remove('hidden'); $('dev-port').focus(); return;
+      }
+      showError('feedback', ''); showError('port-error', '');
+      setBusy(true);
+      const controller = new AbortController();
+      requestController = controller;
+      const timer = setTimeout(() => controller.abort(), 15000);
+      try {
+        const payload = action === 'cancel' ? { token: sessionToken } : { token: sessionToken, projectName: $('project-name-input').value.trim(), packages: [...selectedPackages], structure: [...selectedStructure], launch: [...selectedLaunch], devServerPort: port, createdFiles };
+        const response = await fetch(action === 'cancel' ? submitUrl.replace('/api/setup', '/api/cancel') : submitUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal });
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.error || 'The CLI could not accept your settings.');
+        if (!finished) showResult(action === 'cancel' ? 'cancelled' : 'success');
+      } catch (error) {
+        if (!finished) {
+          console.error('setup request failed', error);
+          showError('feedback', error.name === 'AbortError' ? 'The request timed out. Check your terminal before trying again.' : error.message || 'Could not connect. Check that the CLI is still running and try again.');
         }
-
-        requestAnimationFrame(draw);
+      } finally {
+        clearTimeout(timer);
+        if (requestController === controller) requestController = null;
+        if (!finished) setBusy(false);
+      }
+    }
+    async function checkSession() {
+      if (busy || finished || heartbeatController) return;
+      const controller = new AbortController();
+      heartbeatController = controller;
+      const timer = setTimeout(() => controller.abort(), 5000);
+      try {
+        const response = await fetch('/', { method: 'HEAD', cache: 'no-store', signal: controller.signal });
+        if (!response.ok && !busy && !finished) showResult('expired');
+      } catch {
+        if (!busy && !finished) showResult('expired');
+      } finally {
+        clearTimeout(timer);
+        if (heartbeatController === controller) heartbeatController = null;
+      }
+    }
+    document.querySelectorAll('[data-filter]').forEach((button) => button.addEventListener('click', () => { packageFilter = button.dataset.filter; filterPackages(); }));
+    $('package-search').addEventListener('input', filterPackages);
+    $('clear-search').addEventListener('click', () => { $('package-search').value = ''; packageFilter = 'all'; filterPackages(); $('package-search').focus(); });
+    $('project-name-input').addEventListener('input', () => { showError('project-name-error', ''); $('project-name-input').removeAttribute('aria-invalid'); renderSummary(); });
+    $('dev-port').addEventListener('input', () => { showError('port-error', ''); renderSummary(); });
+    $('file-name-input').addEventListener('input', () => showError('file-error', ''));
+    $('create-file-btn').addEventListener('click', addFile);
+    $('file-name-input').addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); addFile(); } });
+    $('previous-step').addEventListener('click', () => setStep(Math.max(0, currentStep - 1)));
+    $('next-step').addEventListener('click', () => { if (validProjectName()) setStep(Math.min(2, currentStep + 1)); });
+    $('create').addEventListener('click', () => void send('setup'));
+    $('cancel-setup').addEventListener('click', () => { if (!busy && !finished) $('cancel-confirm-modal').showModal(); });
+    $('abort-cancel-btn').addEventListener('click', () => $('cancel-confirm-modal').close());
+    $('confirm-cancel-btn').addEventListener('click', () => { $('cancel-confirm-modal').close(); void send('cancel'); });
+    $('reset').addEventListener('click', () => {
+      if (busy || finished) return;
+      [[selectedPackages, defaults.packages], [selectedStructure, defaults.structure], [selectedLaunch, defaults.launch]].forEach(([set, values]) => { set.clear(); values.forEach((value) => set.add(value)); });
+      createdFiles.length = 0; packageFilter = 'all'; $('package-search').value = ''; $('dev-port').value = '5173'; $('file-name-input').value = '';
+      ['feedback', 'file-error', 'port-error', 'project-name-error'].forEach((id) => showError(id, ''));
+      renderPackages(); renderStructure(); renderLaunch(); renderFiles(); renderSummary();
+      announce('Default selections restored.');
+    });
+    window.addEventListener('pagehide', () => { finished = true; stopIntro(); stopSessionChecks(); requestController?.abort(); });
+    renderPackages(); renderStructure(); renderLaunch(); renderSummary(); setStep(0, false);
+    if (!previewOnly) {
+      const updateClock = () => {
+        const seconds = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+        $('session-time').textContent = Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
       };
-
-      requestAnimationFrame(draw);
-    })();
-
-    // ── Click Spark Canvas ──────────────────────────────────────────────────
-    (() => {
-      const canvas = document.getElementById("click-spark-canvas");
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-
-      let W = 0, H = 0;
-      const resize = () => {
-        W = canvas.width = window.innerWidth;
-        H = canvas.height = window.innerHeight;
-      };
-      window.addEventListener("resize", resize);
-      resize();
-
-      const sparks = [];
-      const sparkColor = "#74f5ff";
-      const sparkSize = 10;
-      const sparkRadius = 15;
-      const sparkCount = 8;
-      const duration = 400; // ms
-      const extraScale = 1.0;
-
-      const easeOut = (t) => t * (2 - t);
-
-      const draw = (timestamp) => {
-        ctx.clearRect(0, 0, W, H);
-
-        for (let i = sparks.length - 1; i >= 0; i--) {
-          const spark = sparks[i];
-          const elapsed = timestamp - spark.startTime;
-          if (elapsed >= duration) {
-            sparks.splice(i, 1);
-            continue;
-          }
-
-          const progress = elapsed / duration;
-          const eased = easeOut(progress);
-
-          const distance = eased * sparkRadius * extraScale;
-          const lineLength = sparkSize * (1 - eased);
-
-          const x1 = spark.x + distance * Math.cos(spark.angle);
-          const y1 = spark.y + distance * Math.sin(spark.angle);
-          const x2 = spark.x + (distance + lineLength) * Math.cos(spark.angle);
-          const y2 = spark.y + (distance + lineLength) * Math.sin(spark.angle);
-
-          ctx.strokeStyle = sparkColor;
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(x1, y1);
-          ctx.lineTo(x2, y2);
-          ctx.stroke();
-        }
-
-        requestAnimationFrame(draw);
-      };
-
-      window.addEventListener("click", (e) => {
-        const x = e.clientX;
-        const y = e.clientY;
-        const now = performance.now();
-
-        for (let i = 0; i < sparkCount; i++) {
-          sparks.push({
-            x,
-            y,
-            angle: (2 * Math.PI * i) / sparkCount,
-            startTime: now
-          });
-        }
-      });
-
-      requestAnimationFrame(draw);
-    })();
+      updateClock();
+      clockTimer = setInterval(updateClock, 1000);
+      heartbeatTimer = setInterval(checkSession, 3000);
+      expiryTimer = setTimeout(() => showResult('expired'), remainingTime);
+    } else $('session-time').textContent = 'Preview';
+    startIntro();
   </script>
 </body>
 </html>

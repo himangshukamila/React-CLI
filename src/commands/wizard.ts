@@ -1,6 +1,7 @@
 import http from 'node:http'
 import path from 'node:path'
 import { randomBytes } from 'node:crypto'
+import { readFile as readBinaryFile } from 'node:fs/promises'
 import chalk from 'chalk'
 import { section, muted, strong } from '../ui/banner.js'
 import { folderOptions, packageOptions, setupLaunchChoices, folderFlags } from '../ui/banner.js'
@@ -126,6 +127,23 @@ export const readSetupUiStyle = async (): Promise<string> => {
   return readFile(cssPath)
 }
 
+const setupUiIconNames = new Set([
+  'tailwind', 'router', 'axios', 'zod', 'socket', 'toast', 'qr', 'webcam', 'printer', 'icon', 'lucide',
+  'env', 'assets', 'components', 'pages', 'services', 'hooks', 'utils', 'store', 'lib', 'types',
+  'runDevServer', 'bonjour', 'logscan',
+])
+
+export const readSetupUiIcon = async (name: string): Promise<Buffer | undefined> => {
+  if (!setupUiIconNames.has(name)) return undefined
+
+  try {
+    return await readBinaryFile(path.join(rootDir, 'templates', 'setup-ui', 'assets', 'icons', `${name}.png`))
+  } catch (error: any) {
+    if (error.code === 'ENOENT') return undefined
+    throw error
+  }
+}
+
 export const startSetupWizardServer = async ({ displayName = '' }: SetupWizardOptions = {}): Promise<UiSelections> => {
   const token = randomBytes(24).toString('hex')
   const preferredPort = setupUiPortStart
@@ -187,6 +205,24 @@ export const startSetupWizardServer = async ({ displayName = '' }: SetupWizardOp
             'Cache-Control': 'no-store, max-age=0',
           })
           res.end(css)
+          return
+        }
+
+        if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname.startsWith('/icons/')) {
+          const name = /^\/icons\/([a-zA-Z]+)\.png$/.exec(url.pathname)?.[1]
+          const icon = name ? await readSetupUiIcon(name) : undefined
+          if (!icon) {
+            sendJson(res, 404, { ok: false, error: 'Icon not found' })
+            return
+          }
+
+          res.writeHead(200, {
+            'Content-Type': 'image/png',
+            'Content-Length': icon.length,
+            'Cache-Control': 'no-store, max-age=0',
+            'X-Content-Type-Options': 'nosniff',
+          })
+          res.end(req.method === 'HEAD' ? undefined : icon)
           return
         }
 
