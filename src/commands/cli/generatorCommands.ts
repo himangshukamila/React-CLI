@@ -5,6 +5,7 @@ import { configureFormBoilerplate } from '../../generators/form.js'
 import { configureLoaderBoilerplate } from '../../generators/loader.js'
 import { configurePrinterBoilerplate } from '../../generators/printer.js'
 import { configureCameraBoilerplate } from '../../generators/camera.js'
+import { configureDeviceInfo } from '../../generators/device.js'
 import { configureBonjourBoilerplate } from '../../generators/bonjour.js'
 import { configureButton } from '../../generators/button.js'
 import { configureWrapper } from '../../generators/wrapper.js'
@@ -14,7 +15,7 @@ import { configureApiMethods, configureWebSocket, configureSocket } from '../../
 export const registerGeneratorCommands = (program: Command): void => {
   program
     .command('set [target]')
-    .description('Configure camera capture, font assets, API client methods, WebSocket service, or Bonjour service')
+    .description('Configure device diagnostics, camera capture, font assets, API client methods, WebSocket service, or Bonjour service')
     .option('--font', 'Scan public/fonts and configure @font-face and Tailwind fonts in src/index.css')
     .option('--ws', 'Generate src/services/webSocket.js with auto-reconnect and message handlers')
     .option('--socket', 'Generate src/services/socket.js with socket.io-client connection')
@@ -32,6 +33,7 @@ export const registerGeneratorCommands = (program: Command): void => {
     .option('--loader', 'Generate src/components/Loader.jsx backdrop loader')
     .option('--printer', 'Generate src/pages/Printer.jsx socket print queue')
     .option('--camera', 'Install camera dependencies and generate Camera.jsx and Preview.jsx')
+    .option('--device', 'Generate src/utils/deviceInfo.js with browser and device diagnostics')
     .option('--button', 'Generate src/components/Button.jsx with variants and sizes')
     .option('--wrapper', 'Generate src/components/Wrapper.jsx fullscreen background wrapper')
     .allowUnknownOption()
@@ -52,6 +54,7 @@ export const registerGeneratorCommands = (program: Command): void => {
         print: 'printer',
         camera: 'camera',
         webcam: 'camera',
+        device: 'device',
         bonjour: 'bonjour',
         button: 'button',
         btn: 'button',
@@ -83,6 +86,8 @@ export const registerGeneratorCommands = (program: Command): void => {
         await configurePrinterBoilerplate()
       } else if (kind === 'camera') {
         await configureCameraBoilerplate()
+      } else if (kind === 'device') {
+        await configureDeviceInfo()
       } else if (kind === 'bonjour') {
         await configureBonjourBoilerplate()
       } else if (kind === 'button') {
@@ -99,7 +104,7 @@ export const registerGeneratorCommands = (program: Command): void => {
         const methodsToSet = requestedMethods.length > 0 ? requestedMethods : ['get', 'post']
         await configureApiMethods(methodsToSet, { auth: hasAuthFlag })
       } else {
-        console.error(chalk.red('Error: Please specify what to set (e.g. zecron set camera, zecron set api -get -post, zecron set button, zecron set wrapper, zecron set ws, zecron set socket, zecron set logscan, or zecron set bonjour)'))
+        console.error(chalk.red('Error: Please specify what to set (e.g. zecron set device, zecron set camera, zecron set api -get -post, zecron set button, zecron set wrapper, zecron set ws, zecron set socket, zecron set logscan, or zecron set bonjour)'))
         process.exit(1)
       }
     })

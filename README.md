@@ -172,6 +172,7 @@ react list -c
 | `react set loader` | Generate a responsive backdrop-blur `Loader.jsx` component |
 | `react set printer` | Generate `Printer.jsx` page with socket queue & `react-to-print` |
 | `anshh set camera` | Install camera dependencies and generate matching camera and preview pages |
+| `anshh set device` | Generate browser and device diagnostics in `src/utils/deviceInfo.js` without installing packages |
 | `react set bonjour` | Wire `4b-react-mdns` discovery and generate the themed `DiscoveryPage.jsx` |
 | `react set form -name -email` | Generate a styled React Form component with state & field icons |
 | `react set form -bio:textarea` | Override a field's guessed input type with `key:type` |
@@ -185,6 +186,50 @@ react list -c
 ---
 
 ## Component & Boilerplate Generators
+
+### Browser & Device Diagnostics (`anshh set device`)
+
+Run from your project directory:
+
+```bash
+anshh set device
+```
+
+Creates `src/utils/deviceInfo.js`; `anshh set --device` does the same. No packages are installed, and existing hand-edited files require confirmation before replacement. Other project files remain unchanged.
+
+Call the helper from your application when diagnostics are needed:
+
+```js
+import { getDeviceInfo } from './utils/deviceInfo.js'
+
+const details = await getDeviceInfo()
+```
+
+The helper is also the default export; `handleGetBrowserDetails` is a named alias for compatibility with the original function. It returns `null` outside a browser. It collects a focused troubleshooting snapshot:
+
+| Field | Contents |
+| --- | --- |
+| `browser` | Browser/app name, exposed version, and `versionSource` |
+| `os`, `osVersion`, `osVersionSource` | OS name and available version |
+| `deviceType`, `manufacturer`, `model`, `modelSource` | Device category and recognizable manufacturer/model, when exposed |
+| `screen` | Browser-reported `width`, `height`, and `devicePixelRatio` |
+| `viewport` | Current `innerWidth` and `innerHeight` |
+| `preferences` | `darkMode` and `dataSaver`: `true`, `false`, or `null` when unavailable |
+| `secureContext`, `errors` | Context security and unavailable-field diagnostics |
+
+Version/model sources are `client-hints`, `user-agent`, or `null`. Detailed client hints have a 2,000 ms timeout; pass `getDeviceInfo({ timeoutMs: 1000 })` to adjust it. A denied, unsupported, or failed hint lookup preserves the available snapshot. No GPU, camera/microphone, battery, location, or memory probes run. The helper makes no network requests, does not save data automatically, and does not log diagnostic values.
+
+Console logging is off by default. Use `getDeviceInfo({ debug: true })` for collection status and unavailable-field names only. Hint failures use separate keys such as `errors['hints.platform']` and `errors['hints.highEntropy.platform']` so one failure does not replace another.
+
+These are best-effort reported identities, including explicit markers for common mobile and in-app browsers. Unknown exact models and known frozen OS versions stay `null`; iPhone/iPad model generations and ordinary laptop models cannot reliably be inferred from browser data. Android tablets requesting desktop sites may report Linux/desktop. Browser names are not a substitute for checking a required API directly.
+
+The iPad fallback uses a Mac-like user agent plus touch support. It remains a heuristic: phone/tablet identity in unusual Apple desktop-site modes requires physical-device verification.
+
+Unrecognized browser and OS names use `Unknown`; an unrecognized device category uses `unknown`. Missing versions, models, manufacturers, and unavailable preferences use `null`. A `Chromium` identity means that only the Chromium family was exposed, without a recognized application brand.
+
+Manufacturer detection infers a brand family from recognizable names and model codes. For example, `CPH` codes return `OPPO / OnePlus` because both use them; vivo codes may identify vivo-family brands. Ambiguous and unrecognized codes remain `null`. A WebView label is a user-agent heuristic, not proof of which app hosts it. As a conservative policy, iOS `18.6`/`18.7` tokens (including patch versions such as `18.6.2`) without a Safari `Version/` marker return `null` because they may be real or frozen; this can also hide a genuine older OS version. Actual exposed versions such as `26.0` remain available.
+
+Screen and viewport sizes are CSS pixels; DPR is separate and does not prove physical panel resolution. Dimensions and preferences are read afresh on each call. Data saver is the browser-exposed preference, which may not expose the OS's Low Data Mode. Ordinary LAN HTTP can hide client hints; localhost HTTP can still be a secure context. See [UA reduction](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/User-agent_reduction), [Safari's frozen OS identifiers](https://webkit.org/blog/17333/webkit-features-in-safari-26-0/), and [secure contexts](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Secure_Contexts).
 
 ### Camera & Photo Preview (`anshh set camera`)
 

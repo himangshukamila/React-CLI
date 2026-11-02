@@ -1,3 +1,25 @@
 @import "tailwindcss" source(none);
 @source "./index.html";
 @source "./404.html";
+
+@theme {
+  --color-canvas: #1c2430;
+  --color-panel: #273241;
+  --color-raised: #334257;
+  --color-inset: #151d28;
+  --color-rail: #202c3b;
+  --color-line: #4b5d73;
+  --color-control: #8497ad;
+  --color-ink: #edf1f5;
+  --color-soft: #d0dbe6;
+  --color-muted: #b3c1d1;
+  --color-accent: #a7bfd8;
+  --color-accent-hover: #b9cee2;
+  --color-accent-ink: #19293a;
+  --color-selected: #31465d;
+  --color-silver: #c7d2df;
+  --color-paper: #dfe7ef;
+  --color-paper-rule: #b9c8d7;
+  --color-paper-ink: #273c52;
+  --color-paper-muted: #4e6276;
+}

@@ -74,7 +74,7 @@ export const runInteractivePrompts = async (
   const selectedFolders = await customMultiselect({
     message: 'Select optional src folders to scaffold:',
     options: folderOptions,
-    initialValues: ['env', 'components', 'pages'],
+    initialValues: ['env', 'assets', 'components', 'pages'],
   })
 
   section('bonjour service', 'configure mDNS local network service discovery')
@@ -86,7 +86,7 @@ export const runInteractivePrompts = async (
   section('custom log view', 'in-app console panel for browser logs')
   const shouldConfigureLogscan = await customConfirm({
     message: 'Add Custom Log View? (logscan floating in-app console panel)',
-    initialValue: true,
+    initialValue: false,
   })
 
   section('dev server', 'choose the port the app runs on')

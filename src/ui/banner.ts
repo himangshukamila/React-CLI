@@ -98,6 +98,10 @@ export const commandReference: [string, string][] = [
     "Install camera dependencies and generate Camera.jsx and Preview.jsx",
   ],
   [
+    "anshh set device",
+    "Generate browser and device diagnostics in src/utils/deviceInfo.js without installing packages",
+  ],
+  [
     "zecron set button",
     "Generate simple Button component (src/components/Button.jsx) with custom styling & icon props",
   ],

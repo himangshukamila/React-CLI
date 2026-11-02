@@ -447,6 +447,60 @@ test('customMultiselect handles arrow navigation, space toggle, and enter confir
   assert.deepEqual(result.sort(), ['pkg1', 'pkg2'])
 })
 
+test('countRenderedRows measures row heights accurately including wrapped lines', async () => {
+  const { countRenderedRows } = await import('../src/ui/prompts.js')
+
+  assert.equal(countRenderedRows(['hello', 'world'], 80), 2)
+  assert.equal(countRenderedRows(['a'.repeat(50)], 20), 3)
+  assert.equal(countRenderedRows([''], 80), 1)
+})
+
+test('customMultiselect windows options to fit small terminal heights without duplicates', async () => {
+  const { customMultiselect } = await import('../src/ui/prompts.js')
+  const originalStdinIsTTY = process.stdin.isTTY
+  const originalStdoutIsTTY = process.stdout.isTTY
+  const originalSetRawMode = process.stdin.setRawMode
+  const originalRows = process.stdout.rows
+  const originalColumns = process.stdout.columns
+
+  process.stdin.isTTY = true
+  process.stdout.isTTY = true
+  process.stdin.setRawMode = () => (process.stdin as any)
+  process.stdout.rows = 8
+  process.stdout.columns = 80
+
+  const options = Array.from({ length: 10 }, (_, i) => ({
+    value: `opt${i}`,
+    label: `Option ${i}`,
+  }))
+
+  const multiselectPromise = customMultiselect({
+    options,
+    initialValues: ['opt0'],
+  })
+
+  // navigate down multiple times across window boundary toggle and confirm
+  process.nextTick(() => {
+    process.stdin.emit('keypress', undefined, { name: 'down' })
+    process.stdin.emit('keypress', undefined, { name: 'down' })
+    process.stdin.emit('keypress', undefined, { name: 'down' })
+    process.stdin.emit('keypress', undefined, { name: 'down' })
+    process.stdin.emit('keypress', ' ', { name: 'space' })
+    process.stdin.emit('keypress', '\r', { name: 'return' })
+  })
+
+  const result = await multiselectPromise
+
+  process.stdin.isTTY = originalStdinIsTTY
+  process.stdout.isTTY = originalStdoutIsTTY
+  process.stdin.setRawMode = originalSetRawMode
+  process.stdout.rows = originalRows
+  process.stdout.columns = originalColumns
+  process.stdin.pause()
+
+  assert.deepEqual(result.sort(), ['opt0', 'opt4'])
+})
+
 test('configureBonjourBoilerplate is exported as a function', async () => {
   const { configureBonjourBoilerplate, mdnsPackageName } = await import('../src/generators/bonjour.js')
   assert.equal(typeof configureBonjourBoilerplate, 'function')
@@ -778,4 +832,880 @@ test('camera switching stops the previous stream before replacing the webcam', a
   assert.equal(requestRef.current.version, 3)
   assert.equal(requestRef.current.relaxed, true)
   assert.equal(stopped, 2)
+})
+
+let deviceTestCode: string | undefined
+
+const loadDeviceInfoForTest = async (globals: Record<string, any> = {}) => {
+  if (!deviceTestCode) {
+    const ts = await import('typescript')
+    const { readTemplate } = await import('../src/shared.js')
+    const compiled = ts.transpileModule(await readTemplate('device', 'deviceInfo.js'), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+      reportDiagnostics: true,
+      fileName: 'deviceInfo.js',
+    })
+    assert.equal(compiled.diagnostics?.filter((item) => item.category === ts.DiagnosticCategory.Error).length, 0)
+    deviceTestCode = compiled.outputText
+  }
+  const exports: Record<string, any> = {}
+  runInNewContext(deviceTestCode, {
+    exports,
+    setTimeout,
+    clearTimeout,
+    console: { log() {}, error() {} },
+    ...globals,
+  })
+  return exports
+}
+
+const deviceWindowForTest = (navigator: Record<string, any> = {}, document: Record<string, any> = {}) => ({
+  navigator: {
+    userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+    language: 'en-US', languages: ['en-US'], maxTouchPoints: 0, onLine: true,
+    ...navigator,
+  },
+  document: { visibilityState: 'visible', createElement: () => ({ getContext: () => null }), ...document },
+  screen: { width: 1920, height: 1080, orientation: { type: 'landscape-primary', angle: 0 } },
+  innerWidth: 1280, innerHeight: 720, outerWidth: 1280, outerHeight: 800,
+  devicePixelRatio: 1, isSecureContext: true,
+  matchMedia: () => ({ matches: false }),
+})
+
+const deviceClockForTest = () => {
+  let nextId = 0
+  const pending = new Map<number, () => void>()
+  const durations: number[] = []
+  return {
+    pending,
+    durations,
+    setTimeout(callback: () => void, milliseconds: number) {
+      durations.push(milliseconds)
+      pending.set(++nextId, callback)
+      return nextId
+    },
+    clearTimeout(id: number) { pending.delete(id) },
+    expire() {
+      const callbacks = [...pending.values()]
+      pending.clear()
+      callbacks.forEach((callback) => callback())
+    },
+  }
+}
+
+const deferredDeviceProbe = () => {
+  let resolve!: (value: any) => void
+  let reject!: (error: Error) => void
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no })
+  return { promise, resolve, reject }
+}
+
+test('device commands generate only the utility and are idempotent without package changes', async () => {
+  const { Command } = await import('commander')
+  const { registerGeneratorCommands } = await import('../src/commands/cli/generatorCommands.js')
+  const { readTemplate } = await import('../src/shared.js')
+  const project = await fs.mkdtemp(path.join(os.tmpdir(), 'zecron-device-'))
+  const originalCwd = process.cwd()
+  const files = {
+    'package.json': '{"name":"device-test","private":true}',
+    'package-lock.json': '{"name":"device-test","lockfileVersion":3}',
+    'src/App.jsx': 'export default function App() { return null }',
+  }
+  try {
+    await fs.mkdir(path.join(project, 'src'))
+    for (const [name, content] of Object.entries(files)) await fs.writeFile(path.join(project, name), content)
+    process.chdir(project)
+    const run = async (args: string[]) => {
+      const program = new Command()
+      registerGeneratorCommands(program)
+      await program.parseAsync(args, { from: 'user' })
+    }
+    await run(['set', 'device'])
+    const utility = path.join(project, 'src/utils/deviceInfo.js')
+    const generated = await fs.readFile(utility, 'utf8')
+    assert.equal(generated.slice(generated.indexOf('\n') + 1), await readTemplate('device', 'deviceInfo.js'))
+    await fs.utimes(utility, new Date(1000000), new Date(1000000))
+    const before = (await fs.stat(utility)).mtimeMs
+    await run(['set', '--device'])
+    await run(['set', 'device'])
+    assert.equal((await fs.stat(utility)).mtimeMs, before, 'unchanged generation must not rewrite the file')
+    assert.equal(await fs.readFile(utility, 'utf8'), generated)
+    for (const [name, content] of Object.entries(files)) assert.equal(await fs.readFile(path.join(project, name), 'utf8'), content)
+    assert.deepEqual((await fs.readdir(project)).sort(), ['package-lock.json', 'package.json', 'src'])
+    assert.deepEqual((await fs.readdir(path.join(project, 'src'))).sort(), ['App.jsx', 'utils'])
+    assert.deepEqual(await fs.readdir(path.join(project, 'src/utils')), ['deviceInfo.js'])
+  } finally {
+    process.chdir(originalCwd)
+    await fs.rm(project, { recursive: true, force: true })
+  }
+})
+
+test('device generation preserves existing and hand-edited utilities without a TTY', async () => {
+  const { configureDeviceInfo } = await import('../src/generators/device.js')
+  const project = await fs.mkdtemp(path.join(os.tmpdir(), 'zecron-device-kept-'))
+  const originalStdinIsTTY = process.stdin.isTTY
+  const originalStdoutIsTTY = process.stdout.isTTY
+  try {
+    process.stdin.isTTY = false
+    process.stdout.isTTY = false
+    await configureDeviceInfo(project)
+    const utility = path.join(project, 'src/utils/deviceInfo.js')
+    const generated = await fs.readFile(utility, 'utf8')
+    for (const custom of [generated + '\n// local customization\n', 'export default () => ({ custom: true })\n']) {
+      await fs.writeFile(utility, custom)
+      await configureDeviceInfo(project)
+      assert.equal(await fs.readFile(utility, 'utf8'), custom)
+    }
+    assert.deepEqual(await fs.readdir(project), ['src'])
+  } finally {
+    process.stdin.isTTY = originalStdinIsTTY
+    process.stdout.isTTY = originalStdoutIsTTY
+    await fs.rm(project, { recursive: true, force: true })
+  }
+})
+
+test('device utility has no import side effects and safely returns null outside a browser', async () => {
+  const unexpected = () => { throw new Error('browser access or side effect during import') }
+  const imported = await loadDeviceInfoForTest({
+    window: new Proxy({}, { get: unexpected }),
+    setTimeout: unexpected, clearTimeout: unexpected,
+    console: { log: unexpected, error: unexpected },
+  })
+  assert.equal(imported.default, imported.getDeviceInfo)
+  assert.equal(imported.handleGetBrowserDetails, imported.getDeviceInfo)
+  for (const window of [undefined, {}, { navigator: {} }, { document: {} }]) {
+    const api = await loadDeviceInfoForTest({ window, setTimeout: unexpected, console: { log: unexpected } })
+    assert.equal(await api.getDeviceInfo(), null)
+  }
+})
+
+test('device detection covers phone, tablet and laptop browser profiles', async (t) => {
+  const apple = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko)'
+  const ipad = 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko)'
+  const mac = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)'
+  const android = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko)'
+  const windows = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)'
+  const chrome = 'Chrome/120.0.0.0'
+  const cases = [
+    { ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15', touch: 5, browser: 'Safari', version: '17.0', os: 'iPadOS', device: 'tablet' },
+    { ua: 'Mozilla/5.0 (Linux; Android 13; SM-X710) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36', touch: 5, browser: 'Chrome', version: '120.0.0.0', os: 'Android', device: 'tablet' },
+    { ua: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36', touch: 5, browser: 'Chrome', version: '120.0.0.0', os: 'Android', device: 'mobile' },
+    { ua: apple + ' CriOS/120.0.6099.101 Mobile/15E148 Safari/604.1', touch: 5, browser: 'Chrome', version: '120.0.6099.101', os: 'iOS', device: 'mobile' },
+    { ua: apple + ' FxiOS/121.0 Mobile/15E148 Safari/605.1.15', touch: 5, browser: 'Firefox', version: '121.0', os: 'iOS', device: 'mobile' },
+    { ua: apple + ' EdgiOS/120.0.2210.61 Mobile/15E148 Safari/605.1.15', touch: 5, browser: 'Edge', version: '120.0.2210.61', os: 'iOS', device: 'mobile' },
+    { ua: apple + ' OPiOS/4.2.0 Mobile/15E148 Safari/9537.53', touch: 5, browser: 'Opera', version: '4.2.0', os: 'iOS', device: 'mobile' },
+    { ua: apple + ' Version/17.0 Mobile/15E148 Safari/604.1', touch: 5, browser: 'Safari', version: '17.0', os: 'iOS', device: 'mobile' },
+    { ua: apple + ' Version/17.0 Mobile/15E148 Safari/604.1 OPT/4.0.0', touch: 5, browser: 'Opera', version: '4.0.0', os: 'iOS', device: 'mobile' },
+    { ua: apple + ' OPT/4.0.0 Mobile/15E148', touch: 5, browser: 'Opera', version: '4.0.0', os: 'iOS', device: 'mobile' },
+    { ua: ipad + ' Version/17.0 Mobile/15E148 Safari/604.1', touch: 5, browser: 'Safari', version: '17.0', os: 'iPadOS', device: 'tablet' },
+    { ua: ipad + ' CriOS/120.0.6099.101 Mobile/15E148 Safari/604.1', touch: 5, browser: 'Chrome', version: '120.0.6099.101', os: 'iPadOS', device: 'tablet' },
+    { ua: ipad + ' FxiOS/121.0 Mobile/15E148 Safari/605.1.15', touch: 5, browser: 'Firefox', version: '121.0', os: 'iPadOS', device: 'tablet' },
+    { ua: ipad + ' EdgiOS/120.0.2210.61 Mobile/15E148 Safari/605.1.15', touch: 5, browser: 'Edge', version: '120.0.2210.61', os: 'iPadOS', device: 'tablet' },
+    { ua: mac + ' CriOS/120 Version/11.1.1 Safari/605.1.15', touch: 5, browser: 'Chrome', version: '120', os: 'iPadOS', device: 'tablet' },
+    { ua: `${android} ${chrome} Mobile Safari/537.36`, touch: 5, browser: 'Chrome', version: '120.0.0.0', os: 'Android', device: 'mobile' },
+    { ua: `${android} ${chrome} Safari/537.36`, touch: 5, browser: 'Chrome', version: '120.0.0.0', os: 'Android', device: 'tablet' },
+    { ua: `${android} SamsungBrowser/23.0 ${chrome} Mobile Safari/537.36`, touch: 5, browser: 'Samsung Internet', version: '23.0', os: 'Android', device: 'mobile' },
+    { ua: `${android} SamsungBrowser/23.0 ${chrome} Safari/537.36`, touch: 5, browser: 'Samsung Internet', version: '23.0', os: 'Android', device: 'tablet' },
+    { ua: `${android} ${chrome} Mobile Safari/537.36 EdgA/120.0.2210.64`, touch: 5, browser: 'Edge', version: '120.0.2210.64', os: 'Android', device: 'mobile' },
+    { ua: `${android} ${chrome} Mobile Safari/537.36 OPR/80.0.4244.77596`, touch: 5, browser: 'Opera', version: '80.0.4244.77596', os: 'Android', device: 'mobile' },
+    { ua: 'Mozilla/5.0 (Android 13; Mobile; rv:121.0) Gecko/121.0 Firefox/121.0', touch: 5, browser: 'Firefox', version: '121.0', os: 'Android', device: 'mobile' },
+    { ua: 'Mozilla/5.0 (Android 13; Tablet; rv:121.0) Gecko/121.0 Firefox/121.0', touch: 5, browser: 'Firefox', version: '121.0', os: 'Android', device: 'tablet' },
+    { ua: `${windows} ${chrome} Safari/537.36`, touch: 0, browser: 'Chrome', version: '120.0.0.0', os: 'Windows', device: 'desktop' },
+    { ua: `${windows} ${chrome} Safari/537.36 Edg/120.0.2210.61`, touch: 10, browser: 'Edge', version: '120.0.2210.61', os: 'Windows', device: 'desktop' },
+    { ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0', touch: 0, browser: 'Firefox', version: '121.0', os: 'Windows', device: 'desktop' },
+    { ua: `${windows} ${chrome} Safari/537.36 OPR/106.0.0.0`, touch: 0, browser: 'Opera', version: '106.0.0.0', os: 'Windows', device: 'desktop' },
+    { ua: mac + ' Version/17.0 Safari/605.1.15', touch: 0, browser: 'Safari', version: '17.0', os: 'macOS', device: 'desktop' },
+    { ua: `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ${chrome} Safari/537.36`, touch: 0, browser: 'Chrome', version: '120.0.0.0', os: 'macOS', device: 'desktop' },
+    { ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0', touch: 0, browser: 'Firefox', version: '121.0', os: 'macOS', device: 'desktop' },
+    { ua: `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chromium/120.0.0.0 ${chrome} Safari/537.36`, touch: 0, browser: 'Chromium', version: '120.0.0.0', os: 'Linux', device: 'desktop' },
+    { ua: `Mozilla/5.0 (X11; CrOS x86_64 15662.0.0) AppleWebKit/537.36 ${chrome} Safari/537.36`, touch: 10, browser: 'Chrome', version: '120.0.0.0', os: 'ChromeOS', device: 'desktop' },
+    { ua: '', touch: 0, browser: 'Unknown', version: null, os: 'Unknown', device: 'unknown' },
+  ]
+  for (const item of cases) {
+    await t.test(`${item.os} ${item.device}: ${item.ua || 'unavailable user agent'}`, async () => {
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({ userAgent: item.ua, maxTouchPoints: item.touch }) })
+      const details = await api.getDeviceInfo()
+      assert.equal(details.browser.name, item.browser)
+      assert.equal(details.browser.version, item.version)
+      assert.equal(details.os, item.os)
+      assert.equal(details.deviceType, item.device)
+    })
+  }
+})
+
+test('device detection uses client hints without confusing tablets and touchscreen laptops', async (t) => {
+  const brands = [{ brand: 'Not_A Brand', version: '99' }, { brand: 'Chromium', version: '120' }, { brand: 'Google Chrome', version: '120' }]
+  const android = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 Chrome/120.0.0.0'
+  const linux = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36'
+  const cases = [
+    { name: 'reduced Android phone', ua: android + ' Mobile Safari/537.36', platform: 'Android', mobile: true, factors: ['Mobile'], os: 'Android', device: 'mobile' },
+    { name: 'reduced Android tablet', ua: android + ' Safari/537.36', platform: 'Android', mobile: false, factors: ['Tablet'], os: 'Android', device: 'tablet' },
+    { name: 'Android tablet without form factors', ua: android + ' Safari/537.36', platform: 'Android', mobile: false, factors: [], os: 'Android', device: 'tablet' },
+    { name: 'Windows touchscreen laptop', ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', platform: 'Windows', mobile: false, factors: ['Desktop'], os: 'Windows', device: 'desktop' },
+    { name: 'desktop UA with explicit tablet hint', ua: linux, platform: 'Android', mobile: false, factors: ['Tablet'], os: 'Android', device: 'tablet' },
+    // desktop mode can hide both the android os and tablet form factor.
+    { name: 'desktop-masked Android tablet reports only Linux desktop', ua: linux, platform: 'Linux', mobile: false, factors: [], os: 'Linux', device: 'desktop' },
+  ]
+  for (const item of cases) {
+    await t.test(item.name, async () => {
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgent: item.ua, maxTouchPoints: 10,
+        userAgentData: {
+          brands, mobile: item.mobile, platform: item.platform,
+          getHighEntropyValues: async () => ({
+            formFactors: item.factors,
+            fullVersionList: [{ brand: 'Google Chrome', version: '120.0.6099.109' }, { brand: 'Not_A Brand', version: '99.0.0.0' }, { brand: 'Chromium', version: '120.0.6099.109' }],
+          }),
+        },
+      }) })
+      const details = await api.getDeviceInfo()
+      assert.equal(details.browser.name, 'Chrome')
+      assert.equal(details.browser.version, '120.0.6099.109')
+      assert.equal(details.os, item.os)
+      assert.equal(details.deviceType, item.device)
+    })
+  }
+})
+
+test('device detection retains low entropy hints when detailed hints are denied or fail', async (t) => {
+  for (const mode of ['denied', 'rejected', 'unavailable']) {
+    await t.test(mode, async () => {
+      const lowEntropy = {
+        brands: [{ brand: 'Not_A Brand', version: '99' }, { brand: 'Chromium', version: '120' }, { brand: 'Microsoft Edge', version: '120' }],
+        mobile: true, platform: 'Android',
+      }
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgent: 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36',
+        userAgentData: {
+          ...lowEntropy,
+          ...(mode === 'unavailable' ? {} : { getHighEntropyValues: async () => {
+            if (mode === 'rejected') throw new Error('hints blocked')
+            return lowEntropy
+          } }),
+        },
+      }) })
+      const details = await api.getDeviceInfo()
+      assert.equal(details.browser.name, 'Edge')
+      assert.equal(details.browser.version, '120')
+      assert.equal(details.os, 'Android')
+      assert.equal(details.deviceType, 'mobile')
+      assert.equal(details.errors['hints.highEntropy'], mode === 'rejected' ? 'hints blocked' : undefined)
+    })
+  }
+})
+
+test('device diagnostics collect only the requested snapshot without hardware probes or transmission', async () => {
+  const logs: any[][] = []
+  const clock = deviceClockForTest()
+  let unwantedCalls = 0
+  const forbidden = () => { unwantedCalls++; throw new Error('unrequested operation') }
+  const window = deviceWindowForTest({
+    userAgent: 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36',
+    userAgentData: {
+      brands: [{ brand: 'Google Chrome', version: '120' }], mobile: true, platform: 'Android',
+      getHighEntropyValues: async (fields: string[]) => {
+        assert.ok(!fields.some((field) => ['architecture', 'bitness', 'wow64'].includes(field)))
+        return { platformVersion: '14.0.0', model: 'Pixel 7', fullVersionList: [{ brand: 'Google Chrome', version: '120.0.6099.109' }] }
+      },
+    },
+    connection: { saveData: false },
+    getBattery: forbidden,
+    mediaDevices: { enumerateDevices: forbidden, getUserMedia: forbidden },
+    gpu: { requestAdapter: forbidden }, permissions: { query: forbidden },
+    geolocation: { getCurrentPosition: forbidden }, sendBeacon: forbidden,
+  }, { createElement: forbidden })
+  window.screen.width = 0
+  window.screen.height = Infinity
+  window.innerWidth = 0
+  window.innerHeight = Infinity
+  window.matchMedia = (query: string) => ({ matches: query === '(prefers-color-scheme: light)' })
+  const api = await loadDeviceInfoForTest({
+    window: { ...window, fetch: forbidden, XMLHttpRequest: forbidden },
+    fetch: forbidden, XMLHttpRequest: forbidden, ...clock,
+    console: { log: (...args: any[]) => logs.push(args) },
+  })
+  const details = await api.getDeviceInfo()
+  assert.deepEqual(Object.keys(details).sort(), [
+    'browser', 'deviceType', 'errors', 'manufacturer', 'model', 'modelSource', 'os', 'osVersion',
+    'osVersionSource', 'preferences', 'screen', 'secureContext', 'viewport',
+  ].sort())
+  assert.equal(details.browser.name, 'Chrome')
+  assert.equal(details.browser.version, '120.0.6099.109')
+  assert.equal(details.browser.versionSource, 'client-hints')
+  assert.equal(details.os, 'Android')
+  assert.equal(details.osVersion, '14.0.0')
+  assert.equal(details.osVersionSource, 'client-hints')
+  assert.equal(details.model, 'Pixel 7')
+  assert.equal(details.manufacturer, 'Google')
+  assert.equal(details.modelSource, 'client-hints')
+  assert.equal(details.screen.width, 0)
+  assert.equal(details.screen.height, null)
+  assert.equal(details.viewport.innerWidth, 0)
+  assert.equal(details.viewport.innerHeight, null)
+  assert.equal(details.preferences.darkMode, false)
+  assert.equal(details.preferences.dataSaver, false)
+  assert.equal(details.secureContext, true)
+  assert.equal(Object.keys(details.errors).length, 0)
+  assert.equal(clock.pending.size, 0)
+  assert.equal(unwantedCalls, 0)
+  assert.doesNotThrow(() => JSON.stringify(details))
+  const logged = JSON.stringify(logs)
+  assert.ok(!logged.includes(window.navigator.userAgent))
+  assert.doesNotMatch(logged, /Pixel 7|120\.0\.6099\.109|14\.0\.0/)
+})
+
+test('device preferences distinguish enabled, disabled and unavailable settings', async (t) => {
+  const cases = [
+    { name: 'dark mode', matches: ['(prefers-color-scheme: dark)'], dark: true, data: null },
+    { name: 'light mode', matches: ['(prefers-color-scheme: light)'], dark: false, data: null },
+    { name: 'unsupported media preferences', matches: [], dark: null, data: null },
+    { name: 'network data saver on', matches: [], saveData: true, dark: null, data: true },
+    { name: 'network data saver off', matches: [], saveData: false, dark: null, data: false },
+    { name: 'css reduced data', matches: ['(prefers-reduced-data: reduce)'], dark: null, data: true },
+    { name: 'css normal data', matches: ['(prefers-reduced-data: no-preference)'], dark: null, data: false },
+  ]
+  for (const item of cases) {
+    await t.test(item.name, async () => {
+      const window = deviceWindowForTest({ connection: item.saveData === undefined ? undefined : { saveData: item.saveData } })
+      window.matchMedia = (query: string) => ({ matches: item.matches.includes(query) })
+      const api = await loadDeviceInfoForTest({ window })
+      const details = await api.getDeviceInfo()
+      assert.equal(details.preferences.darkMode, item.dark)
+      assert.equal(details.preferences.dataSaver, item.data)
+    })
+  }
+  const api = await loadDeviceInfoForTest({ window: { ...deviceWindowForTest(), matchMedia: undefined } })
+  const details = await api.getDeviceInfo()
+  assert.equal(details.preferences.darkMode, null)
+  assert.equal(details.preferences.dataSaver, null)
+})
+
+test('device dimensions and preferences remain fresh without rewriting browser-reported orientation', async () => {
+  let dark = false
+  const window = deviceWindowForTest({ connection: { saveData: false } })
+  window.screen.width = 390
+  window.screen.height = 844
+  window.innerWidth = 390
+  window.innerHeight = 844
+  window.devicePixelRatio = 3
+  window.matchMedia = (query: string) => ({ matches: query === `(prefers-color-scheme: ${dark ? 'dark' : 'light'})` })
+  const api = await loadDeviceInfoForTest({ window })
+  const first = await api.getDeviceInfo()
+  const before = JSON.stringify(first)
+  window.innerWidth = 844
+  window.innerHeight = 390
+  window.devicePixelRatio = 2
+  window.navigator.connection.saveData = true
+  dark = true
+  const second = await api.getDeviceInfo()
+  assert.equal(second.screen.width, 390)
+  assert.equal(second.screen.height, 844)
+  assert.equal(second.screen.devicePixelRatio, 2)
+  assert.equal(second.viewport.innerWidth, 844)
+  assert.equal(second.viewport.innerHeight, 390)
+  assert.equal(second.preferences.darkMode, true)
+  assert.equal(second.preferences.dataSaver, true)
+  assert.equal(first.preferences.darkMode, false)
+  assert.equal(first.preferences.dataSaver, false)
+  assert.equal(JSON.stringify(first), before, 'later reads must not mutate an earlier snapshot')
+})
+
+test('device timeout validates its range, uses the default, and cleans settled timers', async () => {
+  const clock = deviceClockForTest()
+  const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+    userAgentData: { brands: [], mobile: false, platform: 'Linux', getHighEntropyValues: async () => ({}) },
+  }), ...clock })
+  for (const timeoutMs of [0, -1, NaN, Infinity, -Infinity, 2147483648, '250']) {
+    await assert.rejects(api.getDeviceInfo({ timeoutMs }), /timeoutMs/)
+  }
+  assert.equal(clock.durations.length, 0)
+  await api.getDeviceInfo()
+  await api.getDeviceInfo({ timeoutMs: 2147483647 })
+  assert.deepEqual(clock.durations, [2000, 2147483647])
+  assert.equal(clock.pending.size, 0)
+})
+
+test('device hint timeouts retain base details and consume late outcomes without mutation', async (t) => {
+  for (const outcome of ['resolve', 'reject']) {
+    await t.test(outcome, async () => {
+      const clock = deviceClockForTest()
+      const probe = deferredDeviceProbe()
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgentData: {
+          brands: [{ brand: 'Google Chrome', version: '120' }], mobile: false, platform: 'Linux',
+          getHighEntropyValues: () => probe.promise,
+        },
+      }), ...clock })
+      const pending = api.getDeviceInfo({ timeoutMs: 25 })
+      await delay(0)
+      assert.equal(clock.pending.size, 1)
+      assert.deepEqual(clock.durations, [25])
+      clock.expire()
+      const details = await pending
+      assert.equal(details.browser.name, 'Chrome')
+      assert.equal(details.os, 'Linux')
+      assert.equal(details.screen.width, 1920)
+      assert.deepEqual(Object.keys(details.errors), ['hints.highEntropy'])
+      assert.match(details.errors['hints.highEntropy'], /timed out/i)
+      assert.equal(clock.pending.size, 0)
+      const snapshot = JSON.stringify(details)
+      if (outcome === 'resolve') probe.resolve({ platform: 'Android', platformVersion: '14.0.0', formFactors: ['Mobile'], model: 'Pixel 7' })
+      else probe.reject(new Error('late hint rejection'))
+      await delay(0)
+      assert.equal(JSON.stringify(details), snapshot)
+      assert.equal(clock.pending.size, 0)
+    })
+  }
+})
+
+test('device detection works when Object.hasOwn is unavailable', async () => {
+  const legacyObject = Object.create(Object)
+  Object.defineProperty(legacyObject, 'hasOwn', { value: undefined })
+  const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+    userAgentData: { brands: [], platform: 'Android', mobile: true },
+  }), Object: legacyObject })
+  const details = await api.getDeviceInfo()
+  assert.equal(details.os, 'Android')
+  assert.equal(details.deviceType, 'mobile')
+  assert.equal(details.browser.name, 'Chrome')
+})
+
+test('device malformed hints and throwing optional getters do not discard the snapshot', async (t) => {
+  for (const brands of [{ invalid: true }, [null, {}, { brand: 'Google Chrome', version: '120' }]]) {
+    await t.test(`malformed brands ${JSON.stringify(brands)}`, async () => {
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgentData: { brands, platform: 'Android', mobile: true, getHighEntropyValues: async () => ({ fullVersionList: {}, formFactors: {} }) },
+      }) })
+      const details = await api.getDeviceInfo()
+      assert.equal(details.browser.name, 'Chrome')
+      assert.equal(details.os, 'Android')
+      assert.equal(details.screen.width, 1920)
+      assert.doesNotThrow(() => JSON.stringify(details))
+    })
+  }
+  for (const field of ['userAgentData', 'screen.width', 'matchMedia']) {
+    await t.test(`blocked ${field}`, async () => {
+      const window = deviceWindowForTest()
+      const blocked = () => { throw new Error('optional read blocked') }
+      if (field === 'userAgentData') Object.defineProperty(window.navigator, 'userAgentData', { get: blocked })
+      if (field === 'screen.width') Object.defineProperty(window.screen, 'width', { get: blocked })
+      if (field === 'matchMedia') window.matchMedia = blocked
+      const api = await loadDeviceInfoForTest({ window })
+      const details = await api.getDeviceInfo()
+      assert.equal(details.browser.name, 'Chrome')
+      assert.equal(details.os, 'Linux')
+      assert.equal(details.viewport.innerWidth, 1280)
+      assert.ok(Object.keys(details.errors).length > 0)
+      if (field === 'matchMedia') {
+        assert.equal(details.preferences.darkMode, null)
+        assert.equal(details.preferences.dataSaver, null)
+      }
+    })
+  }
+})
+
+test('device OS versions and models use exposed values without guessing hidden details', async (t) => {
+  const android = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36'
+  const mac = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15'
+  const windows = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36'
+  const cases = [
+    { name: 'Android hints expose Pixel model and current version', ua: android, platform: 'Android', hints: { platformVersion: '14.0.0', model: 'Pixel 7' }, os: 'Android', version: '14.0.0', source: 'client-hints', manufacturer: 'Google', model: 'Pixel 7', modelSource: 'client-hints' },
+    { name: 'Android hints expose Samsung tablet model', ua: android, platform: 'Android', hints: { platformVersion: '13.0.0', model: 'SM-X710', formFactors: ['Tablet'] }, os: 'Android', version: '13.0.0', source: 'client-hints', manufacturer: 'Samsung', model: 'SM-X710', modelSource: 'client-hints' },
+    { name: 'macOS hints override the frozen UA version', ua: mac, platform: 'macOS', hints: { platformVersion: '15.4.0', model: '' }, os: 'macOS', version: '15.4.0', source: 'client-hints', manufacturer: 'Apple', model: null, modelSource: null },
+    { name: 'Windows newer platform hint', ua: windows, platform: 'Windows', hints: { platformVersion: '13.0.0' }, os: 'Windows', version: '11 or later', source: 'client-hints', manufacturer: null, model: null, modelSource: null },
+    { name: 'Windows 10 platform hint', ua: windows, platform: 'Windows', hints: { platformVersion: '10.0.0' }, os: 'Windows', version: '10', source: 'client-hints', manufacturer: null, model: null, modelSource: null },
+    { name: 'Windows NT 10 cannot distinguish 10 from 11', ua: windows, os: 'Windows', version: null, source: null, manufacturer: null, model: null, modelSource: null },
+    { name: 'reduced Android UA has no exact model or OS version', ua: android, os: 'Android', version: null, source: null, manufacturer: null, model: null, modelSource: null },
+    { name: 'legacy Pixel UA exposes model and OS version', ua: 'Mozilla/5.0 (Linux; Android 13; Pixel 7 Build/TQ3A.230805.001) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36', os: 'Android', version: '13', source: 'user-agent', manufacturer: 'Google', model: 'Pixel 7', modelSource: 'user-agent' },
+    { name: 'legacy Samsung UA exposes tablet model', ua: 'Mozilla/5.0 (Linux; Android 13; SM-X710 Build/TP1A.220624.014) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36', os: 'Android', version: '13', source: 'user-agent', manufacturer: 'Samsung', model: 'SM-X710', modelSource: 'user-agent' },
+    { name: 'Android Firefox engine token is not a model', ua: 'Mozilla/5.0 (Android 13; Mobile; rv:121.0) Gecko/121.0 Firefox/121.0', os: 'Android', version: '13', source: 'user-agent', manufacturer: null, model: null, modelSource: null },
+    { name: 'Firefox Android frozen OS token remains unknown', ua: 'Mozilla/5.0 (Android 10; Mobile; rv:149.0) Gecko/149.0 Firefox/149.0', os: 'Android', version: null, source: null, manufacturer: null, model: null, modelSource: null },
+    { name: 'older Firefox Android can report Android 10', ua: 'Mozilla/5.0 (Android 10; Mobile; rv:121.0) Gecko/121.0 Firefox/121.0', os: 'Android', version: '10', source: 'user-agent', manufacturer: null, model: null, modelSource: null },
+    { name: 'Firefox iOS frozen OS token remains unknown', ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 FxiOS/149.1 Mobile/15E148 Safari/605.1.15', os: 'iOS', version: null, source: null, manufacturer: 'Apple', model: null, modelSource: null },
+    { name: 'iPhone exposes family but not exact hardware model', ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 Version/17.4 Mobile/15E148 Safari/604.1', os: 'iOS', version: '17.4', source: 'user-agent', manufacturer: 'Apple', model: null, modelSource: null },
+    { name: 'Safari 26 frozen iOS version remains unknown', ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/26.0 Mobile/15E148 Safari/604.1', os: 'iOS', version: null, source: null, manufacturer: 'Apple', model: null, modelSource: null },
+    { name: 'desktop-mode iPad does not use the macOS UA version', ua: mac, touch: 5, os: 'iPadOS', version: null, source: null, manufacturer: 'Apple', model: null, modelSource: null },
+    { name: 'unrecognized exposed Android model does not invent a maker', ua: android, platform: 'Android', hints: { platformVersion: '14.0.0', model: 'unrecognized-device' }, os: 'Android', version: '14.0.0', source: 'client-hints', manufacturer: null, model: 'unrecognized-device', modelSource: 'client-hints' },
+  ]
+  for (const item of cases) {
+    await t.test(item.name, async () => {
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgent: item.ua, maxTouchPoints: item.touch || 0,
+        ...(item.hints ? { userAgentData: { brands: [], mobile: false, platform: item.platform, getHighEntropyValues: async () => item.hints } } : {}),
+      }) })
+      const details = await api.getDeviceInfo()
+      assert.equal(details.os, item.os)
+      assert.equal(details.osVersion, item.version)
+      assert.equal(details.osVersionSource, item.source)
+      assert.equal(details.manufacturer, item.manufacturer)
+      assert.equal(details.model, item.model)
+      assert.equal(details.modelSource, item.modelSource)
+    })
+  }
+})
+
+test('device detection avoids reporting engine versions as Brave or WebView app versions', async (t) => {
+  const android = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36'
+  const cases = [
+    { name: 'Brave token', ua: android + ' Brave', expected: 'Brave' },
+    { name: 'Brave client hint', ua: android, brands: [{ brand: 'Chromium', version: '120' }, { brand: 'Brave', version: '120' }], expected: 'Brave' },
+    { name: 'Android WebView', ua: 'Mozilla/5.0 (Linux; Android 13; Pixel 7 Build/TQ3A.230805.001; wv) AppleWebKit/537.36 Version/4.0 Chrome/120.0.0.0 Mobile Safari/537.36', expected: 'Android WebView' },
+  ]
+  for (const item of cases) {
+    await t.test(item.name, async () => {
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgent: item.ua,
+        ...(item.brands ? { userAgentData: { brands: item.brands, mobile: true, platform: 'Android' } } : {}),
+      }) })
+      const details = await api.getDeviceInfo()
+      assert.equal(details.browser.name, item.expected)
+      assert.equal(details.browser.version, null)
+      assert.equal(details.browser.versionSource, null)
+      assert.equal(details.os, 'Android')
+      assert.equal(details.deviceType, 'mobile')
+    })
+  }
+})
+
+test('device explicit browser and app markers take precedence over embedded Chrome and Safari', async (t) => {
+  const android = 'Mozilla/5.0 (Linux; Android 13; Pixel 7; wv) AppleWebKit/537.36 Version/4.0 Chrome/120.0.0.0 Mobile Safari/537.36'
+  const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 Version/17.4 Mobile/15E148 Safari/604.1'
+  const chrome = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36'
+  const cases = [
+    { name: 'Instagram', ua: android + ' Instagram 319.0.0.43.110 Android', version: '319.0.0.43.110' },
+    { name: 'Facebook', ua: android + ' [FBAN/FB4A;FBAV/450.0.0.0.1;]', version: '450.0.0.0.1' },
+    { name: 'Google App', ua: iphone + ' GSA/308.0.617575852', version: '308.0.617575852' },
+    { name: 'LinkedIn', ua: iphone + ' LinkedInApp', version: null },
+    { name: 'Snapchat', ua: iphone + ' Snapchat/12.70.0.24', version: '12.70.0.24' },
+    { name: 'Yandex', ua: chrome + ' YaBrowser/23.11.6.60', version: '23.11.6.60' },
+    { name: 'DuckDuckGo', ua: iphone + ' Ddg/7.108.0', version: '7.108.0' },
+    { name: 'UC Browser', ua: chrome + ' UCBrowser/13.4.0.1306', version: '13.4.0.1306' },
+    { name: 'MIUI Browser', ua: chrome + ' MiuiBrowser/17.9.160229', version: '17.9.160229' },
+  ]
+  for (const item of cases) {
+    await t.test(item.name, async () => {
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgent: item.ua,
+        ...(item.ua.includes('Android') ? { userAgentData: { brands: [{ brand: 'Google Chrome', version: '120' }], mobile: true, platform: 'Android' } } : {}),
+      }) })
+      const details = await api.getDeviceInfo()
+      assert.equal(details.browser.name, item.name)
+      assert.equal(details.browser.version, item.version)
+      assert.equal(details.browser.versionSource, item.version ? 'user-agent' : null)
+      assert.equal(details.deviceType, 'mobile')
+    })
+  }
+})
+
+test('device diagnostics are silent by default and debug logs exclude diagnostic values', async () => {
+  for (const debug of [undefined, false, 'true', true]) {
+    for (const failed of [false, true]) {
+      const logs: any[][] = []
+      const api = await loadDeviceInfoForTest({
+        window: deviceWindowForTest({
+          userAgent: 'Mozilla/5.0 (Linux; Android 14; private-model) Chrome/120.0.0.0 Mobile Safari/537.36',
+          userAgentData: {
+            brands: [], mobile: true, platform: 'Android',
+            getHighEntropyValues: async () => {
+              if (failed) throw new Error('private-probe-error')
+              return { model: 'private-model', platformVersion: '14.0.0' }
+            },
+          },
+        }),
+        console: { log: (...args: any[]) => logs.push(args) },
+      })
+      const details = await api.getDeviceInfo({ debug })
+      assert.equal(details.deviceType, 'mobile')
+      if (debug === true) {
+        assert.ok(logs.length > 0)
+        assert.match(JSON.stringify(logs), /collection started/)
+        assert.match(JSON.stringify(logs), /collection completed/)
+      } else {
+        assert.deepEqual(logs, [])
+      }
+      assert.doesNotMatch(JSON.stringify(logs), /private-|Mozilla|14\.0\.0|120\.0\.0\.0/)
+    }
+  }
+})
+
+test('device hint failures retain distinct field paths', async () => {
+  const detailed = Object.defineProperties({}, {
+    platform: { get() { throw new Error('detailed platform blocked') } },
+    model: { get() { throw new Error('detailed model blocked') } },
+  })
+  const hints = Object.defineProperties({ getHighEntropyValues: async () => detailed }, {
+    platform: { get() { throw new Error('basic platform blocked') } },
+    brands: { get() { throw new Error('basic brands blocked') } },
+  })
+  const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({ userAgentData: hints }) })
+  const details = await api.getDeviceInfo()
+  assert.equal(details.errors['hints.platform'], 'basic platform blocked')
+  assert.equal(details.errors['hints.highEntropy.platform'], 'detailed platform blocked')
+  assert.equal(details.errors['hints.model'], 'detailed model blocked')
+  assert.equal(details.errors['hints.brands'], 'basic brands blocked')
+  assert.equal(details.browser.name, 'Chrome')
+  assert.equal(details.os, 'Linux')
+  assert.equal(details.model, null)
+  assert.equal(details.errors.model, undefined)
+})
+
+test('device ambiguous iOS tokens stay unknown without discarding distinct exposed versions', async (t) => {
+  const cases = [
+    { name: 'Chrome with ambiguous 18.6', osToken: '18_6', browser: 'CriOS/149.0.7827.72', version: null },
+    { name: 'Edge with ambiguous 18.7', osToken: '18_7', browser: 'EdgiOS/149.0.3912.51', version: null },
+    { name: 'in-app browser with ambiguous 18.7', osToken: '18_7', browser: 'Instagram 400.0.0.0.1', version: null },
+    { name: 'Chrome exposing actual 26.0 token', osToken: '26_0', browser: 'CriOS/149.0.7827.72', version: '26.0' },
+    { name: 'Safari exposing explicit 18.6 version', osToken: '18_6', browser: 'Version/18.6', version: '18.6' },
+  ]
+  for (const item of cases) {
+    await t.test(item.name, async () => {
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgent: `Mozilla/5.0 (iPhone; CPU iPhone OS ${item.osToken} like Mac OS X) AppleWebKit/605.1.15 ${item.browser} Mobile/15E148 Safari/604.1`,
+      }) })
+      const details = await api.getDeviceInfo()
+      assert.equal(details.os, 'iOS')
+      assert.equal(details.osVersion, item.version)
+      assert.equal(details.osVersionSource, item.version ? 'user-agent' : null)
+    })
+  }
+})
+
+test('device WebView fallbacks preserve named browsers and require recognizable embedded-browser signals', async (t) => {
+  const android = 'Mozilla/5.0 (Linux; Android 14; Pixel 7; wv) AppleWebKit/537.36 Version/4.0 Chrome/120.0.0.0 Mobile Safari/537.36'
+  const ios = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148'
+  const cases = [
+    { name: 'named Android browser with wv marker', ua: android + ' UCBrowser/13.4.0.1306', browser: 'UC Browser', version: '13.4.0.1306' },
+    { name: 'generic Chrome hint does not hide WebView', ua: android, brands: [{ brand: 'Google Chrome', version: '120' }], browser: 'Android WebView', version: null },
+    { name: 'unmarked iPhone webview', ua: ios, browser: 'iOS WebView', version: null },
+    { name: 'unmarked iPad webview', ua: ios.replace('iPhone; CPU iPhone OS', 'iPad; CPU OS'), browser: 'iOS WebView', version: null },
+    { name: 'named iOS Chrome keeps its identity', ua: ios + ' CriOS/120.0.6099.101', browser: 'Chrome', version: '120.0.6099.101' },
+    { name: 'named iOS Firefox keeps its identity', ua: ios + ' FxiOS/121.0', browser: 'Firefox', version: '121.0' },
+    { name: 'iPhone token alone is insufficient', ua: 'Example/1.0 (iPhone)', browser: 'Unknown', version: null },
+    { name: 'AppleWebKit without mobile marker is insufficient', ua: ios.replace(' Mobile/15E148', ''), browser: 'Unknown', version: null },
+    { name: 'Safari marker is not an unmarked webview', ua: ios + ' Safari/604.1', browser: 'Unknown', version: null },
+  ]
+  for (const item of cases) {
+    await t.test(item.name, async () => {
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgent: item.ua,
+        ...(item.brands ? { userAgentData: { brands: item.brands, platform: 'Android', mobile: true } } : {}),
+      }) })
+      const details = await api.getDeviceInfo()
+      assert.equal(details.browser.name, item.browser)
+      assert.equal(details.browser.version, item.version)
+    })
+  }
+})
+
+test('device Yandex client-hint aliases preserve detailed version precedence', async (t) => {
+  for (const detailedBrand of ['YaBrowser', 'Yandex Browser', 'Yandex']) {
+    await t.test(detailedBrand, async () => {
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 7; wv) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36 YaBrowser/23.11.0.0',
+        userAgentData: {
+          brands: [{ brand: 'YaBrowser', version: '23' }], mobile: true, platform: 'Android',
+          getHighEntropyValues: async () => ({ fullVersionList: [{ brand: detailedBrand, version: '23.11.6.60' }] }),
+        },
+      }) })
+      const details = await api.getDeviceInfo()
+      assert.equal(details.browser.name, 'Yandex')
+      assert.equal(details.browser.version, '23.11.6.60')
+      assert.equal(details.browser.versionSource, 'client-hints')
+    })
+  }
+})
+
+test('device common TV box markers do not fall through to Android tablets', async (t) => {
+  for (const marker of ['MIBOX4', 'GoogleTV', 'Chromecast', 'AndroidTV']) {
+    await t.test(marker, async () => {
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgent: `Mozilla/5.0 (Linux; Android 12; ${marker}) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36`,
+      }) })
+      assert.equal((await api.getDeviceInfo()).deviceType, 'tv')
+    })
+  }
+})
+
+test('device manufacturer code families avoid known collisions and preserve explicit brands', async (t) => {
+  const cases = [
+    { model: 'RMX3686', maker: 'realme', legacy: true },
+    { model: 'CPH2573', maker: 'OPPO / OnePlus' },
+    { model: 'OPPO CPH2573', maker: 'OPPO' },
+    { model: 'OnePlus CPH2573', maker: 'OnePlus' },
+    { model: 'V2239', maker: 'vivo', legacy: true },
+    { model: 'I2202', maker: 'vivo' },
+    { model: 'TECNO CK7n', maker: 'TECNO' },
+    { model: 'Infinix X6833B', maker: 'Infinix', legacy: true },
+    { model: 'itel S665L', maker: 'itel' },
+    { model: 'M2007J20CG', maker: 'Xiaomi' },
+    { model: '23090RA98G', maker: 'Xiaomi', legacy: true },
+    { model: 'M1867G', maker: null },
+    { model: 'M7042F', maker: null },
+    { model: 'M7133E', maker: null },
+    { model: '2306004M', maker: null },
+    { model: '2305003M', maker: null },
+    { model: '220333QAG', maker: null },
+    { model: 'Redmi 220333QAG', maker: 'Xiaomi' },
+    { model: 'CPH2573A', maker: null },
+  ]
+  for (const item of cases) {
+    await t.test(item.model, async () => {
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgent: `Mozilla/5.0 (Linux; Android 14; ${item.legacy ? item.model : 'K'}) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36`,
+        ...(item.legacy ? {} : { userAgentData: {
+          brands: [], mobile: true, platform: 'Android',
+          getHighEntropyValues: async () => ({ model: item.model }),
+        } }),
+      }) })
+      const details = await api.getDeviceInfo()
+      assert.equal(details.manufacturer, item.maker)
+      assert.equal(details.model, item.model)
+      assert.equal(details.modelSource, item.legacy ? 'user-agent' : 'client-hints')
+    })
+  }
+})
+
+test('device report Android tablet identity stays stable when desktop form factors arrive', async (t) => {
+  const tabletUA = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36'
+  for (const mode of ['success', 'denied', 'rejected', 'timeout']) {
+    await t.test(mode, async () => {
+      const clock = deviceClockForTest()
+      const probe = deferredDeviceProbe()
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgent: tabletUA,
+        userAgentData: {
+          brands: [{ brand: 'Google Chrome', version: '141' }], platform: 'Android', mobile: false,
+          getHighEntropyValues: async () => {
+            if (mode === 'timeout') return probe.promise
+            if (mode === 'rejected') throw new Error('hints blocked')
+            return mode === 'success' ? { formFactors: ['Desktop'] } : {}
+          },
+        },
+      }), ...clock })
+      const pending = api.getDeviceInfo({ timeoutMs: 25 })
+      if (mode === 'timeout') {
+        await delay(0)
+        clock.expire()
+      }
+      const details = await pending
+      assert.equal(details.deviceType, 'tablet')
+      assert.equal(details.os, 'Android')
+      assert.equal(clock.pending.size, 0)
+      probe.resolve({ formFactors: ['Desktop'] })
+    })
+  }
+  const cases = [
+    { name: 'phone', ua: tabletUA.replace(' Safari/', ' Mobile Safari/'), platform: 'Android', factors: ['Mobile'], mobile: true, device: 'mobile' },
+    { name: 'Windows touchscreen laptop', ua: tabletUA.replace('Linux; Android 10; K', 'Windows NT 10.0; Win64; x64'), platform: 'Windows', factors: ['Desktop'], mobile: false, device: 'desktop' },
+    { name: 'XR has priority', ua: tabletUA, platform: 'Android', factors: ['Desktop', 'XR'], mobile: false, device: 'xr' },
+    { name: 'desktop site hides Android identity', ua: tabletUA.replace('Linux; Android 10; K', 'X11; Linux x86_64'), platform: 'Linux', factors: ['Desktop'], mobile: false, device: 'desktop' },
+  ]
+  for (const item of cases) {
+    await t.test(item.name, async () => {
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgent: item.ua, maxTouchPoints: 10,
+        userAgentData: { brands: [], platform: item.platform, mobile: item.mobile, getHighEntropyValues: async () => ({ formFactors: item.factors }) },
+      }) })
+      assert.equal((await api.getDeviceInfo()).deviceType, item.device)
+    })
+  }
+})
+
+test('device report model parsing preserves parentheses and ignores trailing app details', async (t) => {
+  for (const model of ['moto g(50)', 'moto g(9) play']) {
+    await t.test(model, async () => {
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgent: `Mozilla/5.0 (Linux; Android 12; ${model} Build/S1RFS32.27-25-2; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/141.0.7390.122 Mobile Safari/537.36 Instagram 400.0.0.40.73 Android (extra app details)`,
+      }) })
+      const details = await api.getDeviceInfo()
+      assert.equal(details.model, model)
+      assert.equal(details.modelSource, 'user-agent')
+      assert.equal(details.manufacturer, 'Motorola')
+      assert.equal(details.browser.name, 'Instagram')
+    })
+  }
+  const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+    userAgent: 'Mozilla/5.0 (Linux; Android 12; moto g(50) Build/S1RFS32.27-25-2) AppleWebKit/537.36 Chrome/141.0.0.0 Mobile Safari/537.36',
+    userAgentData: { brands: [], platform: 'Android', mobile: true, getHighEntropyValues: async () => ({ model: 'moto g(50) 5G' }) },
+  }) })
+  const details = await api.getDeviceInfo()
+  assert.equal(details.model, 'moto g(50) 5G')
+  assert.equal(details.modelSource, 'client-hints')
+})
+
+test('device report conservative iOS policy includes frozen patch-version tokens', async (t) => {
+  const cases = [
+    { name: 'Facebook with ambiguous 18.6.2', token: '18_6_2', marker: '[FBAN/FBIOS;FBAV/530.0.0.40.103;FBSV/26.1]', version: null },
+    { name: 'Chrome with ambiguous 18.7.1', token: '18_7_1', marker: 'CriOS/141.0.7390.96', version: null },
+    { name: 'Safari 26 with frozen patch token', token: '18_6_2', marker: 'Version/26.1 Safari/604.1', version: null },
+    { name: 'exposed current OS version', token: '26_1', marker: 'CriOS/141.0.7390.96', version: '26.1' },
+    { name: 'Safari with genuine older patch version', token: '18_6_2', marker: 'Version/18.6.2 Safari/604.1', version: '18.6.2' },
+  ]
+  for (const item of cases) {
+    await t.test(item.name, async () => {
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgent: `Mozilla/5.0 (iPhone; CPU iPhone OS ${item.token} like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 ${item.marker}`,
+      }) })
+      const details = await api.getDeviceInfo()
+      assert.equal(details.osVersion, item.version)
+      assert.equal(details.osVersionSource, item.version ? 'user-agent' : null)
+    })
+  }
+})
+
+test('device report Chromium client hints retain full versions without hiding named browsers', async (t) => {
+  const chromium = { brand: 'Chromium', version: '151.0.7922.34' }
+  const ua = 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 Chrome/151.0.0.0 Mobile Safari/537.36'
+  const cases = [
+    { name: 'Chromium-only hints', ua, brands: [chromium], browser: 'Chromium', version: chromium.version, source: 'client-hints' },
+    { name: 'Google Chrome brand wins', ua, brands: [chromium, { brand: 'Google Chrome', version: '151.0.7922.34' }], browser: 'Chrome', version: chromium.version, source: 'client-hints' },
+    { name: 'Edge token wins over engine hint', ua: ua + ' EdgA/151.0.4022.11', brands: [chromium], browser: 'Edge', version: '151.0.4022.11', source: 'user-agent' },
+    { name: 'Samsung token wins over engine hint', ua: ua + ' SamsungBrowser/29.0', brands: [chromium], browser: 'Samsung Internet', version: '29.0', source: 'user-agent' },
+    { name: 'unnamed WebView stays a WebView', ua: ua.replace('Pixel 7)', 'Pixel 7; wv)'), brands: [chromium], browser: 'Android WebView', version: null, source: null },
+  ]
+  for (const item of cases) {
+    await t.test(item.name, async () => {
+      const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+        userAgent: item.ua,
+        userAgentData: {
+          brands: item.brands.map((entry) => ({ ...entry, version: '151' })), platform: 'Android', mobile: true,
+          getHighEntropyValues: async () => ({ fullVersionList: item.brands }),
+        },
+      }) })
+      const details = await api.getDeviceInfo()
+      assert.equal(details.browser.name, item.browser)
+      assert.equal(details.browser.version, item.version)
+      assert.equal(details.browser.versionSource, item.source)
+    })
+  }
+})
+
+test('device browser names distinguish Quest and Silk from compatibility tokens', async (t) => {
+  const cases = [
+    { name: 'Quest 3', ua: 'Mozilla/5.0 (X11; Linux x86_64; Quest 3) AppleWebKit/537.36 (KHTML, like Gecko) OculusBrowser/39.2.0.0.56.754450099 Chrome/136.0.7103.177 VR Safari/537.36', browser: 'Meta Quest Browser', version: '39.2.0.0.56.754450099' },
+    { name: 'Quest 2 with Samsung compatibility token', ua: 'Mozilla/5.0 (X11; Linux x86_64; Quest 2) AppleWebKit/537.36 (KHTML, like Gecko) OculusBrowser/18.1.0.2.46.337441587 SamsungBrowser/4.0 Chrome/95.0.4638.74 VR Safari/537.36', browser: 'Meta Quest Browser', version: '18.1.0.2.46.337441587' },
+    { name: 'Silk tablet', ua: 'Mozilla/5.0 (Linux; Android 4.4.3; KFTHWI Build/KTU84M) AppleWebKit/537.36 (KHTML, like Gecko) Silk/44.1.54 like Chrome/44.0.2403.63 Safari/537.36', browser: 'Silk', version: '44.1.54' },
+    { name: 'Silk desktop view', ua: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Silk/44.1.54 like Chrome/44.0.2403.63 Safari/537.36', browser: 'Silk', version: '44.1.54' },
+    { name: 'Silk legacy version suffix', ua: 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_3; en-us; Silk/1.0.13.81_10003810) AppleWebKit/533.16 (KHTML, like Gecko) Version/5.0 Safari/533.16 Silk-Accelerated=true', browser: 'Silk', version: '1.0.13.81_10003810' },
+  ]
+  for (const item of cases) {
+    for (const withHints of [false, true]) {
+      await t.test(`${item.name}, client hints ${withHints}`, async () => {
+        const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+          userAgent: item.ua,
+          ...(withHints ? { userAgentData: { brands: [{ brand: 'Chromium', version: '136' }], platform: 'Linux', mobile: false } } : {}),
+        }) })
+        const details = await api.getDeviceInfo()
+        assert.equal(details.browser.name, item.browser)
+        assert.equal(details.browser.version, item.version)
+        assert.equal(details.browser.versionSource, 'user-agent')
+        if (item.browser === 'Meta Quest Browser') assert.equal(details.deviceType, 'xr')
+      })
+    }
+  }
+  // amazon explicitly excludes playstation from its silk detector.
+  const api = await loadDeviceInfoForTest({ window: deviceWindowForTest({
+    userAgent: 'Mozilla/5.0 (PlayStation Vita 3.61) AppleWebKit/537.73 (KHTML, like Gecko) Silk/3.2',
+  }) })
+  assert.notEqual((await api.getDeviceInfo()).browser.name, 'Silk')
 })

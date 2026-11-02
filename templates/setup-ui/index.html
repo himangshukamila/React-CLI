@@ -3,49 +3,49 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#09090b">
+  <meta name="theme-color" content="#1c2430">
   <title>Project setup · anshh</title>
   <link rel="stylesheet" href="/style.css">
 </head>
-<body class="min-h-screen bg-zinc-950 font-sans text-zinc-100 antialiased selection:bg-zinc-600">
-  <dialog id="intro-screen" aria-labelledby="intro-title" class="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none flex-col items-center justify-center border-0 bg-zinc-950 px-6 text-white transition-opacity duration-1000 open:flex motion-reduce:transition-none backdrop:bg-transparent">
+<body class="min-h-screen bg-canvas font-sans text-ink antialiased selection:bg-selected selection:text-ink">
+  <dialog id="intro-screen" aria-labelledby="intro-title" class="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none flex-col items-center justify-center border-0 bg-rail px-6 text-ink transition-opacity duration-1000 open:flex motion-reduce:transition-none backdrop:bg-transparent">
     <h1 id="intro-title" class="sr-only">Let's build your new React App</h1>
-    <p aria-hidden="true" class="min-h-36 w-full max-w-4xl text-center text-3xl leading-snug font-bold tracking-tight sm:text-4xl lg:text-5xl"><span id="intro-typed-text"></span><span id="intro-cursor" class="ml-1 font-normal transition-opacity duration-500 motion-reduce:transition-none">|</span></p>
-    <button id="skip-intro" type="button" class="absolute right-6 bottom-8 rounded border border-zinc-700 px-4 py-2.5 text-sm text-zinc-300 hover:border-zinc-500 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-300 sm:right-10">Skip intro</button>
+    <p aria-hidden="true" class="min-h-36 w-full max-w-4xl text-center text-3xl leading-snug font-bold tracking-tight sm:text-4xl lg:text-5xl"><span id="intro-typed-text"></span><span id="intro-cursor" class="ml-1 font-normal text-silver transition-opacity duration-500 motion-reduce:transition-none">|</span></p>
+    <button id="skip-intro" type="button" class="absolute right-6 bottom-8 rounded border border-control px-4 py-2.5 text-sm text-soft hover:border-accent hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent sm:right-10">Skip intro</button>
   </dialog>
 
-  <a href="#workspace" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-zinc-800 focus:px-4 focus:py-3">Skip to setup</a>
+  <a href="#workspace" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-raised focus:px-4 focus:py-3">Skip to setup</a>
   <div id="setup-screen">
-    <aside class="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-zinc-800/80 bg-zinc-900/40 lg:flex">
+    <aside class="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-line/80 bg-rail lg:flex">
       <a href="#workspace" aria-label="anshh project setup" class="flex h-20 items-center gap-3 px-7">
 
-        <span class="text-xl font-semibold tracking-tight">anshh<span class="text-zinc-300">.</span></span>
-        <span class="ml-auto rounded border border-zinc-700 px-1.5 py-0.5 font-mono text-xs text-zinc-400">CLI</span>
+        <span class="text-xl font-semibold tracking-tight">anshh<span class="text-silver">.</span></span>
+        <span class="ml-auto rounded border border-silver/50 px-1.5 py-0.5 font-mono text-xs text-silver">CLI</span>
       </a>
       <div class="px-5 pt-8">
-        <p class="mb-5 px-3 text-xs font-medium tracking-widest text-zinc-400 uppercase">New workspace</p>
+        <p class="mb-5 px-3 text-xs font-medium tracking-widest text-silver uppercase">New workspace</p>
         <nav class="space-y-2" aria-label="Setup steps" id="desktop-steps"></nav>
       </div>
-      <div class="mx-5 mt-8 rounded border border-zinc-800 bg-zinc-950/40 p-4">
-        <p class="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-300">Base configuration</p>
-        <p class="text-xs leading-6 text-zinc-400">React + Vite are included.<br>Your choices shape the rest.</p>
+      <div class="mx-5 mt-8 rounded border border-silver/30 bg-silver/5 p-4">
+        <p class="mb-2 flex items-center gap-2 text-xs font-medium text-silver">Base configuration</p>
+        <p class="text-xs leading-6 text-muted">React + Vite are included.<br>Your choices shape the rest.</p>
       </div>
-      <div class="mt-auto space-y-3 border-t border-zinc-800/70 p-6">
-        <p class="flex items-center gap-2 text-xs text-zinc-400">Running locally</p>
-        <p class="font-mono text-xs text-zinc-400" id="session-host">localhost</p>
+      <div class="mt-auto space-y-3 border-t border-line/70 p-6">
+        <p class="flex items-center gap-2 text-xs text-muted">Running locally</p>
+        <p class="font-mono text-xs text-muted" id="session-host">localhost</p>
       </div>
     </aside>
 
     <div class="min-w-0 lg:pl-60">
-      <header class="flex min-h-20 flex-wrap items-center justify-between gap-3 border-b border-zinc-800/80 px-5 py-4 sm:px-8 xl:px-12">
+      <header class="flex min-h-20 flex-wrap items-center justify-between gap-3 border-b border-line/80 bg-rail/50 px-5 py-4 sm:px-8 xl:px-12">
         <div class="flex min-w-0 items-center gap-3 text-sm">
-          <span class="font-semibold text-zinc-300 lg:hidden">anshh.</span>
-          <span class="hidden text-zinc-400 sm:inline">Workspace</span><span class="hidden text-zinc-700 sm:inline">/</span>
+          <span class="font-semibold text-soft lg:hidden">anshh.</span>
+          <span class="hidden text-muted sm:inline">Workspace</span><span class="hidden text-muted sm:inline">/</span>
           <span class="truncate font-medium">New project</span>
         </div>
         <div class="flex items-center gap-3 sm:gap-5">
-          <span class="hidden items-center gap-2 text-xs text-zinc-400 sm:flex">Local session <span class="font-mono text-zinc-400" id="session-time" aria-label="Time remaining"></span></span>
-          <button id="cancel-setup" type="button" class="rounded border border-zinc-700/80 px-3 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-500 hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-300 disabled:opacity-40">Cancel setup</button>
+          <span class="hidden items-center gap-2 text-xs text-muted sm:flex">Local session <span class="font-mono text-muted" id="session-time" aria-label="Time remaining"></span></span>
+          <button id="cancel-setup" type="button" class="rounded border border-control px-3 py-2 text-xs font-medium text-soft transition-colors hover:border-accent hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent disabled:opacity-40">Cancel setup</button>
         </div>
       </header>
 
@@ -53,68 +53,68 @@
         <nav id="mobile-steps" aria-label="Setup steps" class="mb-8 grid grid-cols-3 gap-2 lg:hidden"></nav>
         <div class="mb-8 flex items-start justify-between gap-4">
           <div>
-            <p class="mb-3 flex items-center gap-2 text-xs font-medium tracking-widest text-zinc-300 uppercase">Project setup <span id="step-number" class="ml-1 text-zinc-400">01 / 03</span></p>
+            <p class="mb-3 flex items-center gap-3 text-xs font-medium tracking-widest text-silver uppercase"><span aria-hidden="true" class="h-px w-8 bg-silver"></span>Project setup <span id="step-number" class="ml-1 text-muted">01 / 03</span></p>
             <h1 id="step-title" tabindex="-1" class="text-3xl font-semibold tracking-tight outline-none sm:text-4xl">Configure dependencies.</h1>
-            <p id="step-description" class="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">Start with React + Vite. Add the tools your project needs.</p>
+            <p id="step-description" class="mt-3 max-w-2xl text-sm leading-6 text-muted">Start with React + Vite. Add the tools your project needs.</p>
           </div>
-          <button id="reset" type="button" class="mt-1 flex shrink-0 items-center gap-2 rounded px-2 py-2 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-300 disabled:opacity-40"><span>Reset</span></button>
+          <button id="reset" type="button" class="mt-1 flex shrink-0 items-center gap-2 rounded px-2 py-2 text-xs text-muted hover:bg-raised hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent disabled:opacity-40"><span>Reset</span></button>
         </div>
 
         <div class="grid min-w-0 gap-8 xl:grid-cols-3">
           <fieldset id="setup-fields" class="min-w-0 space-y-7 disabled:opacity-60 xl:col-span-2">
             <legend class="sr-only">Project configuration</legend>
-            <div class="rounded border border-zinc-800 bg-zinc-900/40 p-5">
-              <div class="mb-3 flex items-center justify-between gap-3"><label for="project-name-input" class="text-sm font-medium">Project name</label><span class="font-mono text-xs text-zinc-400">./<span id="project-name">__PROJECT_NAME__</span></span></div>
-              <div class="flex items-center gap-3 rounded border border-zinc-700/70 bg-zinc-950 px-3 focus-within:border-zinc-300 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-zinc-400">
+            <div class="rounded border border-line bg-panel p-5">
+              <div class="mb-3 flex items-center justify-between gap-3"><label for="project-name-input" class="text-sm font-medium">Project name</label><span class="font-mono text-xs text-muted">./<span id="project-name">__PROJECT_NAME__</span></span></div>
+              <div class="flex items-center gap-3 rounded border border-control bg-inset px-3 focus-within:border-accent focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
 
-                <input id="project-name-input" value="__PROJECT_NAME__" type="text" autocomplete="off" spellcheck="false" placeholder="my-next-project" aria-describedby="project-name-error" class="min-w-0 flex-1 bg-transparent py-3 font-mono text-sm outline-none placeholder:text-zinc-400">
-                <span class="text-xs text-zinc-400">React</span>
+                <input id="project-name-input" value="__PROJECT_NAME__" type="text" autocomplete="off" spellcheck="false" placeholder="my-next-project" aria-describedby="project-name-error" class="min-w-0 flex-1 bg-transparent py-3 font-mono text-sm outline-none placeholder:text-muted">
+                <span class="text-xs text-muted">React</span>
               </div>
               <p id="project-name-error" class="mt-2 hidden text-xs text-red-300" role="alert"></p>
             </div>
 
             <section id="packages" aria-label="Dependencies" class="space-y-5">
-              <div class="flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900/40 px-3 focus-within:border-zinc-300">
+              <div class="flex items-center gap-3 rounded border border-control bg-inset px-3 focus-within:border-accent focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
 
-                <label for="package-search" class="sr-only">Search packages</label><input id="package-search" type="search" placeholder="Search packages, features..." autocomplete="off" class="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none placeholder:text-zinc-400">
+                <label for="package-search" class="sr-only">Search packages</label><input id="package-search" type="search" placeholder="Search packages, features..." autocomplete="off" class="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none placeholder:text-muted">
               </div>
               <div class="flex items-center justify-between gap-3">
-                <div class="flex gap-1 rounded bg-zinc-900 p-1">
-                  <button type="button" data-filter="all" aria-pressed="true" class="rounded px-3 py-1.5 text-xs font-medium text-zinc-400 aria-pressed:bg-zinc-800 aria-pressed:text-zinc-100 focus-visible:outline-2 focus-visible:outline-zinc-300">All packages</button>
-                  <button type="button" data-filter="selected" aria-pressed="false" class="rounded px-3 py-1.5 text-xs font-medium text-zinc-400 aria-pressed:bg-zinc-800 aria-pressed:text-zinc-100 focus-visible:outline-2 focus-visible:outline-zinc-300">Selected <span id="selected-filter-count">1</span></button>
+                <div class="flex gap-1 rounded bg-panel p-1">
+                  <button type="button" data-filter="all" aria-pressed="true" class="rounded px-3 py-1.5 text-xs font-medium text-muted aria-pressed:bg-selected aria-pressed:text-ink focus-visible:outline-2 focus-visible:outline-accent">All packages</button>
+                  <button type="button" data-filter="selected" aria-pressed="false" class="rounded px-3 py-1.5 text-xs font-medium text-muted aria-pressed:bg-selected aria-pressed:text-ink focus-visible:outline-2 focus-visible:outline-accent">Selected <span id="selected-filter-count">1</span></button>
                 </div>
-                <span id="visible-count" class="text-xs text-zinc-400" role="status">11 packages</span>
+                <span id="visible-count" class="text-xs text-muted" role="status">11 packages</span>
               </div>
               <div id="package-grid" class="grid grid-cols-1 gap-3 sm:grid-cols-2"></div>
-              <div id="package-empty" class="hidden rounded border border-dashed border-zinc-700 px-6 py-10 text-center">
-                <p class="text-sm font-medium">No packages found</p><p class="mt-2 text-xs text-zinc-400">Try another search or show all packages.</p>
-                <button id="clear-search" type="button" class="mt-5 rounded border border-zinc-700 px-4 py-2 text-xs hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-zinc-300">Clear filters</button>
+              <div id="package-empty" class="hidden rounded border border-dashed border-control px-6 py-10 text-center">
+                <p class="text-sm font-medium">No packages found</p><p class="mt-2 text-xs text-muted">Try another search or show all packages.</p>
+                <button id="clear-search" type="button" class="mt-5 rounded border border-control px-4 py-2 text-xs hover:bg-raised focus-visible:outline-2 focus-visible:outline-accent">Clear filters</button>
               </div>
-              <p class="flex items-start gap-2 text-xs leading-5 text-zinc-400">You can add more packages later with <code class="whitespace-nowrap text-zinc-400">get &lt;package&gt;</code></p>
+              <p class="flex items-start gap-2 text-xs leading-5 text-muted">You can add more packages later with <code class="whitespace-nowrap text-muted">get &lt;package&gt;</code></p>
             </section>
 
             <section id="structure" aria-label="Project structure" class="hidden space-y-6">
               <div id="structure-list" class="grid grid-cols-1 gap-3 sm:grid-cols-2"></div>
-              <div class="rounded border border-zinc-800 bg-zinc-900/40 p-5">
-                <h2 class="text-sm font-medium">Add starter files</h2><p class="mt-2 text-xs leading-5 text-zinc-400">Add a starter file to one of your selected folders.</p>
+              <div class="rounded border border-line bg-panel p-5">
+                <h2 class="text-sm font-medium">Add starter files</h2><p class="mt-2 text-xs leading-5 text-muted">Add a starter file to one of your selected folders.</p>
                 <div class="mt-5 grid gap-3 sm:grid-cols-2">
-                  <div><label for="file-target-folder" class="mb-2 block text-xs text-zinc-400">Folder</label><select id="file-target-folder" class="w-full rounded border border-zinc-700 bg-zinc-950 p-2.5 text-sm focus-visible:outline-2 focus-visible:outline-zinc-300"></select></div>
-                  <div><label for="file-extension" class="mb-2 block text-xs text-zinc-400">File type</label><select id="file-extension" class="w-full rounded border border-zinc-700 bg-zinc-950 p-2.5 text-sm focus-visible:outline-2 focus-visible:outline-zinc-300"><option value=".jsx">React component · .jsx</option><option value=".js">JavaScript · .js</option></select></div>
+                  <div><label for="file-target-folder" class="mb-2 block text-xs text-muted">Folder</label><select id="file-target-folder" class="w-full rounded border border-control bg-canvas p-2.5 text-sm focus-visible:outline-2 focus-visible:outline-accent"></select></div>
+                  <div><label for="file-extension" class="mb-2 block text-xs text-muted">File type</label><select id="file-extension" class="w-full rounded border border-control bg-canvas p-2.5 text-sm focus-visible:outline-2 focus-visible:outline-accent"><option value=".jsx">React component · .jsx</option><option value=".js">JavaScript · .js</option></select></div>
                 </div>
-                <label for="file-name-input" class="mt-4 mb-2 block text-xs text-zinc-400">File name</label>
-                <div class="flex gap-2"><input id="file-name-input" type="text" placeholder="Dashboard" autocomplete="off" spellcheck="false" aria-describedby="file-error" class="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-950 px-3 py-2.5 font-mono text-sm placeholder:text-zinc-400 focus-visible:outline-2 focus-visible:outline-zinc-300"><button type="button" id="create-file-btn" class="flex items-center gap-1.5 rounded border border-zinc-600 bg-zinc-800 px-4 text-xs font-medium hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-zinc-300 disabled:opacity-40">Add file</button></div>
+                <label for="file-name-input" class="mt-4 mb-2 block text-xs text-muted">File name</label>
+                <div class="flex gap-2"><input id="file-name-input" type="text" placeholder="Dashboard" autocomplete="off" spellcheck="false" aria-describedby="file-error" class="min-w-0 flex-1 rounded border border-control bg-canvas px-3 py-2.5 font-mono text-sm placeholder:text-muted focus-visible:outline-2 focus-visible:outline-accent"><button type="button" id="create-file-btn" class="flex items-center gap-1.5 rounded border border-control bg-raised px-4 text-xs font-medium hover:bg-line focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-40">Add file</button></div>
                 <p id="file-error" class="mt-2 hidden text-xs text-red-300" role="alert"></p>
-                <p id="file-folder-hint" class="mt-3 hidden text-xs text-zinc-400">Select a src folder above to add a file.</p>
+                <p id="file-folder-hint" class="mt-3 hidden text-xs text-muted">Select a src folder above to add a file.</p>
                 <ul id="created-files-list" class="mt-4 space-y-2" aria-label="Starter files"></ul>
               </div>
             </section>
 
             <section id="launch" aria-label="Launch options" class="hidden space-y-5">
-              <div class="rounded border border-zinc-700 bg-zinc-900 p-5"><p class="flex items-center gap-2 text-sm font-medium text-zinc-200">Review your configuration</p><p class="mt-2 text-xs leading-6 text-zinc-400">Review your project preview, choose what runs after setup, and send it to your terminal.</p></div>
+              <div class="rounded border border-silver/50 bg-silver/5 p-5"><p class="flex items-center gap-2 text-sm font-medium text-silver">Review your configuration</p><p class="mt-2 text-xs leading-6 text-muted">Review your project preview, choose what runs after setup, and send it to your terminal.</p></div>
               <div id="launch-options" class="space-y-3"></div>
-              <div id="port-config-container" class="rounded border border-zinc-800 bg-zinc-900/40 p-5">
-                <label for="dev-port" class="block text-sm font-medium">Development port</label><p class="mt-2 text-xs text-zinc-400">The port your new app will run on.</p>
-                <input id="dev-port" type="number" min="1024" max="65535" step="1" value="5173" aria-describedby="port-error" class="mt-4 w-36 rounded border border-zinc-700 bg-zinc-950 px-3 py-2.5 font-mono text-sm focus-visible:outline-2 focus-visible:outline-zinc-300">
+              <div id="port-config-container" class="rounded border border-line bg-panel p-5">
+                <label for="dev-port" class="block text-sm font-medium">Development port</label><p class="mt-2 text-xs text-muted">The port your new app will run on.</p>
+                <input id="dev-port" type="number" min="1024" max="65535" step="1" value="5173" aria-describedby="port-error" class="mt-4 w-36 rounded border border-control bg-canvas px-3 py-2.5 font-mono text-sm focus-visible:outline-2 focus-visible:outline-accent">
                 <p id="port-error" class="mt-2 hidden text-xs text-red-300" role="alert"></p>
               </div>
             </section>
@@ -122,24 +122,24 @@
 
           <aside class="min-w-0 xl:col-span-1" aria-label="Live project preview">
             <div class="space-y-4 xl:sticky xl:top-8">
-              <div class="overflow-hidden rounded border border-zinc-800 bg-zinc-900/40">
-                <div class="flex items-center justify-between border-b border-zinc-800 px-5 py-4"><h2 class="text-sm font-medium">Project preview</h2><span class="flex items-center gap-2 text-xs font-medium text-zinc-400">Live</span></div>
-                <div class="flex items-center gap-3 border-b border-zinc-800/70 p-5"><div class="min-w-0"><p id="preview-project-name" class="truncate text-sm font-medium">Your project</p><p class="mt-1 text-xs text-zinc-400">React + Vite</p></div></div>
-                <div id="tree-preview" class="max-h-96 overflow-auto p-5 font-mono text-xs leading-6 text-zinc-400" aria-label="Planned project files"></div>
-                <dl class="grid grid-cols-2 gap-3 border-t border-zinc-800/70 p-5"><div><dt class="text-xs text-zinc-400">Packages</dt><dd id="side-packages" class="mt-1 text-lg font-medium">1<span class="ml-1 text-xs font-normal text-zinc-400">selected</span></dd></div><div><dt class="text-xs text-zinc-400">Structure</dt><dd id="side-structure" class="mt-1 text-lg font-medium">4<span class="ml-1 text-xs font-normal text-zinc-400">items</span></dd></div></dl>
+              <div class="overflow-hidden rounded border border-paper-rule bg-paper text-paper-ink">
+                <div class="flex items-center justify-between border-b border-paper-rule bg-paper-rule/30 px-5 py-4"><h2 class="text-sm font-semibold">Project preview</h2><span class="flex items-center gap-2 text-xs font-medium text-paper-muted">Live</span></div>
+                <div class="flex items-center gap-3 border-b border-paper-rule p-5"><div class="min-w-0"><p id="preview-project-name" class="truncate text-base font-semibold">Your project</p><p class="mt-1 text-xs text-paper-muted">React + Vite</p></div></div>
+                <div id="tree-preview" class="max-h-96 overflow-auto p-5 font-mono text-xs leading-6 text-paper-muted" aria-label="Planned project files"></div>
+                <dl class="grid grid-cols-2 gap-3 border-t border-paper-rule bg-paper-rule/20 p-5"><div><dt class="text-xs text-paper-muted">Packages</dt><dd id="side-packages" class="mt-1 text-2xl font-semibold">1<span class="ml-1 text-xs font-normal text-paper-muted">selected</span></dd></div><div><dt class="text-xs text-paper-muted">Structure</dt><dd id="side-structure" class="mt-1 text-2xl font-semibold">4<span class="ml-1 text-xs font-normal text-paper-muted">items</span></dd></div></dl>
               </div>
-              <div class="rounded border border-zinc-800/70 p-4"><p class="flex items-center gap-2 text-xs text-zinc-400">After setup<span id="side-launch" class="ml-auto font-mono text-zinc-300">localhost:5173</span></p></div>
-              <p class="px-1 text-xs leading-5 text-zinc-400">Nothing is installed until you choose<br class="hidden xl:block"> <span class="text-zinc-400">Create project</span>.</p>
+              <div class="rounded border border-line bg-rail p-4"><p class="flex items-center gap-2 text-xs text-muted">After setup<span id="side-launch" class="ml-auto font-mono text-accent">localhost:5173</span></p></div>
+              <p class="px-1 text-xs leading-5 text-muted">Nothing is installed until you choose<br class="hidden xl:block"> <span class="text-muted">Create project</span>.</p>
             </div>
           </aside>
         </div>
 
         <div id="feedback" role="alert" class="mt-6 hidden rounded border border-red-900 bg-red-950/40 px-5 py-4 text-sm text-red-200"></div>
         <p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
-        <footer class="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-800 bg-zinc-950 lg:left-60">
+        <footer class="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-rail lg:left-60">
           <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8 xl:px-12">
-          <button type="button" id="previous-step" class="flex items-center gap-2 rounded px-3 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300 disabled:opacity-30">Back</button>
-          <div class="flex items-center gap-4"><span id="footer-step" class="hidden text-xs text-zinc-400 sm:inline">Step 1 of 3</span><button type="button" id="next-step" class="flex items-center gap-3 rounded border border-zinc-200 bg-zinc-200 px-5 py-3 text-sm font-semibold text-zinc-950 transition-colors hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-300 disabled:opacity-40">Continue</button><button type="button" id="create" class="hidden items-center gap-3 rounded border border-zinc-200 bg-zinc-200 px-5 py-3 text-sm font-semibold text-zinc-950 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-300 disabled:opacity-50"><span id="create-label">Create project</span></button></div>
+          <button type="button" id="previous-step" class="flex items-center gap-2 rounded px-3 py-2.5 text-sm text-muted hover:bg-raised hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-30">Back</button>
+          <div class="flex items-center gap-4"><span id="footer-step" class="hidden text-xs text-muted sm:inline">Step 1 of 3</span><button type="button" id="next-step" class="flex items-center gap-3 rounded border border-accent bg-accent px-5 py-3 text-sm font-semibold text-accent-ink transition-colors hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent disabled:opacity-40">Continue</button><button type="button" id="create" class="hidden items-center gap-3 rounded border border-accent bg-accent px-5 py-3 text-sm font-semibold text-accent-ink hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent disabled:opacity-50"><span id="create-label">Create project</span></button></div>
           </div>
         </footer>
       </main>
@@ -147,18 +147,18 @@
   </div>
 
   <section id="result-screen" hidden class="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center px-6 py-16 text-center" aria-labelledby="result-title">
-    <p class="mb-3 text-xs font-medium tracking-widest text-zinc-400 uppercase">anshh / project setup</p>
+    <p class="mb-3 text-xs font-medium tracking-widest text-muted uppercase">anshh / project setup</p>
     <h1 id="result-title" tabindex="-1" class="text-3xl font-semibold tracking-tight outline-none">Continue in your terminal</h1>
-    <p id="result-description" class="mt-4 text-sm leading-7 text-zinc-400"></p>
-    <div id="result-summary" class="mt-8 w-full rounded border border-zinc-800 bg-zinc-900/40 p-5 text-left text-sm text-zinc-300"></div>
-    <p class="mt-8 text-xs text-zinc-400">You can close this browser tab.</p>
+    <p id="result-description" class="mt-4 text-sm leading-7 text-muted"></p>
+    <div id="result-summary" class="mt-8 w-full rounded border border-line bg-panel p-5 text-left text-sm text-soft"></div>
+    <p class="mt-8 text-xs text-muted">You can close this browser tab.</p>
   </section>
 
-  <dialog id="cancel-confirm-modal" aria-labelledby="cancel-title" aria-describedby="cancel-description" class="m-auto w-full max-w-md rounded border border-zinc-700 bg-zinc-900 p-6 text-zinc-100 backdrop:bg-black/70 ">
-    <h2 id="cancel-title" class="text-xl font-semibold tracking-tight">Leave this setup?</h2><p id="cancel-description" class="mt-3 text-sm leading-6 text-zinc-400">Your selections will be discarded. No project will be created from this session.</p>
-    <div class="mt-7 flex flex-wrap justify-end gap-3"><button type="button" id="abort-cancel-btn" autofocus class="rounded border border-zinc-600 px-4 py-2.5 text-sm hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-zinc-300">Keep editing</button><button type="button" id="confirm-cancel-btn" class="rounded border border-red-800 bg-red-950 px-4 py-2.5 text-sm font-semibold text-red-100 hover:bg-red-900 focus-visible:outline-2 focus-visible:outline-zinc-300">Cancel setup</button></div>
+  <dialog id="cancel-confirm-modal" aria-labelledby="cancel-title" aria-describedby="cancel-description" class="m-auto w-full max-w-md rounded border border-control bg-panel p-6 text-ink backdrop:bg-black/70 ">
+    <h2 id="cancel-title" class="text-xl font-semibold tracking-tight">Leave this setup?</h2><p id="cancel-description" class="mt-3 text-sm leading-6 text-muted">Your selections will be discarded. No project will be created from this session.</p>
+    <div class="mt-7 flex flex-wrap justify-end gap-3"><button type="button" id="abort-cancel-btn" autofocus class="rounded border border-control px-4 py-2.5 text-sm hover:bg-raised focus-visible:outline-2 focus-visible:outline-accent">Keep editing</button><button type="button" id="confirm-cancel-btn" class="rounded border border-red-800 bg-red-950 px-4 py-2.5 text-sm font-semibold text-red-100 hover:bg-red-900 focus-visible:outline-2 focus-visible:outline-accent">Cancel setup</button></div>
   </dialog>
-  <noscript><div class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950 p-8 text-center text-zinc-200">Enable JavaScript to use the setup wizard, or return to the terminal to configure your project.</div></noscript>
+  <noscript><div class="fixed inset-0 z-50 flex items-center justify-center bg-canvas p-8 text-center text-ink">Enable JavaScript to use the setup wizard, or return to the terminal to configure your project.</div></noscript>
 
   <script>
     const TEMPLATE_PROJECT_NAME = "__PROJECT_NAME__";
@@ -207,7 +207,7 @@
       { id: 'structure', label: 'Structure', detail: 'Organize your workspace', title: 'Project structure.', description: 'Choose your folders and add a few starter files.' },
       { id: 'launch', label: 'Review & launch', detail: 'Make it happen', title: 'Review and create.', description: 'One last look, then your terminal takes it from here.' },
     ];
-    const cardClass = 'group relative flex w-full gap-3 rounded border border-zinc-800 bg-zinc-900/40 p-4 text-left transition-colors hover:border-zinc-600 hover:bg-zinc-900 aria-pressed:border-zinc-400 aria-pressed:bg-zinc-800/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300 disabled:cursor-wait motion-reduce:transition-none';
+    const cardClass = 'group relative flex w-full gap-4 rounded border border-line bg-panel p-4 text-left transition-colors duration-200 hover:border-control hover:bg-raised aria-pressed:border-accent aria-pressed:bg-selected focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-wait motion-reduce:transition-none';
     let currentStep = 0;
     let packageFilter = 'all';
     let busy = false;
@@ -300,9 +300,9 @@
           button.setAttribute('aria-label', step.label);
           if (index === currentStep) button.setAttribute('aria-current', 'step');
           button.disabled = busy || finished;
-          button.className = 'flex w-full items-center gap-3 rounded border border-transparent px-3 py-3 text-left text-zinc-400 transition-colors hover:bg-zinc-800/50 hover:text-zinc-200 aria-[current=step]:border-zinc-600 aria-[current=step]:bg-zinc-800 aria-[current=step]:text-white focus-visible:outline-2 focus-visible:outline-zinc-300 motion-reduce:transition-none' + (id === 'mobile-steps' ? ' flex-col justify-center text-center' : '');
+          button.className = 'group flex w-full items-center gap-3 rounded border border-transparent px-3 py-3 text-left text-muted transition-colors hover:bg-raised/50 hover:text-ink aria-[current=step]:border-accent/60 aria-[current=step]:bg-selected aria-[current=step]:text-ink focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none' + (id === 'mobile-steps' ? ' flex-col justify-center text-center' : '');
           const label = id === 'mobile-steps' ? ['Packages', 'Structure', 'Launch'][index] : step.label;
-          button.innerHTML = '<span class="flex size-7 shrink-0 items-center justify-center rounded border border-current/20 font-mono text-xs">' + String(index + 1).padStart(2, '0') + '</span><span class="min-w-0"><span class="block text-xs font-medium lg:text-sm">' + label + '</span><span class="mt-1 hidden text-xs text-zinc-400 lg:block">' + step.detail + '</span></span>';
+          button.innerHTML = '<span class="flex size-7 shrink-0 items-center justify-center rounded border border-current/20 font-mono text-xs text-silver group-aria-[current=step]:border-accent group-aria-[current=step]:bg-accent group-aria-[current=step]:text-accent-ink">' + String(index + 1).padStart(2, '0') + '</span><span class="min-w-0"><span class="block text-xs font-medium lg:text-sm">' + label + '</span><span class="mt-1 hidden text-xs text-muted lg:block">' + step.detail + '</span></span>';
           button.addEventListener('click', () => setStep(index));
           return button;
         }));
@@ -330,9 +330,9 @@
       button.className = cardClass + (kind === 'launch' ? ' items-center' : ' flex-col items-start');
       button.setAttribute('aria-pressed', String(selected.has(item.value)));
       button.setAttribute('aria-label', item.label);
-      const artwork = '<img src="/icons/' + item.value + '.png" alt="" width="56" height="56" loading="lazy" decoding="async" class="size-14 shrink-0 object-contain">';
-      const selection = '<span class="shrink-0 text-xs font-medium text-zinc-400 group-aria-pressed:hidden">Select</span><span class="hidden shrink-0 text-xs font-semibold text-zinc-100 group-aria-pressed:inline">Selected</span>';
-      button.innerHTML = (kind === 'launch' ? artwork : '<span class="flex w-full items-start justify-between gap-3">' + artwork + selection + '</span>') + '<span class="block w-full min-w-0 flex-1"><span class="block text-sm font-semibold text-zinc-200">' + item.label + '</span><span class="mt-2 block text-xs leading-5 text-zinc-400">' + item.hint + '</span>' + (item.package ? '<span class="mt-3 block truncate font-mono text-xs text-zinc-400">' + item.package + '</span>' : '') + '</span>' + (kind === 'launch' ? selection : '');
+      const artwork = '<span class="flex size-16 shrink-0 items-center justify-center rounded bg-silver/10"><img src="/icons/' + item.value + '.png" alt="" width="56" height="56" loading="lazy" decoding="async" class="size-14 object-contain"></span>';
+      const selection = '<span class="shrink-0 text-xs font-medium text-muted group-aria-pressed:hidden">Select</span><span class="hidden shrink-0 text-xs font-semibold text-accent group-aria-pressed:inline">Selected</span>';
+      button.innerHTML = (kind === 'launch' ? artwork : '<span class="flex w-full items-start justify-between gap-3">' + artwork + selection + '</span>') + '<span class="block w-full min-w-0 flex-1"><span class="block text-sm font-semibold text-ink">' + item.label + '</span><span class="mt-2 block text-xs leading-5 text-muted">' + item.hint + '</span>' + (item.package ? '<span class="mt-3 block truncate font-mono text-xs text-silver">' + item.package + '</span>' : '') + '</span>' + (kind === 'launch' ? selection : '');
       button.querySelector('img').addEventListener('error', (event) => { event.currentTarget.hidden = true; console.error('setup artwork could not load', item.value); });
       button.addEventListener('click', () => {
         if (busy || finished) return;
@@ -405,7 +405,7 @@
     function treeMarkup(tree, parent = '') {
       return Object.entries(tree).sort(([a, av], [b, bv]) => Number(bv !== null) - Number(av !== null) || a.localeCompare(b)).map(([name, children]) => {
         const key = parent + '/' + name;
-        if (children !== null) return '<li><details open data-folder-path="' + escapeText(key) + '"><summary class="cursor-pointer list-none rounded py-1 font-medium text-zinc-300 hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-zinc-300 [&::-webkit-details-marker]:hidden">' + escapeText(name) + '/</summary><ul class="ml-3 border-l border-zinc-800 pl-4">' + treeMarkup(children, key) + '</ul></details></li>';
+        if (children !== null) return '<li><details open data-folder-path="' + escapeText(key) + '"><summary class="cursor-pointer list-none rounded py-1 font-semibold text-paper-ink hover:text-paper-ink hover:underline focus-visible:outline-2 focus-visible:outline-paper-ink [&::-webkit-details-marker]:hidden">' + escapeText(name) + '/</summary><ul class="ml-3 border-l border-paper-rule pl-4">' + treeMarkup(children, key) + '</ul></details></li>';
         return '<li class="break-all py-1">' + escapeText(name) + '</li>';
       }).join('');
     }
@@ -413,8 +413,8 @@
       const name = $('project-name-input').value.trim();
       $('project-name').textContent = name || 'your-project';
       $('preview-project-name').textContent = name || 'Your project';
-      $('side-packages').innerHTML = selectedPackages.size + '<span class="ml-1 text-xs font-normal text-zinc-400">selected</span>';
-      $('side-structure').innerHTML = selectedStructure.size + '<span class="ml-1 text-xs font-normal text-zinc-400">items</span>';
+      $('side-packages').innerHTML = selectedPackages.size + '<span class="ml-1 text-xs font-normal text-paper-muted">selected</span>';
+      $('side-structure').innerHTML = selectedStructure.size + '<span class="ml-1 text-xs font-normal text-paper-muted">items</span>';
       $('side-launch').textContent = selectedLaunch.has('runDevServer') ? 'localhost:' + ($('dev-port').value || '5173') : 'Manual start';
       const closed = new Set([...$('tree-preview').querySelectorAll('details:not([open])')].map((folder) => folder.dataset.folderPath));
       $('tree-preview').innerHTML = '<ul>' + treeMarkup(plannedTree()) + '</ul>';
@@ -423,12 +423,12 @@
     function renderFiles() {
       $('created-files-list').replaceChildren(...createdFiles.map((file, index) => {
         const row = document.createElement('li');
-        row.className = 'flex items-center gap-2 rounded border border-zinc-800 bg-zinc-950 px-3 py-1.5';
+        row.className = 'flex items-center gap-2 rounded border border-line bg-canvas px-3 py-1.5';
         const name = 'src/' + file.folder + '/' + file.name + file.ext;
-        row.innerHTML = '<span class="min-w-0 flex-1 break-all font-mono text-xs text-zinc-400">' + escapeText(name) + '</span>';
+        row.innerHTML = '<span class="min-w-0 flex-1 break-all font-mono text-xs text-muted">' + escapeText(name) + '</span>';
         const remove = document.createElement('button');
         remove.type = 'button';
-        remove.className = 'flex h-9 shrink-0 items-center justify-center rounded px-2 text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:outline-2 focus-visible:outline-zinc-300';
+        remove.className = 'flex h-9 shrink-0 items-center justify-center rounded px-2 text-xs font-medium text-soft hover:bg-raised hover:text-ink focus-visible:outline-2 focus-visible:outline-accent';
         remove.setAttribute('aria-label', 'Remove ' + name);
         remove.textContent = 'Remove';
         remove.addEventListener('click', () => {

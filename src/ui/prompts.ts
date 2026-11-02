@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import stringWidth from 'string-width'
 import { accent, muted, strong, section } from './banner.js'
 import { OptionChoice, PromptMultiselectOptions, PromptConfirmOptions, PromptTextOptions } from '../types/index.js'
 
@@ -26,8 +27,38 @@ export const renderSelectOption = ({ option, selected, active }: RenderOptionPar
   return `${cursor}${box} ${label}${hint}`
 }
 
+export const getTerminalRows = (): number => {
+  return process.stdout.rows && process.stdout.rows > 0 ? process.stdout.rows : 24
+}
+
+export const getTerminalColumns = (): number => {
+  return process.stdout.columns && process.stdout.columns > 0 ? process.stdout.columns : 80
+}
+
+// measure rendered rows accounting for terminal column wrapping
+export const countRenderedRows = (lines: string[], columns: number = getTerminalColumns()): number => {
+  if (!columns || columns <= 0) return lines.length
+  let total = 0
+  for (const line of lines) {
+    const width = stringWidth(line)
+    total += width === 0 ? 1 : Math.max(1, Math.ceil(width / columns))
+  }
+  return total
+}
+
+// clear from the first rendered row to the bottom without leaving orphan lines
+export const clearPrompt = (renderedRows: number): void => {
+  if (renderedRows <= 0) return
+  if (renderedRows === 1) {
+    process.stdout.write('\r\x1b[J')
+  } else {
+    process.stdout.write(`\r\x1b[${renderedRows - 1}A\x1b[J`)
+  }
+}
+
 export const clearLines = (count: number): void => {
-  process.stdout.write(`\x1b[${count}A\x1b[J`)
+  if (count <= 0) return
+  process.stdout.write(`\r\x1b[${count}A\x1b[J`)
 }
 
 export interface ProgressStep {
@@ -59,7 +90,8 @@ export const createProgress = (steps: ProgressStep[]) => {
 
     lines.push(`${bar} ${strong(`${pct}%`)}`)
     process.stdout.write(`${lines.join('\n')}\n`)
-    renderedLines = lines.length
+    const cols = getTerminalColumns()
+    renderedLines = countRenderedRows(lines, cols)
   }
 
   return {
@@ -108,33 +140,78 @@ export const customMultiselect = async ({
 
   return new Promise((resolve) => {
     let cursorIndex = 0
+    let startIndex = 0
     const selected = new Set<string>(initialValues)
     let renderedLines = 0
 
     const render = () => {
       if (renderedLines > 0) {
-        clearLines(renderedLines)
+        clearPrompt(renderedLines)
       }
+
+      const rows = getTerminalRows()
+      const cols = getTerminalColumns()
+
+      // clamp visible options so the prompt fits the terminal viewport
+      const maxVisible = Math.max(1, Math.min(options.length, rows <= 4 ? 1 : rows - 4))
+
+      // adjust window so active cursor stays within view
+      if (cursorIndex < startIndex) {
+        startIndex = cursorIndex
+      } else if (cursorIndex >= startIndex + maxVisible) {
+        startIndex = cursorIndex - maxVisible + 1
+      }
+      startIndex = Math.max(0, Math.min(startIndex, Math.max(0, options.length - maxVisible)))
+      const endIndex = Math.min(options.length, startIndex + maxVisible)
 
       const lines: string[] = []
 
       lines.push(`${accent('◆')} ${strong(message || 'Select options:')}`)
 
-      for (let i = 0; i < options.length; i++) {
+      for (let i = startIndex; i < endIndex; i++) {
         const option = options[i]
         const isSelected = selected.has(option.value)
         const isActive = i === cursorIndex
         lines.push(renderSelectOption({ option, selected: isSelected, active: isActive }))
       }
 
-      lines.push(muted('  (space to toggle, a to toggle all, enter to confirm)'))
+      const hasHiddenAbove = startIndex > 0
+      const hasHiddenBelow = endIndex < options.length
 
-      process.stdout.write(lines.join('\n') + '\n')
-      renderedLines = lines.length
+      if (rows > 3) {
+        if (hasHiddenAbove && hasHiddenBelow) {
+          const aboveCount = startIndex
+          const belowCount = options.length - endIndex
+          lines.push(muted(`  (↑ ${aboveCount} more · ↓ ${belowCount} more · space to toggle, enter to confirm)`))
+        } else if (hasHiddenBelow) {
+          const belowCount = options.length - endIndex
+          lines.push(muted(`  (↓ ${belowCount} more below · space to toggle, a to toggle all, enter to confirm)`))
+        } else if (hasHiddenAbove) {
+          const aboveCount = startIndex
+          lines.push(muted(`  (↑ ${aboveCount} more above · space to toggle, a to toggle all, enter to confirm)`))
+        } else {
+          lines.push(muted('  (space to toggle, a to toggle all, enter to confirm)'))
+        }
+      }
+
+      process.stdout.write(lines.join('\n'))
+      renderedLines = countRenderedRows(lines, cols)
     }
 
+    // adapt prompt window when terminal is resized
+    const onResize = () => {
+      render()
+    }
+    if (process.stdout && typeof process.stdout.on === 'function') {
+      process.stdout.on('resize', onResize)
+    }
+
+    // restore cursor and cleanup listeners
     const cleanup = () => {
       process.stdin.removeListener('keypress', onKeyPress)
+      if (process.stdout && typeof process.stdout.removeListener === 'function') {
+        process.stdout.removeListener('resize', onResize)
+      }
       if (process.stdin.isTTY) {
         process.stdin.setRawMode(false)
       }
@@ -156,6 +233,22 @@ export const customMultiselect = async ({
       } else if (key && (key.name === 'down' || key.name === 'j')) {
         cursorIndex = cursorIndex === options.length - 1 ? 0 : cursorIndex + 1
         render()
+      } else if (key && (key.name === 'pageup')) {
+        const rows = getTerminalRows()
+        const maxVisible = Math.max(1, Math.min(options.length, rows <= 4 ? 1 : rows - 4))
+        cursorIndex = Math.max(0, cursorIndex - maxVisible)
+        render()
+      } else if (key && (key.name === 'pagedown')) {
+        const rows = getTerminalRows()
+        const maxVisible = Math.max(1, Math.min(options.length, rows <= 4 ? 1 : rows - 4))
+        cursorIndex = Math.min(options.length - 1, cursorIndex + maxVisible)
+        render()
+      } else if (key && (key.name === 'home')) {
+        cursorIndex = 0
+        render()
+      } else if (key && (key.name === 'end')) {
+        cursorIndex = options.length - 1
+        render()
       } else if ((key && key.name === 'space') || _str === ' ') {
         const val = options[cursorIndex].value
         if (selected.has(val)) {
@@ -174,7 +267,7 @@ export const customMultiselect = async ({
       } else if (key && (key.name === 'return' || key.name === 'enter') || _str === '\r' || _str === '\n') {
         cleanup()
         if (renderedLines > 0) {
-          clearLines(renderedLines)
+          clearPrompt(renderedLines)
         }
         const selectedList = Array.from(selected)
         const selectedLabels = options
